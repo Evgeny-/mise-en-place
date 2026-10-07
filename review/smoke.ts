@@ -1,0 +1,16 @@
+import * as THREE from 'three';
+import { createRenderer, addStudioLights } from '../src/render/stage';
+const el = document.getElementById('c')!;
+const r = createRenderer(el);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#f3e6cf');
+addStudioLights(r, scene);
+const cam = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 100);
+cam.position.set(0, 3, 4); cam.lookAt(0, 0.4, 0);
+const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, 48, 32), new THREE.MeshStandardMaterial({ color: '#e8473c', roughness: 0.35 }));
+m.position.y = 0.5; m.castShadow = true; scene.add(m);
+const g = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.MeshStandardMaterial({ color: '#e9d2a8' }));
+g.rotation.x = -Math.PI / 2; g.receiveShadow = true; scene.add(g);
+r.setSize(innerWidth, innerHeight);
+r.render(scene, cam);
+document.title = 'ready';

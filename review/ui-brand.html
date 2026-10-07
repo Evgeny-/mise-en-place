@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mise en Place: brand options</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 26px; background: #e9e2d6; font: 15px/1.45 system-ui; color: #2a2420; }
+  h1 { margin: 0 0 4px; font-size: 24px; }
+  h2 { margin: 26px 0 10px; font-size: 19px; }
+  p.lead { margin: 0 0 18px; color: #5a5048; max-width: 900px; }
+  .row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .opt { display: flex; flex-direction: column; gap: 8px; }
+  .opt b { font-size: 15px; }
+  .opt small { color: #6a6058; max-width: 330px; }
+  .pick { outline: 4px solid #3f9a52; outline-offset: 6px; border-radius: 26px; }
+  .frame { position: relative; width: 330px; height: 420px; border-radius: 26px; overflow: hidden; box-shadow: 0 0 0 1px #0002; }
+  .frame.dark { color-scheme: dark; }
+  .icons { display: flex; gap: 14px; align-items: flex-end; padding: 16px; border-radius: 18px; background: #fbf3e4; }
+  .icons.dark { background: #1c1925; }
+  .icons figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: #8a7e72; }
+  .icons img, .icons svg { display: block; }
+  .px16 { width: 16px; height: 16px; image-rendering: pixelated; }
+  .verdict { margin-top: 14px; padding: 12px 16px; border-radius: 14px; background: #fff; max-width: 900px; }
+</style>
+<!-- the loader's own CSS, exactly as it ships inline in index.html -->
+<style id="boot-css">
+  .boot { --paper: #fbf3e4; --ink: #3b2a20; --ink-2: #7c5e49; position: absolute; inset: 0; z-index: 200; display: grid; place-items: center; align-content: center; gap: 6px; padding-bottom: min(22vh, 150px); transition: opacity .4s;
+    background: radial-gradient(circle at 50% 40%, #fffaf0 0, #fbf3e4 45%, #f3e1c4 100%); color: var(--ink); font-family: 'Vollkorn Variable', Vollkorn, Georgia, serif; overflow: hidden; }
+  .boot.out { opacity: 0; pointer-events: none; }
+  .boot::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: min(20%, 140px);
+    background: linear-gradient(90deg, rgba(255,250,240,.75) 2px, transparent 2px) 0 0 / 34px 34px, linear-gradient(rgba(255,250,240,.75) 2px, transparent 2px) 0 0 / 34px 34px, #efb68c;
+    border-top: 3px solid var(--ink); opacity: .55; }
+  .boot-art { position: relative; z-index: 1; width: 264px; height: 209px; overflow: visible; }
+  .boot-title { position: relative; z-index: 1; margin: 2px 0 0; font-size: 36px; font-weight: 900; line-height: 1; letter-spacing: .5px; white-space: nowrap; }
+  .boot-title span { display: inline-block; animation: boot-settle .7s cubic-bezier(.2, 1.6, .4, 1) both; animation-delay: calc(.25s + var(--i) * 45ms); }
+  .boot-sub { position: relative; z-index: 1; margin: 6px 0 0; font: 700 11px/1 'Jost Variable', Jost, system-ui, sans-serif; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-2); min-height: 11px; }
+  @keyframes boot-settle { from { opacity: 0; transform: translateY(-26px) rotate(-8deg); } }
+  .boot g, .boot path, .boot ellipse, .boot circle { transform-box: fill-box; }
+  /* A: two tomatoes drop onto the plate and puff into sauce */
+  .boot .tom { transform-origin: 50% 100%; }
+  .boot .t1 { animation: t1 3.4s cubic-bezier(.4, 0, .2, 1) infinite; }
+  .boot .t2 { animation: t2 3.4s cubic-bezier(.4, 0, .2, 1) infinite; }
+  @keyframes t1 { 0% { transform: translate(0, -170px); opacity: 1; } 11% { transform: translate(0, 0) scale(1.12, .84); } 16% { transform: translate(0, -12px) scale(.96, 1.05); } 20%, 34% { transform: translate(0, 0) scale(1); }
+    44% { transform: translate(24px, 0) scale(.75); opacity: 1; } 46%, 100% { transform: translate(24px, 0) scale(.4); opacity: 0; } }
+  @keyframes t2 { 0%, 14% { transform: translate(0, -170px); opacity: 1; } 25% { transform: translate(0, 0) scale(1.12, .84); } 30% { transform: translate(0, -12px) scale(.96, 1.05); } 34% { transform: translate(0, 0) scale(1); }
+    44% { transform: translate(-24px, 0) scale(.75); opacity: 1; } 46%, 100% { transform: translate(-24px, 0) scale(.4); opacity: 0; } }
+  .boot .puff { transform-origin: 50% 60%; animation: puff 3.4s ease-out infinite; }
+  @keyframes puff { 0%, 42% { transform: scale(.2); opacity: 0; } 47% { opacity: 1; } 58% { transform: scale(1.25); opacity: 0; } 100% { opacity: 0; } }
+  .boot .pot { transform-origin: 50% 100%; animation: pot 3.4s cubic-bezier(.2, 1.5, .4, 1) infinite; }
+  @keyframes pot { 0%, 46% { transform: scale(0); opacity: 0; } 54% { transform: scale(1.08); opacity: 1; } 60%, 90% { transform: scale(1); opacity: 1; } 97%, 100% { transform: scale(.9) translateY(4px); opacity: 0; } }
+  .boot .steam { stroke-dasharray: 26; animation: steam 3.4s ease-in-out infinite; }
+  .boot .steam:nth-of-type(2) { animation-delay: .15s; }
+  .boot .steam:nth-of-type(3) { animation-delay: .3s; }
+  @keyframes steam { 0%, 56% { stroke-dashoffset: 26; opacity: 0; transform: translateY(6px); } 70% { stroke-dashoffset: 0; opacity: .9; } 90% { opacity: .9; transform: translateY(-6px); } 100% { opacity: 0; transform: translateY(-10px); } }
+  /* B: mise en place, ingredients hop into their bowls */
+  .boot .hop { transform-origin: 50% 100%; animation: hop 3.6s cubic-bezier(.3, 0, .3, 1) infinite; animation-delay: calc(var(--k) * .32s); }
+  @keyframes hop { 0% { transform: translate(var(--dx), -150px) rotate(-30deg); opacity: 0; } 4% { opacity: 1; } 18% { transform: translate(0, 0) rotate(0) scale(1.1, .86); } 24% { transform: translate(0, -8px) scale(.97, 1.04); } 28%, 82% { transform: translate(0, 0); opacity: 1; } 92%, 100% { transform: translate(0, 0) scale(.6); opacity: 0; } }
+  .boot .bowl { transform-origin: 50% 100%; animation: bowl 3.6s ease-in-out infinite; animation-delay: calc(var(--k) * .32s); }
+  @keyframes bowl { 0%, 16% { transform: none; } 20% { transform: scale(1.08, .9); } 26%, 100% { transform: none; } }
+  /* C: order up, the cloche lifts off a steaming pizza */
+  .boot .cloche { transform-origin: 85% 100%; animation: cloche 3.2s cubic-bezier(.5, 0, .3, 1) infinite; }
+  @keyframes cloche { 0%, 22% { transform: none; } 30% { transform: rotate(-4deg); } 34% { transform: rotate(3deg); } 38% { transform: none; } 52%, 80% { transform: translate(28px, -64px) rotate(28deg); } 94%, 100% { transform: none; } }
+  .boot .shine { animation: shine 3.2s ease-out infinite; transform-origin: 50% 50%; }
+  @keyframes shine { 0%, 46% { opacity: 0; transform: scale(.5); } 56% { opacity: 1; transform: scale(1.1); } 78% { opacity: .8; } 90%, 100% { opacity: 0; transform: scale(1.2); } }
+  @media (prefers-reduced-motion: reduce) {
+    .boot *, .boot *::before { animation: none !important; }
+    .boot .t1, .boot .t2, .boot .puff, .boot .steam, .boot .shine { opacity: 0; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .boot { --paper: #2f2a3a; --ink: #f7ecdb; --ink-2: #cfc1b0; background: radial-gradient(circle at 50% 40%, #3b3448 0, #2f2a3a 45%, #221e2b 100%); }
+    .boot::after { opacity: .3; border-color: #120f1a; }
+    .boot .ol { stroke: #120f1a; }
+  }
+  html.night .boot { --paper: #2f2a3a; --ink: #f7ecdb; --ink-2: #cfc1b0; background: radial-gradient(circle at 50% 40%, #3b3448 0, #2f2a3a 45%, #221e2b 100%); }
+  html.night .boot::after { opacity: .3; border-color: #120f1a; }
+</style>
+</head>
+<body>
+<h1>Mise en Place: loading screen and app icon</h1>
+<p class="lead">Three living loaders (pure inline SVG + CSS, shown before any script or font loads) and three app marks shown at 180, 64, 32 and 16 px. The pick is outlined in green; reasons are at the bottom and in docs/ui-style.md.</p>
+
+<h2>Loading screen</h2>
+<div class="row" id="loaders"></div>
+<h2>Night</h2>
+<div class="row" id="loaders-night"></div>
+
+<h2>App icon / favicon</h2>
+<div class="row" id="icons"></div>
+
+<div class="verdict" id="verdict"></div>
+
+<script>
+const INK = '#3b2a20';
+const ol = `class="ol" stroke="${INK}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"`;
+const tomato = (cx, cy, r = 21) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#e8553f" ${ol}/>
+  <ellipse cx="${cx - r * .38}" cy="${cy - r * .35}" rx="${r * .26}" ry="${r * .16}" fill="#fff" opacity=".55" transform="rotate(-30 ${cx - r * .38} ${cy - r * .35})"/>
+  <path d="M${cx} ${cy - r + 2}l-7 -5 4 7 -9 0 9 3 -3 7 6 -6 6 6 -3 -7 9 -3 -9 0 4 -7z" fill="#5bb062" ${ol} stroke-width="2"/>`;
+const plate = (cx, cy, rx = 68) => `<ellipse cx="${cx}" cy="${cy + 4}" rx="${rx}" ry="13" fill="#3b2a20" opacity=".18"/><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="13" fill="#fffaf0" ${ol}/><ellipse cx="${cx}" cy="${cy - 1}" rx="${rx * .7}" ry="8" fill="none" stroke="#e8d8bc" stroke-width="2"/>`;
+
+const LOADERS = {
+  A: {
+    name: 'A · Two tomatoes make sauce',
+    note: 'The game’s own rule as a 3-second loop: two tomatoes drop on the plate, squash, roll together and puff into a pot of sauce that steams.',
+    art: `<svg class="boot-art" viewBox="0 0 240 190" aria-hidden="true">
+      ${plate(120, 160)}
+      <g class="tom t1"><g>${tomato(92, 135)}</g></g>
+      <g class="tom t2"><g>${tomato(148, 135)}</g></g>
+      <g class="puff"><g fill="#fffaf0" ${ol}><circle cx="100" cy="128" r="16"/><circle cx="140" cy="128" r="16"/><circle cx="120" cy="114" r="20"/><circle cx="120" cy="136" r="16"/></g></g>
+      <g class="pot">
+        <path d="M78 122h84v18a20 20 0 0 1-20 20h-44a20 20 0 0 1-20-20Z" fill="#dcd6cc" ${ol}/>
+        <ellipse cx="120" cy="122" rx="42" ry="9" fill="#e04e39" ${ol}/>
+        <ellipse cx="108" cy="120" rx="9" ry="3" fill="#ff8a70" opacity=".8"/>
+        <path d="M162 128h18" ${ol} stroke-width="6"/><path d="M162 128h18" stroke="#c9a27a" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M118 117l-4-4 5 1 1-5 2 5 5-1-4 4" fill="#5bb062" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
+      </g>
+      <g fill="none" stroke="#cdbfae" stroke-width="3.5" stroke-linecap="round">
+        <path class="steam" d="M104 102c-6-7 6-11 0-19"/><path class="steam" d="M120 98c-6-7 6-11 0-19"/><path class="steam" d="M136 102c-6-7 6-11 0-19"/>
+      </g>
+    </svg>`,
+  },
+  B: {
+    name: 'B · Mise en place',
+    note: 'Three prep bowls on the board; a tomato, a basil leaf and a wedge of cheese hop into them one by one, each bowl squashing as it lands.',
+    art: `<svg class="boot-art" viewBox="0 0 240 190" aria-hidden="true">
+      <rect x="22" y="148" width="196" height="24" rx="12" fill="#e2ad72" ${ol}/><path d="M40 160h60M120 157h70" stroke="#c99358" stroke-width="2" stroke-linecap="round"/>
+      ${[[64, 0, '#e8553f'], [120, 1, '#5bb062'], [176, 2, '#f7c548']].map(([x, k, c]) => `
+        <g class="bowl" style="--k:${k}"><path d="M${x - 28} 128h56a28 22 0 0 1-56 0Z" fill="#fffaf0" ${ol}/><ellipse cx="${x}" cy="128" rx="28" ry="6" fill="${c}" opacity=".25"/></g>`).join('')}
+      <g class="hop" style="--k:0; --dx:-40px">${tomato(64, 116, 16)}</g>
+      <g class="hop" style="--k:1; --dx:0px"><path d="M104 122c4-18 22-24 34-20-2 14-16 24-34 20Z" fill="#5bb062" ${ol}/><path d="M108 120c8-6 16-10 26-15" stroke="${INK}" stroke-width="2" fill="none" stroke-linecap="round"/></g>
+      <g class="hop" style="--k:2; --dx:40px"><path d="M158 124l30-8 2-14-32 6Z" fill="#f7c548" ${ol}/><circle cx="170" cy="114" r="2.5" fill="#e0a92a"/><circle cx="181" cy="110" r="2" fill="#e0a92a"/></g>
+    </svg>`,
+  },
+  C: {
+    name: 'C · Order up',
+    note: 'A cloche on a plate wobbles, lifts and tips back to reveal a pizza with a sparkle, then settles again.',
+    art: `<svg class="boot-art" viewBox="0 0 240 190" aria-hidden="true">
+      ${plate(120, 160, 80)}
+      <circle cx="120" cy="148" r="42" fill="#f3c57a" ${ol}/><circle cx="120" cy="148" r="33" fill="#e04e39"/>
+      <g fill="#fffaf0"><circle cx="106" cy="142" r="7"/><circle cx="132" cy="140" r="6"/><circle cx="122" cy="158" r="7"/></g>
+      <g fill="#5bb062"><path d="M112 152l6-3-2 6z"/><path d="M134 152l6-2-3 5z"/></g>
+      <g class="shine" fill="#f7c548" ${ol} stroke-width="2"><path d="M70 104c1 9 3 11 12 12-9 1-11 3-12 12-1-9-3-11-12-12 9-1 11-3 12-12Z"/><path d="M172 92c1 7 2 8 9 9-7 1-8 2-9 9-1-7-2-8-9-9 7-1 8-2 9-9Z"/></g>
+      <g class="cloche"><path d="M68 152a52 52 0 0 1 104 0Z" fill="#dcd6cc" ${ol}/><path d="M88 128a34 34 0 0 1 18-18" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" opacity=".8"/><circle cx="120" cy="96" r="7" fill="#c9a27a" ${ol}/><rect x="62" y="150" width="116" height="7" rx="3.5" fill="#cfc7bb" ${ol}/></g>
+    </svg>`,
+  },
+};
+
+const title = (text) => [...text].map((c, i) => `<span style="--i:${i}">${c === ' ' ? '&nbsp;' : c}</span>`).join('');
+function loader(key, dark) {
+  const L = LOADERS[key];
+  return `<div class="opt${key === 'A' ? ' pick' : ''}"><div class="frame${dark ? ' dark' : ''}"><div class="boot" ${dark ? 'style="--paper:#2f2a3a;--ink:#f7ecdb;--ink-2:#cfc1b0;background:radial-gradient(circle at 50% 40%,#3b3448 0,#2f2a3a 45%,#221e2b 100%)"' : ''}>${L.art}<h1 class="boot-title">${title('Mise en Place')}</h1><p class="boot-sub">Warming up the kitchen…</p></div></div>${dark ? '' : `<b>${L.name}</b><small>${L.note}</small>`}</div>`;
+}
+document.getElementById('loaders').innerHTML = Object.keys(LOADERS).map((k) => loader(k, false)).join('');
+document.getElementById('loaders-night').innerHTML = Object.keys(LOADERS).map((k) => loader(k, true)).join('');
+
+// ---------------------------------------------------------------- icons (96 x 96, background #icon-background rx 22)
+const I = '#3b2a20';
+const ICONS = {
+  1: {
+    name: '1 · The toque',
+    note: 'A chef’s toque on tomato red. The boldest silhouette at 16 px, but it says “cooking”, not this game.',
+    svg: `<rect id="icon-background" width="96" height="96" rx="22" fill="#e04e39"/><g id="icon-art">
+      <path d="M28 64V52a14 14 0 0 1-2-27 17 17 0 0 1 22-8 17 17 0 0 1 22 8 14 14 0 0 1-2 27v12Z" fill="#fffaf0" stroke="${I}" stroke-width="5" stroke-linejoin="round"/>
+      <rect x="28" y="64" width="40" height="15" rx="4" fill="#f3e3c4" stroke="${I}" stroke-width="5"/><path d="M40 52v12M56 52v12" stroke="${I}" stroke-width="4" stroke-linecap="round"/></g>`,
+  },
+  2: {
+    name: '2 · Three prep bowls',
+    note: 'Mise en place itself: tomato, basil and butter-yellow bowls. Distinctive, but at 16 px it is three coloured dots.',
+    svg: `<rect id="icon-background" width="96" height="96" rx="22" fill="#fbf3e4"/><g id="icon-art">
+      ${[[30, 36, '#e8553f'], [66, 36, '#5bb062'], [48, 66, '#f7c548']].map(([x, y, c]) => `<circle cx="${x}" cy="${y}" r="17" fill="#fffaf0" stroke="${I}" stroke-width="5"/><circle cx="${x}" cy="${y}" r="10" fill="${c}"/>`).join('')}</g>`,
+  },
+  3: {
+    name: '3 · Chef Tomato',
+    note: 'A tomato wearing the toque, a little character for the game. Red ball, white hat: unmistakable at 16 px, warm and cute at 180.',
+    svg: `<rect id="icon-background" width="96" height="96" rx="22" fill="#f7c548"/><g id="icon-art">
+      <ellipse cx="48" cy="84" rx="26" ry="5" fill="${I}" opacity=".18"/>
+      <circle cx="48" cy="58" r="26" fill="#e8553f" stroke="${I}" stroke-width="5"/>
+      <ellipse cx="36" cy="50" rx="6" ry="4" fill="#fff" opacity=".55" transform="rotate(-30 36 50)"/>
+      <circle cx="39" cy="61" r="3.6" fill="${I}"/><circle cx="57" cy="61" r="3.6" fill="${I}"/>
+      <path d="M42 70q6 5 12 0" fill="none" stroke="${I}" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M30 37V29a10 10 0 0 1-1-19 12 12 0 0 1 19-5 12 12 0 0 1 19 5 10 10 0 0 1-1 19v8Z" fill="#fffaf0" stroke="${I}" stroke-width="5" stroke-linejoin="round" transform="translate(0 2)"/>
+      <path d="M30 39h36" stroke="${I}" stroke-width="5" stroke-linecap="round"/></g>`,
+  },
+};
+const svgOf = (k) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">${ICONS[k].svg}</svg>`;
+const dataUrl = (k) => 'data:image/svg+xml;utf8,' + encodeURIComponent(svgOf(k));
+function iconRow(k, dark) {
+  const sizes = [180, 64, 32, 16];
+  return `<div class="icons${dark ? ' dark' : ''}">${sizes.map((s) => `<figure><img src="${dataUrl(k)}" width="${s}" height="${s}" alt="">${s}</figure>`).join('')}</div>`;
+}
+document.getElementById('icons').innerHTML = Object.keys(ICONS).map((k) => `<div class="opt${k === '3' ? ' pick' : ''}">${iconRow(k, false)}${iconRow(k, true)}<b>${ICONS[k].name}</b><small>${ICONS[k].note}</small></div>`).join('');
+
+document.getElementById('verdict').innerHTML = `<b>Picks: loader A and icon 3.</b> The loader shows the puzzle’s one rule (two tomatoes make sauce) as a tiny story, so it teaches as it entertains, and it is the same ink-and-paper look as the game; B is calm but reads as decoration, C is a generic food-app moment. Chef Tomato is the only mark that is unmistakably this game at 16 px (a red ball under a white hat) and turns into a character at home-screen size; the toque alone is generic and the bowls collapse into dots.`;
+</script>
+</body>
+</html>

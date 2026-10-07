@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8"><title>music</title></head><body><script type="module">
+import { audio } from '../src/audio/audio.ts';
+const q = new URLSearchParams(location.search);
+audio.unlock();
+audio.setMusicVolume(1);
+audio.startMusic(Number(q.get("theme") ?? 0));
+const samples = [];
+const id = setInterval(() => samples.push(audio.level()), 100);
+setTimeout(() => {
+  clearInterval(id);
+  const rms = samples.map((s) => s.rms);
+  const peak = Math.max(...samples.map((s) => s.peak));
+  document.title = 'done';
+  document.body.textContent = JSON.stringify({ meanRms: rms.reduce((a, b) => a + b, 0) / rms.length, maxRms: Math.max(...rms), peak, n: samples.length });
+}, 6000);
+</script></body></html>

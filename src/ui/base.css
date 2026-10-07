@@ -1,0 +1,66 @@
+/* Mise en Place: "Carte du jour". Cream menu paper, espresso ink, a hearty serif. See docs/ui-style.md. */
+:root {
+  --serif: 'Vollkorn Variable', 'Vollkorn', Georgia, serif;
+  --font: 'Jost Variable', 'Jost', system-ui, sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* paper and ink */
+  --paper: #fbf3e4;
+  --paper-2: #f2e2c4;
+  --paper-hi: #fffaf0;
+  --ink: #3b2a20;
+  --ink-2: #7c5e49;
+  --rule: rgba(59, 42, 32, 0.32);
+  --edge: #3b2a20;
+  --shade: #3b2a20;
+  --on-color: #fff8ea;
+  --dim: rgba(43, 30, 22, 0.5);
+  --drop: 0 14px 30px rgba(59, 42, 32, 0.28);
+  --dots: rgba(59, 42, 32, 0.09);
+
+  /* the kitchen palette */
+  --tomato: #e04e39;
+  --basil: #3f9a52;
+  --cobalt: #2f6f8e;
+  --espresso: #4f3a2d;
+  --butter: #f7c548;
+  --gold: #f0ab2e;
+  --terracotta: #ec8a55;
+  --peach: #f9d3ae;
+
+  /* per kitchen (set by data-kitchen on #ui and on map sections) */
+  --accent: var(--tomato);
+  --accent-2: var(--basil);
+}
+[data-kitchen='trattoria'] { --accent: var(--tomato); --accent-2: var(--basil); }
+[data-kitchen='diner'] { --accent: #2fa38a; --accent-2: #e8484a; }
+[data-kitchen='taqueria'] { --accent: #2a9d8f; --accent-2: #f2a541; }
+
+/* Night: the same kitchen after hours, in plum dusk under warm lamps; the kitchen colours stay. */
+html.night {
+  --paper: #2f2a3a;
+  --paper-2: #25212f;
+  --paper-hi: #3b3448;
+  --ink: #f7ecdb;
+  --ink-2: #cfc1b0;
+  --rule: rgba(247, 236, 219, 0.28);
+  --edge: #ecdfca;
+  --shade: #120f1a;
+  --dim: rgba(12, 10, 22, 0.6);
+  --drop: 0 14px 30px rgba(0, 0, 0, 0.45);
+  --dots: rgba(247, 236, 219, 0.07);
+  --espresso: #6b5547;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #f3dcb8; font-family: var(--font); color: var(--ink); overscroll-behavior: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+html.night, html.night body { background: #1c1925; }
+#app { position: fixed; inset: 0; }
+#stage { position: absolute; inset: 0; }
+#stage canvas.gl { display: block; position: absolute; inset: 0; }
+#ui { position: absolute; inset: 0; pointer-events: none; }
+#ui > * { pointer-events: auto; }
+#ui > .hud, #ui > .toast { pointer-events: none; }
+button { font-family: var(--font); color: inherit; cursor: pointer; }
+.hidden { display: none !important; }

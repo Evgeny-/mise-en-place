@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <title>Mise en Place: a cozy kitchen puzzle</title>
+    <meta name="description" content="A cozy 3D kitchen puzzle. Take ingredients from the pantry, let them combine on the counter and serve every guest. No timers, just thinking." />
+    <meta name="theme-color" content="#f3dcb8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Mise en Place" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Mise en Place: a cozy kitchen puzzle" />
+    <meta property="og:description" content="Take ingredients, let them combine on the counter and feed every guest. No timers, just thinking." />
+    <meta property="og:image" content="og.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- the loading moment: inline, so it plays before any script, font or 3D loads (src/ui/loading.ts takes it over) -->
+    <style>
+  .boot { --paper: #fbf3e4; --ink: #3b2a20; --ink-2: #7c5e49; position: absolute; inset: 0; z-index: 200; display: grid; place-items: center; align-content: center; gap: 6px; padding-bottom: min(22vh, 150px); transition: opacity .4s;
+    background: radial-gradient(circle at 50% 40%, #fffaf0 0, #fbf3e4 45%, #f3e1c4 100%); color: var(--ink); font-family: 'Vollkorn Variable', Vollkorn, Georgia, serif; overflow: hidden; }
+  .boot.out { opacity: 0; pointer-events: none; }
+  .boot::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: min(20%, 140px);
+    background: linear-gradient(90deg, rgba(255,250,240,.75) 2px, transparent 2px) 0 0 / 34px 34px, linear-gradient(rgba(255,250,240,.75) 2px, transparent 2px) 0 0 / 34px 34px, #efb68c;
+    border-top: 3px solid var(--ink); opacity: .55; }
+  .boot-art { position: relative; z-index: 1; width: 264px; height: 209px; overflow: visible; }
+  .boot-title { position: relative; z-index: 1; margin: 2px 0 0; font-size: 36px; font-weight: 900; line-height: 1; letter-spacing: .5px; white-space: nowrap; }
+  .boot-title span { display: inline-block; animation: boot-settle .7s cubic-bezier(.2, 1.6, .4, 1) both; animation-delay: calc(.25s + var(--i) * 45ms); }
+  .boot-sub { position: relative; z-index: 1; margin: 6px 0 0; font: 700 11px/1 'Jost Variable', Jost, system-ui, sans-serif; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-2); min-height: 11px; }
+  @keyframes boot-settle { from { opacity: 0; transform: translateY(-26px) rotate(-8deg); } }
+  .boot g, .boot path, .boot ellipse, .boot circle { transform-box: fill-box; }
+  /* two tomatoes drop onto the plate and puff into sauce: the game's one rule */
+  .boot .tom { transform-origin: 50% 100%; }
+  .boot .t1 { animation: t1 3.4s cubic-bezier(.4, 0, .2, 1) infinite; }
+  .boot .t2 { animation: t2 3.4s cubic-bezier(.4, 0, .2, 1) infinite; }
+  @keyframes t1 { 0% { transform: translate(0, -170px); opacity: 1; } 11% { transform: translate(0, 0) scale(1.12, .84); } 16% { transform: translate(0, -12px) scale(.96, 1.05); } 20%, 34% { transform: translate(0, 0) scale(1); }
+    44% { transform: translate(24px, 0) scale(.75); opacity: 1; } 46%, 100% { transform: translate(24px, 0) scale(.4); opacity: 0; } }
+  @keyframes t2 { 0%, 14% { transform: translate(0, -170px); opacity: 1; } 25% { transform: translate(0, 0) scale(1.12, .84); } 30% { transform: translate(0, -12px) scale(.96, 1.05); } 34% { transform: translate(0, 0) scale(1); }
+    44% { transform: translate(-24px, 0) scale(.75); opacity: 1; } 46%, 100% { transform: translate(-24px, 0) scale(.4); opacity: 0; } }
+  .boot .puff { transform-origin: 50% 60%; animation: puff 3.4s ease-out infinite; }
+  @keyframes puff { 0%, 42% { transform: scale(.2); opacity: 0; } 47% { opacity: 1; } 58% { transform: scale(1.25); opacity: 0; } 100% { opacity: 0; } }
+  .boot .pot { transform-origin: 50% 100%; animation: pot 3.4s cubic-bezier(.2, 1.5, .4, 1) infinite; }
+  @keyframes pot { 0%, 46% { transform: scale(0); opacity: 0; } 54% { transform: scale(1.08); opacity: 1; } 60%, 90% { transform: scale(1); opacity: 1; } 97%, 100% { transform: scale(.9) translateY(4px); opacity: 0; } }
+  .boot .steam { stroke-dasharray: 26; animation: steam 3.4s ease-in-out infinite; }
+  .boot .steam:nth-of-type(2) { animation-delay: .15s; }
+  .boot .steam:nth-of-type(3) { animation-delay: .3s; }
+  @keyframes steam { 0%, 56% { stroke-dashoffset: 26; opacity: 0; transform: translateY(6px); } 70% { stroke-dashoffset: 0; opacity: .9; } 90% { opacity: .9; transform: translateY(-6px); } 100% { opacity: 0; transform: translateY(-10px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .boot *, .boot *::before { animation: none !important; }
+    .boot .t1, .boot .t2, .boot .puff, .boot .steam { opacity: 0; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .boot { --paper: #2f2a3a; --ink: #f7ecdb; --ink-2: #cfc1b0; background: radial-gradient(circle at 50% 40%, #3b3448 0, #2f2a3a 45%, #221e2b 100%); }
+    .boot::after { opacity: .3; border-color: #120f1a; }
+    .boot .ol { stroke: #120f1a; }
+  }
+  html.night .boot { --paper: #2f2a3a; --ink: #f7ecdb; --ink-2: #cfc1b0; background: radial-gradient(circle at 50% 40%, #3b3448 0, #2f2a3a 45%, #221e2b 100%); }
+  html.night .boot::after { opacity: .3; border-color: #120f1a; }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="stage"></div>
+      <div id="ui"></div>
+      <div id="boot" class="boot" role="status"><svg class="boot-art" viewBox="0 0 240 190" aria-hidden="true"><ellipse cx="120" cy="164" rx="68" ry="13" fill="#3b2a20" opacity=".18"></ellipse><ellipse cx="120" cy="160" rx="68" ry="13" fill="#fffaf0" class="ol" stroke="#3b2a20" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></ellipse><ellipse cx="120" cy="159" rx="47.6" ry="8" fill="none" stroke="#e8d8bc" stroke-width="2"></ellipse><g class="tom t1"><g><circle cx="92" cy="135" r="21" fill="#e8553f" class="ol" stroke="#3b2a20" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></circle><ellipse cx="84.02" cy="127.65" rx="5.46" ry="3.36" fill="#fff" opacity=".55" transform="rotate(-30 84.02 127.65)"></ellipse><path d="M92 116l-7 -5 4 7 -9 0 9 3 -3 7 6 -6 6 6 -3 -7 9 -3 -9 0 4 -7z" fill="#5bb062" class="ol" stroke="#3b2a20" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></path></g></g><g class="tom t2"><g><circle cx="148" cy="135" r="21" fill="#e8553f" class="ol" stroke="#3b2a20" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></circle><ellipse cx="140.02" cy="127.65" rx="5.46" ry="3.36" fill="#fff" opacity=".55" transform="rotate(-30 140.02 127.65)"></ellipse><path d="M148 116l-7 -5 4 7 -9 0 9 3 -3 7 6 -6 6 6 -3 -7 9 -3 -9 0 4 -7z" fill="#5bb062" class="ol" stroke="#3b2a20" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></path></g></g><g class="puff"><g fill="#fffaf0" class="ol" stroke="#3b2a20" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><circle cx="100" cy="128" r="16"></circle><circle cx="140" cy="128" r="16"></circle><circle cx="120" cy="114" r="20"></circle><circle cx="120" cy="136" r="16"></circle></g></g><g class="pot"><path d="M78 122h84v18a20 20 0 0 1-20 20h-44a20 20 0 0 1-20-20Z" fill="#dcd6cc" class="ol" stroke="#3b2a20" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></path><ellipse cx="120" cy="122" rx="42" ry="9" fill="#e04e39" class="ol" stroke="#3b2a20" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></ellipse><ellipse cx="108" cy="120" rx="9" ry="3" fill="#ff8a70" opacity=".8"></ellipse><path d="M162 128h18" class="ol" stroke="#3b2a20" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></path><path d="M162 128h18" stroke="#c9a27a" stroke-width="2.5" stroke-linecap="round"></path><path d="M118 117l-4-4 5 1 1-5 2 5 5-1-4 4" fill="#5bb062" stroke="#3b2a20" stroke-width="1.5" stroke-linejoin="round"></path></g><g fill="none" stroke="#cdbfae" stroke-width="3.5" stroke-linecap="round"><path class="steam" d="M104 102c-6-7 6-11 0-19"></path><path class="steam" d="M120 98c-6-7 6-11 0-19"></path><path class="steam" d="M136 102c-6-7 6-11 0-19"></path></g></svg><h1 class="boot-title"></h1><p class="boot-sub"></p></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

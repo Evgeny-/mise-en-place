@@ -1,0 +1,77 @@
+# Mise en Place — design
+
+## The core puzzle (world 1, Trattoria)
+
+- The **pantry** has a few columns of ingredients. Only the top item of a column can be taken.
+- A taken item lands on the **counter**, which has only a few spots.
+- The counter resolves by itself until nothing changes:
+  1. **Preps** fire first, one at a time, in menu order: tomato + tomato → sauce,
+     flour + egg → dough, onion + carrot → soffritto, basil + cheese → pesto, potato + flour →
+     gnocchi, mascarpone + egg → mascarpone cream. Two tomatoes *always* make sauce.
+  2. Only when no prep fires, **one dish** is served: the leftmost seated guest whose dish
+     parts are all on the counter. The next guest in line takes that seat and the counter
+     resolves again (a new guest can be served at once).
+- **Dishes (12, a new one every one or two levels at first):** spaghetti = pasta + sauce,
+  bruschetta = bread + a *raw* tomato, caprese = mozzarella + tomato + basil, pizza = dough + sauce +
+  cheese, omelette = egg + mushroom + cheese, risotto = rice + mushroom + cheese, pasta al pesto =
+  pasta + pesto, carbonara = pasta + egg + cheese + bacon, minestrone = soffritto + potato + a *raw*
+  tomato, gnocchi = gnocchi + sauce, calzone = dough + mozzarella + bacon, tiramisu = cream + coffee.
+  No dish holds both halves of a prep raw, and a prep only shows up on a level once it was taught.
+- **Menus vary:** a level mixes two or three dishes (banquets more), its orders spread evenly over
+  them, a new dish leads the level that introduces it, and neighbouring levels never serve the same
+  set. Every ladder row has a one-line hook (a new dish, a new reaction, a tighter counter, a lid).
+- **Landing rule:** a full counter still accepts an item that combines immediately; any other
+  column is shaded and can't be tapped. So you never lose to a misclick, only to planning.
+- Levels are **zero-waste**: every item is used, so a win always takes exactly as many moves
+  as there are items. Stuck = no column can be taken and guests are still waiting.
+
+Where the thinking comes from (measured in the design simulations):
+- the counter size (one spot fewer is the strongest dial),
+- tomato counting: a bruschetta, a caprese or a soup needs a lone raw tomato, a second tomato turns
+  it into sauce,
+- eggs compete: an egg next to flour becomes dough before an omelette, a carbonara or the
+  mascarpone cream can use it; basil next to the cheese becomes pesto; a potato next to flour
+  becomes gnocchi,
+- queued guests: items for a later order must wait on the counter,
+- lids: a column opens only after k dishes, which forces a serving order.
+
+Random levels are trivial, so every level is built around a known winning line, made tight,
+and kept only if simulated players find it as hard as its place in the campaign asks
+(see [difficulty.md](difficulty.md)).
+
+## Help without stress
+
+- Undo is free and unlimited; three stars need a clean run (no undo, no helpers).
+- Hint shows a safe column, or says how many moves back the kitchen was still winnable.
+- +Spot adds a counter spot for the rest of the level.
+- On the first levels the game gently says when a kitchen can no longer be finished.
+
+## Worlds (one new rule each)
+
+The campaign alternates the kitchens in **shifts of five levels** (src/core/shifts.ts): two
+Trattoria shifts, then the Burger Joint from level 11 and the Taquería from level 26 take turns,
+24 shifts in all. Each kitchen keeps its own ladder of 40 local levels (dishes, mechanics, tiers,
+targets), so its difficulty keeps climbing across its visits; every shift ends on its kitchen's
+hard level or banquet. Endless play keeps rotating the three kitchens in shifts.
+
+- **Burger Joint menu:** five stacked dishes under the same layer rules: burger (bun to bun), hot
+  dog (bun, sausage, toppings), pancakes (pancakes, butter or berries on top), club sandwich (toast
+  to toast: one toast fits two plates) and sundae (glass, scoops, cherry). Fillings are shared, so
+  the left plate still steals from the right one.
+- **Taquería menu:** five tacos and the quesadilla and tostada in tortillas (3 fillings), four
+  burritos and enchiladas in wraps (4 fillings). Each taco and its burrito share a colour on the
+  plate so they're told apart at a glance.
+
+| # | Kitchen | Rule change | You think about |
+|---|---|---|---|
+| 1 | Trattoria | items combine by themselves | which reactions to avoid |
+| 2 | Burger Joint | layers go on in order; the left plate gets first pick | reading columns as recipes |
+| 3 | Taquería | an open tortilla takes the next fillings | what a container will swallow |
+| 4 | Boulangerie | dough bakes in a 1–2 slot oven for a few moves | timing |
+| 5 | Wok Station | you choose where an item lands; only neighbours combine | placement |
+| 6 | Spice Market | any three different spices side by side make a blend | patterns, not recipes |
+| 7 | Cafeteria | crates with counts ride a belt past the pots | flow and capacity |
+| 8 | Dim Sum House | the table turns one notch per take | rotation |
+
+After world 8, "Chef's Table" levels combine two rules. Formats inside a world: a banquet
+every 10th level, chef's-choice tickets, mystery menus, a daily special.

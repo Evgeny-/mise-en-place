@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kitchen Sounds</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root { --bg: #f6e7cf; --card: #fffaf1; --ink: #2b2140; --muted: #7a6450; --accent: #e2483d; --line: #e6d3b3; --on: #2fa38a; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink); }
+    body { font: 600 14px/1.35 "Nunito Variable", system-ui, sans-serif; padding: 0 16px 40px; max-width: 1100px; margin: 0 auto; }
+    header { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 14px 0 10px; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; border-bottom: 1px solid var(--line); }
+    header h1 { margin: 0; font-size: 19px; }
+    header .hint { color: var(--muted); font-weight: 600; font-size: 12px; flex-basis: 100%; }
+    label.vol { display: flex; gap: 6px; align-items: center; color: var(--muted); }
+    label.vol input { width: 110px; accent-color: var(--accent); }
+    button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 10px; padding: 7px 11px; cursor: pointer; }
+    button:hover { border-color: var(--muted); }
+    button:active { transform: translateY(1px); }
+    button.on { background: var(--on); border-color: var(--on); color: white; }
+    button.mute.on { background: var(--accent); border-color: var(--accent); }
+    #meter { width: 120px; height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; }
+    #meter i { display: block; height: 100%; width: 0; background: var(--on); transition: width 80ms linear; }
+    h2 { font-size: 15px; margin: 22px 0 8px; }
+    h2 small { color: var(--muted); font-weight: 600; margin-left: 6px; }
+    .grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .grid button small { display: block; color: var(--muted); font-size: 11px; font-weight: 600; }
+    .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+    .theme { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+    .theme b { font-size: 14px; }
+    .theme .desc { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .theme .row { display: flex; gap: 6px; align-items: center; }
+    .theme .now { color: var(--muted); font-size: 12px; min-height: 16px; }
+    table { border-collapse: collapse; font-size: 12px; margin-top: 8px; background: var(--card); border-radius: 10px; overflow: hidden; }
+    td, th { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+    td:first-child, th:first-child { text-align: left; }
+    .warn { color: var(--accent); }
+    .wrap { overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Mise en Place · kitchen sounds</h1>
+    <button class="mute" id="mute">Mute</button>
+    <label class="vol">SFX <input id="sfx" type="range" min="0" max="1" step="0.05" value="0.8"></label>
+    <label class="vol">Music <input id="music" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+    <div id="meter"><i></i></div>
+    <span class="hint">Click anything to hear it. Volumes start at the game's defaults (SFX 80 %, music 50 %). Sounds with variants pick a different take each time.</span>
+  </header>
+  <main id="main"></main>
+  <script type="module" src="./audio.ts"></script>
+</body>
+</html>

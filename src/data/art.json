@@ -1,0 +1,294 @@
+{
+  "kitchens": {
+    "trattoria": {
+      "src": "art/kitchens/trattoria.webp",
+      "w": 768,
+      "h": 1024,
+      "bytes": 74626,
+      "color": "#d8b189",
+      "edge": "#fcebcb"
+    },
+    "diner": {
+      "src": "art/kitchens/diner.webp",
+      "w": 768,
+      "h": 1024,
+      "bytes": 57670,
+      "color": "#cfc5a2",
+      "edge": "#fbe7c3"
+    },
+    "taqueria": {
+      "src": "art/kitchens/taqueria.webp",
+      "w": 768,
+      "h": 1024,
+      "bytes": 115708,
+      "color": "#d2b696",
+      "edge": "#f5e4c5"
+    },
+    "bakery": {
+      "src": "art/kitchens/bakery.webp",
+      "w": 768,
+      "h": 1024,
+      "bytes": 65122,
+      "color": "#e0c0aa",
+      "edge": "#f5e5cc"
+    },
+    "wok": {
+      "src": "art/kitchens/wok.webp",
+      "w": 768,
+      "h": 1024,
+      "bytes": 74556,
+      "color": "#c99375",
+      "edge": "#f3dbb5"
+    },
+    "spice": {
+      "src": "art/kitchens/spice.webp",
+      "w": 768,
+      "h": 1024,
+      "bytes": 83626,
+      "color": "#cdac84",
+      "edge": "#f7e1bb"
+    },
+    "cafeteria": {
+      "src": "art/kitchens/cafeteria.webp",
+      "w": 768,
+      "h": 1024,
+      "bytes": 60516,
+      "color": "#dac1ae",
+      "edge": "#f7e4c7"
+    },
+    "dimsum": {
+      "src": "art/kitchens/dimsum.webp",
+      "w": 768,
+      "h": 1024,
+      "bytes": 71006,
+      "color": "#d6ab82",
+      "edge": "#f7e2c1"
+    }
+  },
+  "dishes": {
+    "pizza": {
+      "src": "art/dishes/pizza.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 38872,
+      "color": "#edc9a3",
+      "edge": "#fdf1da"
+    },
+    "spaghetti": {
+      "src": "art/dishes/spaghetti.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 33034,
+      "color": "#eed3b6",
+      "edge": "#fdf2dd"
+    },
+    "minestrone": {
+      "src": "art/dishes/minestrone.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 26528,
+      "color": "#e6c2a4",
+      "edge": "#fdf3df"
+    },
+    "omelette": {
+      "src": "art/dishes/omelette.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 30562,
+      "color": "#eedcb4",
+      "edge": "#fdf4dc"
+    },
+    "burger": {
+      "src": "art/dishes/burger.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 27864,
+      "color": "#e7caa3",
+      "edge": "#fdf4df"
+    },
+    "taco": {
+      "src": "art/dishes/taco.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 34520,
+      "color": "#ded2ad",
+      "edge": "#fdf1d7"
+    },
+    "croissant": {
+      "src": "art/dishes/croissant.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 22472,
+      "color": "#efd3b0",
+      "edge": "#fdf3df"
+    },
+    "friedrice": {
+      "src": "art/dishes/friedrice.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 41554,
+      "color": "#e6d0ab",
+      "edge": "#fbefd7"
+    },
+    "dumplings": {
+      "src": "art/dishes/dumplings.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 25682,
+      "color": "#edd3b5",
+      "edge": "#fdf1dc"
+    },
+    "curry": {
+      "src": "art/dishes/curry.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 27240,
+      "color": "#eacdaa",
+      "edge": "#fdf3dd"
+    },
+    "bruschetta": {
+      "src": "art/dishes/bruschetta.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 38810,
+      "color": "#eecbaa",
+      "edge": "#fdf4de"
+    },
+    "caprese": {
+      "src": "art/dishes/caprese.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 29688,
+      "color": "#edcdb4",
+      "edge": "#fdf1d9"
+    },
+    "risotto": {
+      "src": "art/dishes/risotto.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 36376,
+      "color": "#e5d4b9",
+      "edge": "#fdf2dd"
+    },
+    "pesto_pasta": {
+      "src": "art/dishes/pesto_pasta.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 41706,
+      "color": "#e3d8b2",
+      "edge": "#fdf3dd"
+    },
+    "carbonara": {
+      "src": "art/dishes/carbonara.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 33656,
+      "color": "#f1dab6",
+      "edge": "#fdf2db"
+    },
+    "gnocchi": {
+      "src": "art/dishes/gnocchi.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 35714,
+      "color": "#e7c4a3",
+      "edge": "#fdf4e1"
+    },
+    "calzone": {
+      "src": "art/dishes/calzone.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 24830,
+      "color": "#f3d6aa",
+      "edge": "#fdf3da"
+    },
+    "tiramisu": {
+      "src": "art/dishes/tiramisu.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 42136,
+      "color": "#dfc9b0",
+      "edge": "#fdf3dd"
+    },
+    "hotdog": {
+      "src": "art/dishes/hotdog.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 24424,
+      "color": "#f0d1ad",
+      "edge": "#fdf3dd"
+    },
+    "pancakes": {
+      "src": "art/dishes/pancakes.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 27218,
+      "color": "#eed1b1",
+      "edge": "#fdf5dd"
+    },
+    "sandwich": {
+      "src": "art/dishes/sandwich.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 37484,
+      "color": "#ebcfac",
+      "edge": "#fdf1d9"
+    },
+    "sundae": {
+      "src": "art/dishes/sundae.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 22630,
+      "color": "#eddbc5",
+      "edge": "#fcf1dc"
+    },
+    "quesadilla": {
+      "src": "art/dishes/quesadilla.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 32060,
+      "color": "#ddd3af",
+      "edge": "#fdf3d7"
+    },
+    "tostada": {
+      "src": "art/dishes/tostada.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 36828,
+      "color": "#d8cab2",
+      "edge": "#fdf3dc"
+    },
+    "enchiladas": {
+      "src": "art/dishes/enchiladas.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 27928,
+      "color": "#e9c8a9",
+      "edge": "#fdf3dd"
+    },
+    "burrito": {
+      "src": "art/dishes/burrito.webp",
+      "w": 640,
+      "h": 640,
+      "bytes": 35236,
+      "color": "#ebd6b7",
+      "edge": "#fdf1dc"
+    }
+  },
+  "title": {
+    "src": "art/title.webp",
+    "w": 768,
+    "h": 1152,
+    "bytes": 41430,
+    "color": "#d5ba9d",
+    "edge": "#ccb5a0"
+  },
+  "og": {
+    "src": "og.jpg",
+    "w": 1200,
+    "h": 630,
+    "bytes": 119414,
+    "color": "#aa795d",
+    "edge": "#9b5c3d"
+  }
+}

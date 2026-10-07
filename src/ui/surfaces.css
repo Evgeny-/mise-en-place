@@ -1,0 +1,66 @@
+/*
+ * Materials: paper grain, each kitchen's floor, worktop and garland, drawn as small inline SVG tiles.
+ * They echo the 3D kitchens: Trattoria terracotta tiles and a marble bar, Burger Joint mint and a
+ * brushed-steel worktop, Taquería talavera tiles and painted turquoise wood.
+ * Components read --ground, --worktop, --garland, --rim-deco, --tape; [data-kitchen] switches them.
+ */
+:root {
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .32  0 0 0 0 .22  0 0 0 0 .14  .32 0 0 0 -.13'/></filter><rect width='220' height='220' filter='url(%23g)'/></svg>");
+  --grain-light: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 .96  0 0 0 0 .9  .4 0 0 0 -.16'/></filter><rect width='220' height='220' filter='url(%23g)'/></svg>");
+  --wood-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='120'><filter id='w'><feTurbulence type='fractalNoise' baseFrequency='.006 .22' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  .9 0 0 0 -.38'/></filter><rect width='300' height='120' filter='url(%23w)'/></svg>");
+
+  /* ---- Trattoria: terracotta tiles, a marble bar, green-white-red bunting */
+  --tile-trattoria: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><rect width='96' height='96' fill='%23f8e4cb'/><rect x='2' y='2' width='44' height='44' rx='5' fill='%23f3c49e'/><rect x='50' y='2' width='44' height='44' rx='5' fill='%23efb68c'/><rect x='2' y='50' width='44' height='44' rx='5' fill='%23f0bc95'/><rect x='50' y='50' width='44' height='44' rx='5' fill='%23f4caa6'/><g fill='%23fff' opacity='.32'><rect x='7' y='6' width='16' height='3.5' rx='1.7'/><rect x='55' y='54' width='16' height='3.5' rx='1.7'/><rect x='55' y='6' width='9' height='3.5' rx='1.7'/><rect x='7' y='54' width='9' height='3.5' rx='1.7'/></g></svg>");
+  --marble: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='280' height='140'><rect width='280' height='140' fill='%23f7f2ea'/><g fill='none' stroke='%23cdbfb0' stroke-linecap='round'><path d='M-10 34C40 12 72 62 124 40S206 8 290 50' stroke-width='1.8'/><path d='M-10 106C34 84 92 126 142 98S226 72 290 112' stroke-width='1.2'/><path d='M58 140C82 112 70 88 112 66' stroke-width='.9'/><path d='M190 0C176 30 206 52 194 84' stroke-width='1'/><path d='M124 40c10 14 30 18 42 34' stroke-width='.7'/></g><g fill='none' stroke='%23e2d7ca' stroke-width='3'><path d='M-10 60C50 46 100 84 160 64S240 40 290 70'/></g></svg>");
+  --garland-trattoria: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='40'><path d='M0 5Q48 15 96 5' fill='none' stroke='%233b2a20' stroke-width='2'/><g stroke='%233b2a20' stroke-width='1.6' stroke-linejoin='round'><path d='M5 6.4 30 9.2 17.5 34Z' fill='%233f9a52'/><path d='M37 9.6 59 9.6 48 35Z' fill='%23fffaf0'/><path d='M66 9.2 91 6.4 78.5 34Z' fill='%23e04e39'/></g></svg>");
+
+  /* ---- Burger Joint: mint checker floor, brushed steel, a string of marquee bulbs */
+  --steel:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.28) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #f1f4f6 0%, #d3dade 46%, #e6ebee 54%, #c4ccd2 100%);
+  --garland-diner: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='72' height='36'><path d='M0 6Q36 14 72 6' fill='none' stroke='%233b2a20' stroke-width='2'/><g stroke='%233b2a20' stroke-width='1.6'><path d='M18 10v4M54 10v4' /><circle cx='18' cy='21' r='7' fill='%23ffe08a'/><circle cx='54' cy='21' r='7' fill='%23e8484a'/></g><g fill='%23fff' opacity='.85'><circle cx='15.5' cy='18.5' r='2'/><circle cx='51.5' cy='18.5' r='2'/></g></svg>");
+
+  /* ---- Taquería: talavera tiles, painted turquoise wood, papel picado */
+  --tile-taqueria: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='72' height='72'><rect width='72' height='72' fill='%23f3e4cc'/><rect x='1.5' y='1.5' width='69' height='69' rx='4' fill='%23fdf6ea'/><g fill='%2347b3a8'><circle cx='0' cy='0' r='13'/><circle cx='72' cy='0' r='13'/><circle cx='0' cy='72' r='13'/><circle cx='72' cy='72' r='13'/></g><circle cx='36' cy='36' r='14' fill='none' stroke='%232f7fb0' stroke-width='5'/><circle cx='36' cy='36' r='5.5' fill='%23f2a541'/><g fill='%23ee7a5a'><circle cx='36' cy='9' r='3'/><circle cx='36' cy='63' r='3'/><circle cx='9' cy='36' r='3'/><circle cx='63' cy='36' r='3'/></g></svg>");
+  --painted-wood:
+    repeating-linear-gradient(180deg, transparent 0 29px, rgba(20, 70, 64, 0.32) 29px 31px, rgba(255, 255, 255, 0.14) 31px 32px),
+    var(--wood-grain),
+    linear-gradient(180deg, #43b8ad, #2f9f93);
+  --garland-taqueria: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='42'><path d='M0 4h150' stroke='%233b2a20' stroke-width='2'/><g stroke='%233b2a20' stroke-width='1.5' stroke-linejoin='round'><path d='M5 4h40v26l-5 4-5-4-5 4-5-4-5 4-5-4-5 4-5-4Z' fill='%23e8578a'/><path d='M55 4h40v26l-5 4-5-4-5 4-5-4-5 4-5-4-5 4-5-4Z' fill='%23f2a541'/><path d='M105 4h40v26l-5 4-5-4-5 4-5-4-5 4-5-4-5 4-5-4Z' fill='%2347b3a8'/></g><g fill='%23fdf6ea'><circle cx='25' cy='15' r='4'/><path d='M12 22l3-3 3 3-3 3zM32 22l3-3 3 3-3 3z'/><circle cx='75' cy='15' r='4'/><path d='M62 22l3-3 3 3-3 3zM82 22l3-3 3 3-3 3z'/><circle cx='125' cy='15' r='4'/><path d='M112 22l3-3 3 3-3 3zM132 22l3-3 3 3-3 3z'/></g></svg>");
+
+  /* defaults = Trattoria */
+  --ground: linear-gradient(rgba(251, 240, 224, 0.38), rgba(251, 240, 224, 0.38)), var(--tile-trattoria) 0 0 / 96px 96px;
+  --worktop: var(--marble) 0 0 / 280px 140px;
+  --garland: var(--garland-trattoria) 0 0 / 96px 40px repeat-x;
+  --garland-h: 40px;
+  --rim-deco: repeating-conic-gradient(#3f9a52 0 6deg, transparent 6deg 15deg, #e04e39 15deg 21deg, transparent 21deg 30deg);
+  --tape: repeating-linear-gradient(90deg, #e04e39 0 5px, #f7b2a6 5px 10px);
+  --veil: linear-gradient(transparent, transparent);
+}
+/* every kitchen sets its whole material set: they nest (a Trattoria chapter inside a Burger level's #ui) */
+[data-kitchen='trattoria'] {
+  --ground: linear-gradient(rgba(251, 240, 224, 0.38), rgba(251, 240, 224, 0.38)), var(--tile-trattoria) 0 0 / 96px 96px;
+  --worktop: var(--marble) 0 0 / 280px 140px;
+  --garland: var(--garland-trattoria) 0 0 / 96px 40px repeat-x;
+  --garland-h: 40px;
+  --rim-deco: repeating-conic-gradient(#3f9a52 0 6deg, transparent 6deg 15deg, #e04e39 15deg 21deg, transparent 21deg 30deg);
+  --tape: repeating-linear-gradient(90deg, #e04e39 0 5px, #f7b2a6 5px 10px);
+}
+[data-kitchen='diner'] {
+  --ground: repeating-conic-gradient(#cdebde 0 25%, #f3fbf6 0 50%) 0 0 / 76px 76px;
+  --worktop: var(--steel);
+  --garland: var(--garland-diner) 0 0 / 72px 36px repeat-x;
+  --garland-h: 36px;
+  --rim-deco: radial-gradient(circle closest-side, transparent 0 74%, #e8484a 75% 84%, transparent 85% 89%, #2fa38a 90% 95%, transparent 96%);
+  --tape: repeating-linear-gradient(90deg, #2fa38a 0 5px, #bfe7da 5px 10px);
+}
+[data-kitchen='taqueria'] {
+  --ground: linear-gradient(rgba(253, 246, 234, 0.42), rgba(253, 246, 234, 0.42)), var(--tile-taqueria) 0 0 / 72px 72px;
+  --worktop: var(--painted-wood);
+  --garland: var(--garland-taqueria) 0 0 / 150px 42px repeat-x;
+  --garland-h: 42px;
+  --rim-deco: repeating-conic-gradient(#2f7fb0 0 9deg, #47b3a8 9deg 18deg, #f2a541 18deg 23deg, transparent 23deg 30deg);
+  --tape: repeating-linear-gradient(90deg, #e8578a 0 5px, #f2a541 5px 10px);
+}
+/* After hours: the same rooms under warm lamps, never a flat dark slab. */
+html.night { --veil: linear-gradient(rgba(38, 20, 46, 0.5), rgba(38, 20, 46, 0.5)); }

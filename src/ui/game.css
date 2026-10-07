@@ -1,0 +1,321 @@
+/* Mise en Place screens: order tickets, recipe card, the map of kitchens, cookbook, shop. */
+
+/* ------------------------------------------------------------------ tickets: slips torn off the order pad */
+#ui > .tickets { position: absolute; inset: 0; pointer-events: none; }
+/* the pad stays day paper at night too: the orders must always read at a glance */
+.ticket, .queue {
+  --paper: #fbf3e4; --paper-2: #f2e2c4; --paper-hi: #fffaf0;
+  --ink: #3b2a20; --ink-2: #7c5e49; --edge: #3b2a20; --shade: #3b2a20; --rule: rgba(59, 42, 32, 0.32);
+  color: var(--ink);
+}
+.ticket {
+  position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; transform-origin: 50% 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-width: 70px; padding: 6px 6px 7px; border: 2px solid var(--edge); border-radius: 12px;
+  background: var(--paper-hi); box-shadow: 0 3px 0 var(--shade), 0 8px 16px rgba(40, 20, 10, 0.22);
+  will-change: transform;
+}
+/* the tail pointing at the guest */
+.ticket::after {
+  content: ''; position: absolute; left: 50%; bottom: -9px; width: 14px; height: 14px; margin-left: -7px;
+  background: var(--paper-hi); border: solid var(--edge); border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; transform: rotate(45deg);
+}
+.tickets.side .ticket::after { left: -9px; bottom: auto; top: 50%; margin: -7px 0 0; border-width: 0 0 2px 2px; border-radius: 0 0 0 3px; }
+.ticket.empty { display: none; }
+/* a strip of washi tape in the kitchen's colours holds the slip */
+.ticket .clip {
+  position: absolute; top: -8px; left: -9px; width: 34px; height: 14px; transform: rotate(-24deg);
+  background: var(--tape); opacity: 0.93; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  clip-path: polygon(0 12%, 7% 0, 14% 14%, 22% 0, 100% 0, 100% 88%, 93% 100%, 86% 86%, 78% 100%, 0 100%);
+}
+/* the dish is a small sticker; the parts are what you read */
+.ticket .dish { width: 34px; height: 34px; margin: -24px 0 -2px; filter: drop-shadow(0 2px 1px rgba(60, 30, 10, 0.28)); }
+.ticket .parts { display: flex; align-items: flex-start; gap: 6px; position: relative; z-index: 1; }
+.ticket .parts:has(.prep) { column-gap: 9px; }
+/* four parts always, three when the seats are close (Tickets.place), go two by two */
+.ticket .parts:has(> .part:nth-child(4)), .ticket.stacked .parts { display: grid; grid-template-columns: repeat(2, auto); justify-content: center; }
+.ticket.stacked .parts > .part:nth-child(3) { grid-column: 1 / -1; justify-self: center; }
+.part {
+  position: relative; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 12px;
+  background: #f1e3c9; box-shadow: inset 0 2px 3px rgba(90, 60, 30, 0.16);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.part img { width: 40px; height: 40px; object-fit: contain; }
+/* a prepared part says what it is made of, right under its slot */
+.part.prep { margin-bottom: 24px; }
+.part .mini {
+  position: absolute; left: 50%; top: calc(100% + 4px); transform: translateX(-50%);
+  display: flex; align-items: center; justify-content: center; gap: 2px; height: 19px; white-space: nowrap;
+}
+.part .mini img { display: block; width: 19px; height: 19px; object-fit: contain; }
+/* the "+" is drawn, not typed, so it sits exactly on the icons' middle */
+.part .mini i {
+  flex: none; width: 7px; height: 7px; margin: 0 1px; font-size: 0; color: transparent;
+  background: linear-gradient(var(--ink-2), var(--ink-2)) center / 100% 2px no-repeat, linear-gradient(var(--ink-2), var(--ink-2)) center / 2px 100% no-repeat;
+}
+.part.ok { background: #d5ecc6; box-shadow: inset 0 0 0 2.5px var(--basil); }
+.part.ok::after {
+  content: ''; position: absolute; right: -7px; top: -7px; width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid var(--edge);
+  background: var(--basil) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%23fff8ea' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
+}
+.part.ok .mini { opacity: 0.45; }
+.ticket.arrive { animation: ticket-in 0.5s cubic-bezier(0.2, 1.5, 0.4, 1); }
+@keyframes ticket-in { from { opacity: 0; margin-top: -30px; } to { opacity: 1; margin-top: 0; } }
+
+/* burger tickets: the layers as a little stack, the next one highlighted */
+.ticket.burger-ticket { min-width: 60px; padding: 8px 6px 7px; }
+.layers { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.layer { position: relative; display: grid; place-items: center; width: 48px; height: 24px; border-radius: 9px; transition: background 0.2s, opacity 0.2s; }
+.layer img { width: 40px; height: 30px; margin: -4px 0; object-fit: contain; }
+.layer.ok { opacity: 0.28; }
+.layer.next { background: #fff0b8; box-shadow: 0 0 0 2px var(--edge); }
+
+/* the rail of orders still to come */
+.queue {
+  position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 4px;
+  padding: 3px 8px 3px 10px; border: 2px solid var(--edge); border-radius: 12px; background: var(--steel);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.7), 0 3px 0 var(--shade), 0 6px 12px rgba(0, 0, 0, 0.14); pointer-events: auto;
+}
+.queue-label { margin-right: 3px; font: 700 10px/1 var(--font); letter-spacing: 0.18em; text-transform: uppercase; color: #4e5a62; }
+.queue-list { display: flex; gap: 3px; }
+.qitem { position: relative; display: grid; place-items: center; width: 34px; height: 34px; }
+.qitem img { width: 32px; height: 32px; object-fit: contain; filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.18)); }
+.qitem b { position: absolute; right: -3px; bottom: -3px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px; background: var(--ink); color: var(--paper-hi); font: 700 10px/16px var(--font); text-align: center; }
+.qburger { width: 26px; height: auto; }
+.qstack { display: flex; flex-direction: column; align-items: center; }
+.qstack img { width: 22px; height: 22px; margin: -6px 0; }
+.qitem.qburger b { bottom: -6px; }
+@media (max-width: 400px) {
+  .queue-label { display: none; }
+  .qitem, .qitem img { width: 30px; height: 30px; }
+}
+
+/* ------------------------------------------------------------------ HUD extras */
+.fed {
+  justify-self: end; display: inline-flex; align-items: center; gap: 4px; height: 44px; padding: 0 12px 0 7px;
+  border: 2.5px solid var(--edge); border-radius: 14px; background: var(--paper-hi); color: var(--ink);
+  box-shadow: 0 3px 0 var(--shade); font: 900 21px/1 var(--serif); font-variant-numeric: lining-nums; pointer-events: auto;
+}
+.fed small { font-size: 15px; color: var(--ink-2); }
+.fed-plate { display: grid; place-items: center; margin-right: 1px; }
+.fed.bump { animation: fed-bump 0.5s cubic-bezier(0.2, 1.8, 0.4, 1); }
+@keyframes fed-bump { 0% { transform: scale(1); } 40% { transform: scale(1.18) rotate(-3deg); } 100% { transform: scale(1); } }
+
+/* ------------------------------------------------------------------ recipe card */
+.recipes-dialog { max-width: 420px; }
+.recipe-head { display: flex; align-items: center; gap: 10px; margin: 2px 2px 6px; font: 700 11px/1 var(--font); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-2); }
+.recipe-head::before, .recipe-head::after { content: ''; flex: 1; border-bottom: 2px dotted var(--rule); }
+.recipe-list { display: flex; flex-direction: column; margin-bottom: 12px; }
+.recipe-row { display: flex; align-items: center; gap: 3px; padding: 4px 6px; border-bottom: 1.5px dashed var(--rule); }
+.recipe-row:last-child { border-bottom: 0; }
+.recipe-row.focus { border: 2px solid var(--edge); border-radius: 14px; background: color-mix(in srgb, var(--butter) 22%, var(--paper-hi)); }
+.ri { width: 40px; height: 40px; }
+.ri.big { width: 52px; height: 52px; }
+.rop { font: 800 20px/1 var(--serif); color: var(--ink-2); }
+.rname { margin-left: auto; padding-left: 6px; font: 800 17px/1.1 var(--serif); text-align: right; }
+
+.win-dishes { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; margin: 2px 0 0; }
+.win-dishes img { width: 44px; height: 44px; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.18)); }
+.new-recipe {
+  display: flex; align-items: center; gap: 12px; margin: 4px 0 12px; padding: 8px 14px 8px 8px;
+  border: 2px solid var(--edge); border-radius: 14px; background: var(--paper-hi); box-shadow: 0 3px 0 var(--shade);
+  text-align: left; animation: pop-in 0.5s 0.6s both;
+}
+.new-recipe .nr-art { width: 64px; height: 64px; border: 2px solid var(--edge); border-radius: 10px; object-fit: cover; background: #fffaf0; }
+.new-recipe small { display: block; margin-bottom: 3px; font: 700 10px/1.2 var(--font); letter-spacing: 0.16em; text-transform: uppercase; color: var(--tomato); }
+.new-recipe b { font: 800 20px/1.1 var(--serif); }
+
+/* ------------------------------------------------------------------ map: the food street */
+/* One street climbing uphill (MapScreen): each shift is a stop at a kitchen's storefront, its five
+   levels are plates on the paving in front of it. Every stretch keeps its kitchen's ground, paving
+   and bunting, cross-faded into the next so the street reads as one place. */
+.map-inner.street { position: relative; width: 100%; margin: 0; padding: 0; overflow: hidden; }
+.street-ground {
+  position: absolute; left: 0; right: 0; background: var(--veil), var(--ground);
+  -webkit-mask: linear-gradient(transparent, #000 80px, #000 calc(100% - 80px), transparent);
+  mask: linear-gradient(transparent, #000 80px, #000 calc(100% - 80px), transparent);
+}
+/* the storefront's side of the street: the paintings' own cream backdrop (scripts/art/street_flat.py) */
+.street-flat { position: absolute; top: 0; bottom: 0; background: #f5e6ce; }
+.street-flat.west { -webkit-mask: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask: linear-gradient(to right, #000 calc(100% - 36px), transparent); }
+.street-flat.east { -webkit-mask: linear-gradient(to left, #000 calc(100% - 36px), transparent); mask: linear-gradient(to left, #000 calc(100% - 36px), transparent); }
+html.night .street-flat { filter: brightness(0.8) saturate(0.9); }
+.road-wrap { position: absolute; left: 0; top: 0; pointer-events: none; }
+.road-wrap svg { display: block; overflow: visible; }
+.road path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.road .kerb-edge { stroke: #3b2a20; stroke-width: 90; }
+.road .kerb { stroke: #efe4d2; stroke-width: 84; }
+.road .paving { stroke-width: 66; stroke-linecap: butt; }
+.road .p0 { stroke: url(#cobbles); }
+.road .p1 { stroke: url(#asphalt); }
+.road .p2 { stroke: url(#pavers); }
+.road .centre-line { stroke: #f6cf63; stroke-width: 3; stroke-dasharray: 14 12; stroke-linecap: butt; }
+.road .crossing { stroke: #fbf6ec; stroke-width: 56; stroke-dasharray: 5 5; stroke-linecap: butt; }
+html.night .road-wrap { filter: brightness(0.66) saturate(0.85); }
+
+.storefront { position: absolute; z-index: 1; pointer-events: none; }
+.storefront .front-art {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: filter 0.3s, opacity 0.3s;
+}
+.storefront .front-art.missing { display: none; }
+.storefront .glow {
+  position: absolute; inset: -16%; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, rgba(255, 224, 146, 0.9), rgba(255, 214, 120, 0.38) 42%, rgba(255, 214, 120, 0) 68%);
+}
+.storefront.current .glow { opacity: 1; animation: lamp 2.6s ease-in-out infinite; }
+.storefront.done .glow { opacity: 0.4; }
+/* the paintings keep their cream backdrop, so they fade into the haze rather than turn grey */
+.storefront.hazy .front-art { filter: saturate(0.45) blur(0.7px); opacity: 0.45; }
+html.night .storefront .front-art { filter: brightness(0.8) saturate(0.9); }
+html.night .storefront.hazy .front-art { filter: brightness(0.8) saturate(0.4) blur(0.7px); opacity: 0.4; }
+/* the nameplate: the kitchen and the stars earned in this shift */
+.shop-sign {
+  position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%); z-index: 1;
+  display: flex; align-items: center; gap: 7px; padding: 4px 10px 5px; white-space: nowrap;
+  border: 2.5px solid #3b2a20; border-radius: 12px; background: #fffaf0; color: #3b2a20; box-shadow: 0 3px 0 #3b2a20;
+}
+.shop-sign b { font: 900 17px/1 var(--serif); }
+.shop-sign small { display: inline-flex; align-items: center; gap: 2px; font: 700 12px/1 var(--font); font-variant-numeric: tabular-nums; color: #7c5e49; }
+.shop-sign .sign-mark { display: grid; place-items: center; }
+.storefront.current .shop-sign { background: var(--accent); color: #fff8ea; }
+.storefront.current .shop-sign small { color: #fff8ea; }
+.storefront.hazy .shop-sign { background: #efe6d8; color: #8a7764; box-shadow: none; border-style: dashed; }
+
+/* bunting strung across the street between two lamp posts */
+.street-garland { position: absolute; z-index: 2; width: 168px; height: 56px; pointer-events: none; }
+.street-garland .garland { position: absolute; left: 3px; right: 3px; top: 26px; height: 28px; background: var(--garland); background-size: auto 28px; filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.18)); }
+.street-garland .lamp { position: absolute; top: 12px; width: 6px; height: 56px; border-radius: 3px; background: #3b2a20; }
+.street-garland .lamp.l { left: 0; }
+.street-garland .lamp.r { right: 0; }
+.street-garland .lamp::before {
+  content: ''; position: absolute; left: 50%; top: -9px; width: 15px; height: 15px; margin-left: -7.5px;
+  border: 2px solid #3b2a20; border-radius: 50%; background: #f3ead9;
+}
+.street-garland:not(.hazy) .lamp::before { background: #ffe9a0; box-shadow: 0 0 14px 5px rgba(255, 214, 120, 0.75); }
+.street-garland.hazy { opacity: 0.45; filter: grayscale(0.8); }
+
+.street-prop { position: absolute; z-index: 1; width: 72px; height: 72px; object-fit: contain; pointer-events: none; filter: drop-shadow(0 5px 4px rgba(40, 20, 10, 0.22)); }
+.street-prop.hazy { opacity: 0.45; filter: grayscale(0.85); }
+.street-prop.missing { display: none; }
+/* food stickers, die-cut with a white edge */
+.map-deco {
+  position: absolute; z-index: 1; width: 44px; height: 44px; margin: -22px 0 0 -22px; pointer-events: none;
+  filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(0 4px 3px rgba(40, 20, 10, 0.25));
+}
+.map-deco img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.map-deco.hazy { opacity: 0.4; }
+
+/* level stops: hand-painted plates in the kitchen's pattern, lit from above */
+.stop { position: absolute; z-index: 3; display: grid; place-items: center; width: 0; height: 0; }
+.stop-btn {
+  --fill: #fffaf0; --on: #3b2a20; --edge: #3b2a20; --shade: #3b2a20;
+  position: absolute; left: -28px; top: -28px; width: 56px; height: 56px; min-height: 0; padding: 0; border-radius: 50%;
+  font-size: 22px;
+  background: radial-gradient(circle at 50% 36%, #fff 0, var(--fill) 52%, color-mix(in srgb, var(--fill) 86%, #b98a5c) 100%);
+  box-shadow: inset 0 -4px 0 rgba(59, 42, 32, 0.12), 0 4px 0 var(--shade), 0 10px 16px rgba(40, 20, 10, 0.3);
+}
+.stop-btn::before {
+  content: ''; position: absolute; inset: 3px; border-radius: 50%; pointer-events: none; background: var(--rim-deco);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 0 70%, #000 71% 100%, transparent 100%);
+  mask: radial-gradient(circle closest-side, transparent 0 70%, #000 71% 100%, transparent 100%);
+}
+.stop.closed .stop-btn { --fill: #ede3d3; --on: #8a7562; border-style: dashed; box-shadow: 0 6px 12px rgba(40, 20, 10, 0.2); }
+.stop.closed .stop-btn::before { opacity: 0.35; filter: grayscale(1); }
+.stop.closed .stop-btn .gly { opacity: 0.85; }
+.stop.hard.open:not(.done) .stop-btn { --fill: #fbd2ac; }
+.stop.superhard.open:not(.done) .stop-btn { --fill: #f9dc85; }
+/* the level you are on: a tomato plate under a warm lamp */
+.stop.current::before {
+  content: ''; position: absolute; left: -80px; top: -80px; width: 160px; height: 160px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 228, 150, 0.95) 0, rgba(255, 214, 120, 0.55) 34%, rgba(255, 214, 120, 0) 68%);
+  animation: lamp 2.2s ease-in-out infinite;
+}
+.stop.current.open:not(.closed) .stop-btn {
+  left: -36px; top: -36px; width: 72px; height: 72px; font-size: 30px;
+  --fill: var(--tomato); --on: #fff8ea; animation: node-pulse 1.4s ease-in-out infinite;
+}
+.stop.current.open:not(.closed) .stop-btn::before { background: repeating-conic-gradient(rgba(255, 248, 234, 0.6) 0 5deg, transparent 5deg 15deg); }
+@keyframes lamp { 0%, 100% { opacity: 0.8; transform: scale(0.94); } 50% { opacity: 1; transform: scale(1.04); } }
+/* deep in the endless street, four-digit numbers still fit their plate */
+.stop.d4 .stop-btn { font-size: 16px; letter-spacing: -0.5px; }
+.stop.d4.current .stop-btn { font-size: 21px; }
+.stop-stars {
+  position: absolute; top: 19px; display: flex; z-index: 1; padding: 1px 4px 2px;
+  border: 2px solid #3b2a20; border-radius: 10px; background: #fffaf0; box-shadow: 0 2px 0 #3b2a20;
+}
+.stop-stars .gly { margin: 0 -1px; color: #3b2a20; }
+.stop-stars .gly.off .t { fill: #efe3cf; }
+.stop-dish { position: absolute; left: 24px; top: -44px; width: 34px; height: 34px; object-fit: contain; filter: drop-shadow(1.5px 0 0 #fff) drop-shadow(-1.5px 0 0 #fff) drop-shadow(0 1.5px 0 #fff) drop-shadow(0 -1.5px 0 #fff) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.25)); }
+.stop-tier {
+  position: absolute; left: -42px; top: -40px; display: grid; place-items: center; width: 30px; height: 30px; color: #3b2a20;
+  border: 2px solid #3b2a20; border-radius: 50%; background: #fffaf0; box-shadow: 0 2px 0 #3b2a20;
+}
+.stop.current .stop-tier { left: -48px; top: -48px; }
+.stop-chef { position: absolute; left: 22px; top: 4px; color: #3b2a20; animation: bob 1.2s ease-in-out infinite; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.2)); }
+.stop-debug { position: absolute; top: 46px; padding: 1px 6px; border-radius: 8px; background: rgba(20, 20, 40, 0.78); color: #fff; font: 600 10px/1.4 var(--font); white-space: nowrap; }
+
+.daily-btn { position: relative; }
+.daily-btn .badge-dot { position: absolute; top: -3px; right: -3px; width: 14px; height: 14px; border: 2px solid var(--edge); border-radius: 50%; background: var(--tomato); animation: pulse 1.2s infinite; }
+.daily-btn.done { opacity: 0.7; }
+
+/* ------------------------------------------------------------------ cookbook */
+.cookbook {
+  position: absolute; inset: 0; z-index: 6; overflow-y: auto; padding: calc(70px + var(--safe-top)) 14px calc(30px + var(--safe-bottom));
+  background: var(--grain), radial-gradient(var(--dots) 1.3px, transparent 1.7px) 0 0 / 18px 18px, var(--paper);
+}
+.cb-top { position: fixed; left: 0; right: 0; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; padding: calc(10px + var(--safe-top)) 12px 14px; background: linear-gradient(var(--paper) 72%, transparent); }
+.cb-top h1 { margin: 0; display: flex; align-items: center; gap: 10px; font: 900 26px/1 var(--serif); color: var(--ink); }
+.cb-section { margin-bottom: 10px; }
+/* each kitchen's chapter opens with a strip of its floor, its garland and a nameplate */
+.cb-section h2 {
+  position: relative; display: flex; align-items: center; gap: 10px; margin: 22px 0 14px; padding: 34px 12px 12px;
+  border: 2.5px solid var(--edge); border-radius: 18px; background: var(--veil), var(--ground);
+  box-shadow: 0 4px 0 var(--shade);
+}
+.cb-section h2::before { content: ''; position: absolute; left: 14px; right: 14px; top: -4px; height: var(--garland-h); background: var(--garland); }
+.cb-section h2 span {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 7px 10px;
+  border: 2.5px solid var(--edge); border-radius: 12px; background: var(--grain), var(--paper-hi);
+  font: 900 22px/1 var(--serif); color: var(--ink); box-shadow: 0 3px 0 var(--shade);
+}
+.cb-section h2 span::before { content: ''; width: 14px; height: 14px; border: 2px solid var(--edge); border-radius: 50%; background: var(--wc); }
+.cb-section h2 small { margin-left: auto; padding: 5px 9px; border: 2px solid var(--edge); border-radius: 10px; background: var(--paper-hi); font: 700 12px/1 var(--font); letter-spacing: 0.06em; color: var(--ink); }
+.cb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.cb-card { position: relative; padding: 7px 7px 10px; border: 2.5px solid var(--edge); border-radius: 18px; background: var(--grain), var(--paper-hi); box-shadow: 0 4px 0 var(--shade); text-align: center; }
+.cb-card::after { content: ''; position: absolute; top: -8px; left: 50%; width: 40px; height: 14px; margin-left: -20px; transform: rotate(-3deg); background: var(--tape); opacity: 0.9; clip-path: polygon(0 12%, 7% 0, 14% 14%, 22% 0, 100% 0, 100% 88%, 93% 100%, 86% 86%, 78% 100%, 0 100%); }
+.cb-pic { position: relative; aspect-ratio: 1; display: grid; place-items: center; border-radius: 12px; background: radial-gradient(circle at 50% 40%, #fffdf7, #f4e4c6); overflow: hidden; }
+.cb-pic .cb-icon { width: 78%; height: 78%; }
+.cb-pic .cb-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cb-pic.painted .cb-icon { visibility: hidden; }
+.cb-card.unknown .cb-pic { filter: brightness(0) opacity(0.16); }
+html.night .cb-card.unknown .cb-pic { filter: brightness(0) invert(1) opacity(0.14); }
+.cb-name { margin: 8px 4px 0; padding-top: 7px; border-top: 2px dotted var(--rule); font: 800 17px/1.15 var(--serif); color: var(--ink); }
+.cb-parts { display: flex; align-items: center; justify-content: center; gap: 1px; margin-top: 4px; }
+.cb-parts img { width: 30px; height: 30px; }
+.cb-parts .rop { font-size: 15px; }
+
+/* ------------------------------------------------------------------ shop */
+.dialog.wide { width: min(470px, calc(100vw - 32px)); }
+.dialog .shop-coins { display: flex; align-items: center; justify-content: center; gap: 6px; margin: -8px 0 12px; font: 900 24px/1 var(--serif); font-variant-numeric: lining-nums; color: var(--ink); }
+.shop-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; margin-bottom: 12px; }
+.shop-tabs button { padding: 8px 4px; font-size: clamp(11px, 3.2vw, 14px); }
+.shop-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 10px; height: min(52vh, 460px); overflow-y: auto; padding: 4px 4px 8px; scrollbar-gutter: stable; }
+#ui:has(.shop-dialog) > .toast { z-index: 110; }
+.look-card {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px 8px;
+  border: 2px solid var(--edge); border-radius: 14px; background: var(--paper-hi); color: var(--ink);
+  font-family: var(--font); box-shadow: 0 3px 0 var(--shade); transition: transform 0.08s;
+}
+.look-card:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--shade); }
+.look-card:focus-visible { outline: 3px solid var(--tomato); outline-offset: 2px; }
+.look-card .look-pic { width: 100%; aspect-ratio: 1; display: grid; place-items: center; }
+.look-card .look-pic > img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.look-card .look-pic canvas { width: 78%; height: auto; }
+.look-card .nm { display: grid; place-items: center; min-width: 0; min-height: 2.2em; font: 600 13px/1.1 var(--font); text-align: center; overflow-wrap: anywhere; }
+.look-card .price { display: inline-flex; align-items: center; gap: 3px; font: 800 15px/1 var(--serif); font-variant-numeric: lining-nums; }
+.look-card.owned .price { font: 700 11px/1 var(--font); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cobalt); }
+.look-card.worn { border: 3px solid var(--basil); padding: 5px 3px 7px; background: color-mix(in srgb, var(--basil) 9%, var(--paper-hi)); }
+.look-card.worn .price { font: 700 11px/1 var(--font); letter-spacing: 0.12em; text-transform: uppercase; color: var(--basil); }
+html.night .look-card.owned .price { color: #8fcbe0; }
+html.night .look-card.worn .price { color: #8fd69a; }

@@ -1,0 +1,147 @@
+{
+  "_style": "a (STYLE in prompts.py): crisper and more readable small than the glossy tilt-shift variant b, livelier than the felt variant c; neutral palette wording keeps every kitchen its own colours",
+  "kitchens/trattoria": {
+    "src": "kitchen-trattoria-s23",
+    "note": "cleaner than s11 (no odd white garlic chain), cream walls match the in-game wall, jars, copper pans, glowing pizza oven"
+  },
+  "kitchens/diner": {
+    "src": "kitchen-diner-s23",
+    "note": "s11 had an empty neon sign panel; s23 has a stronger cherry-red trim, shooting-star neon, jukebox, 4 stools"
+  },
+  "kitchens/taqueria": {
+    "src": "kitchen-taqueria-s23",
+    "note": "talavera tiles on every wall, papel picado, tortillas, avocados; richer than s11"
+  },
+  "kitchens/bakery": {
+    "src": "kitchen-bakery-s11",
+    "note": "only seed rendered; clean, pastel pink and blue, awning, macarons and croissants in a case"
+  },
+  "kitchens/wok": {
+    "src": "kitchen-wok-s11",
+    "note": "only seed rendered; red lacquer, lanterns, steaming woks on blue flames, moon window with bamboo"
+  },
+  "kitchens/spice": {
+    "src": "kitchen-spice-s11",
+    "note": "only seed rendered; saffron walls, indigo tiled arch, brass teapots, spice sacks"
+  },
+  "kitchens/cafeteria": {
+    "src": "kitchen-cafeteria-s11",
+    "note": "only seed rendered; lavender trays on a conveyor counter, star bunting; plaque has lines, no letters"
+  },
+  "kitchens/dimsum": {
+    "src": "kitchen-dimsum-s11",
+    "note": "only seed rendered; steamer towers, round tea table, glowing lanterns, lattice screens"
+  },
+  "dishes/pizza": {
+    "src": "dish-pizza-s11",
+    "note": "only seed rendered; clean, readable, consistent with the set"
+  },
+  "dishes/spaghetti": {
+    "src": "dish-spaghetti-s11",
+    "note": "only seed rendered; clean, readable, consistent with the set"
+  },
+  "dishes/minestrone": {
+    "src": "dish-minestrone-s11",
+    "note": "only seed rendered; clean, readable, consistent with the set"
+  },
+  "dishes/omelette": {
+    "src": "dish-omelette-s11",
+    "note": "only seed rendered; clean, readable, consistent with the set"
+  },
+  "dishes/burger": {
+    "src": "dish-burger-s11",
+    "note": "only seed rendered; clean, readable, consistent with the set"
+  },
+  "dishes/taco": {
+    "src": "dish-taco-s11",
+    "note": "only seed rendered; clean, readable, consistent with the set"
+  },
+  "dishes/croissant": {
+    "src": "dish-croissant-v2-s41",
+    "note": "re-roll with a crescent-shape prompt: s11 read as a bread roll, v2-s53 grew a face on its tip; s41 has the crescent and tapered ends"
+  },
+  "dishes/friedrice": {
+    "src": "dish-friedrice-s11",
+    "note": "only seed rendered; clean, readable, consistent with the set"
+  },
+  "dishes/dumplings": {
+    "src": "dish-dumplings-s11",
+    "note": "bao-style pleated dumplings in a bamboo steamer, steam wisp"
+  },
+  "dishes/curry": {
+    "src": "dish-curry-s11",
+    "note": "only seed rendered; clean, readable, consistent with the set"
+  },
+  "title": {
+    "src": "title-main-s11",
+    "note": "calm sunlit cream wall over the top 60% for the logo, tomatoes, basil, cheese, pasta jar and eggs on a butcher-block counter"
+  },
+  "og": {
+    "src": "og-main-v4-s71",
+    "note": "happier re-roll: a caramel-brown bear cub with a blue striped napkin and a big laugh (the earlier brown bear looked like a known character; a honey bear in a red bib read as another)"
+  },
+  "dishes/bruschetta": {
+    "src": "dish-bruschetta-s11",
+    "note": "s11: three toasts with diced tomato and basil on a board; s23 was a single toast with tomato slices"
+  },
+  "dishes/caprese": {
+    "src": "dish-caprese-s11",
+    "note": "s11: the classic ring of mozzarella and tomato with basil; clearer than s23"
+  },
+  "dishes/risotto": {
+    "src": "dish-risotto-s11",
+    "note": "s11: creamy rice with mushroom slices and parsley in a white bowl"
+  },
+  "dishes/pesto_pasta": {
+    "src": "dish-pesto_pasta-s11",
+    "note": "s11: green fusilli with basil and pine nuts; reads as pasta at once"
+  },
+  "dishes/carbonara": {
+    "src": "dish-carbonara-s11",
+    "note": "s11: golden spaghetti, bacon and a bright yolk on top"
+  },
+  "dishes/gnocchi": {
+    "src": "dish-gnocchi-s11",
+    "note": "s11: ridged gnocchi in tomato sauce in a terracotta bowl, matches the 3D model"
+  },
+  "dishes/calzone": {
+    "src": "dish-calzone-s11",
+    "note": "s11: golden crimped calzone on a board, cut end shows the filling"
+  },
+  "dishes/tiramisu": {
+    "src": "dish-tiramisu-s11",
+    "note": "s11: neat layers and cocoa top on a white plate"
+  },
+  "dishes/hotdog": {
+    "src": "dish-hotdog-s11",
+    "note": "s11: bun, sausage, pickles and onions in a red paper tray"
+  },
+  "dishes/pancakes": {
+    "src": "dish-pancakes-s11",
+    "note": "s11: tall stack with berries and butter on a pink plate, like the 3D dish"
+  },
+  "dishes/sandwich": {
+    "src": "dish-sandwich-s11",
+    "note": "s11: stacked club sandwich with bacon, lettuce and tomato on a board"
+  },
+  "dishes/quesadilla": {
+    "src": "dish-quesadilla-s11",
+    "note": "s11: grilled wedges with salsa and sour cream on a turquoise plate"
+  },
+  "dishes/tostada": {
+    "src": "dish-tostada-s11",
+    "note": "s11: beans, lettuce, guacamole and tomato on a blue plate"
+  },
+  "dishes/enchiladas": {
+    "src": "dish-enchiladas-s11",
+    "note": "s11: rolled enchiladas under red sauce and crema in a terracotta dish"
+  },
+  "dishes/burrito": {
+    "src": "dish-burrito-s11",
+    "note": "s11: cut burrito half in foil with lime; shared by every burrito"
+  },
+  "dishes/sundae": {
+    "src": "dish-sundae-s23",
+    "note": "s23: vanilla and chocolate scoops, cream, berries and a cherry in a footed glass; s11 gave the vanilla scoop a face, s37 hid the layers"
+  }
+}
