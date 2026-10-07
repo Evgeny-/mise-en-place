@@ -46,6 +46,8 @@ const PAD_BOTTOM = 120;
 const STOPS_T = [0.14, 0.32, 0.5, 0.68, 0.86];
 
 const ART = `${import.meta.env.BASE_URL}art/`;
+/** Kitchens with a painted prop at the kerb (public/art/street/prop-<id>.webp). */
+const STREET_PROPS = new Set(['trattoria', 'taqueria']);
 
 type ShiftState = 'hazy' | 'current' | 'done' | 'open';
 
@@ -155,9 +157,11 @@ export class MapScreen {
       }
       items.push(this.storefront(s, d, state, X0 + W / 2 - sd * W * 0.25, yAt(i, 0.53), Math.min(W * 0.56, 240), sd));
       // a painted prop at the kerb and a food sticker across the street
-      const prop = picture('street-prop' + (state === 'hazy' ? ' hazy' : ''), `${ART}street/prop-${theme.id}.webp`, null);
-      prop.style.cssText = `left:${X0 + W / 2 - sd * W * 0.4 - 36}px; top:${yAt(i, 0.95) - 44}px`;
-      items.push(prop);
+      if (STREET_PROPS.has(theme.id)) {
+        const prop = picture('street-prop' + (state === 'hazy' ? ' hazy' : ''), `${ART}street/prop-${theme.id}.webp`, null);
+        prop.style.cssText = `left:${X0 + W / 2 - sd * W * 0.4 - 36}px; top:${yAt(i, 0.95) - 44}px`;
+        items.push(prop);
+      }
       const food = DECOR[s.world][(s.visit + i) % DECOR[s.world].length];
       items.push(
         h(
