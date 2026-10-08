@@ -526,10 +526,10 @@ export function taqueriaTarget(local: number, tier: Tier, intro?: Intro, mech: {
   const extra: Target = {};
   if (mech.frozen) extra.minIceCut = intro === 'frozen' ? 0.3 : 0.15;
   if (mech.cloches) extra.minRiddles = 1;
-  if (local <= 2) return { random: [0.5, 1], minCritical: local === 2 ? 1 : 0, ...plan, ...extra };
-  if (local === 3) return { random: [0.35, 0.9], minCritical: 1, ...plan, ...extra };
-  if (local === 4) return { random: [0.2, 0.9], minCritical: 1, ...plan, ...extra };
-  if (local === 5) return { random: [0.06, 0.25], greedyLoses: true, minCritical: 3, maxTrap: 10, ...plan, ...extra };
+  // the tutorial (local 1) teaches; from local 2 the opening asks for a real decision (openingBands)
+  if (local <= 1) return { random: [0.5, 1], minCritical: 0, reach: { 2: [0.6, 1] }, ...extra };
+  if (local <= 4) return { random: [0.1, 1], minCritical: 1, ...plan, ...extra };
+  if (local === 5) return { random: [0.03, 0.3], greedyLoses: true, minCritical: 3, maxTrap: 10, ...plan, ...extra };
   return { ...plan, maxTrap: 14, ...extra };
 }
 

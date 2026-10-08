@@ -306,19 +306,13 @@ export function targetFor(world: number, local: number, tier: Tier, intro?: Intr
   const plan = planBands(tier, local, intro, 9);
   const ramp = world === 1 ? 9 : 8;
   if (local <= ramp && tier === 'normal') {
-    let classic: Target;
-    if (local <= 4) classic = { random: [0.5, 1], minCritical: local >= 3 ? 1 : 0 };
-    else if (world === 1) {
-      // Burger Joint ramp: breathers with one spare counter spot
-      classic = local === 6 ? { random: [0.35, 0.8], minCritical: 1 } : local === 7 ? { random: [0.25, 0.6], minCritical: 2 }
-        : local === 8 ? { random: [0.2, 0.5], minCritical: 2 } : { random: [0.15, 0.45], minCritical: 2 };
-    } else {
-      classic = local === 6 ? { random: [0.35, 0.85], minCritical: 1 } : local === 7 ? { random: [0.25, 0.6], minCritical: 2 }
-        : { random: [0.15, 0.45], minCritical: 2, tight: true };
-    }
+    // the opening: a real decision from the second level on (openingBands); the random player
+    // still wins the first levels often, and the Trattoria's L8 is a tight kitchen
+    const classic: Target = local <= 4 ? { random: [0.15, 1], minCritical: 1 }
+      : { random: [0.05, 0.7], minCritical: 2, tight: world === 0 && local === 8 ? true : undefined };
     return { ...classic, ...plan, ...extra };
   }
-  if (local === 5) return { random: world === 1 ? [0.08, 0.35] : [0.15, 0.45], minCritical: 3, tight: true, ...plan, ...extra };
+  if (local === 5) return { random: [0.03, 0.45], minCritical: 3, tight: true, ...plan, ...extra };
   return { ...plan, tight: tier !== 'normal' || (local >= 11 && !intro) ? true : undefined, maxTrap: 12, ...extra };
 }
 

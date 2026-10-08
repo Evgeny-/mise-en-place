@@ -123,7 +123,7 @@ const inWorld = (w: number) => (r: Row) => r.lv.world === w;
 const GROUPS: [string, (r: Row) => boolean][][] = [0, 1, 2].map((w) => {
   const first = w === 2 ? 6 : 9;
   return [
-    [`Teaching, L1–${first - 1} (L5 a gentle hard)`, (r) => local(r) < first],
+    [`Opening, L1–${first - 1} (L1 the tutorial, L5 hard)`, (r) => local(r) < first],
     [`Normal, L${first}–20`, (r) => r.lv.tier === 'normal' && local(r) >= first && local(r) <= 20],
     ['Normal, L21–39', (r) => r.lv.tier === 'normal' && local(r) > 20],
     [`Hard, L15–35`, (r) => r.lv.tier === 'hard' && local(r) > 5],
@@ -223,9 +223,11 @@ function targetTable(reps: [string, Target][], note = ''): string {
 const T = (local: number) => kitchenSpec(0, local).target;
 const B = (local: number) => kitchenSpec(1, local).target;
 const TARGETS_W1 = targetTable([
-  ['L2–4', T(3)],
+  ['L2–3', T(3)],
+  ['L4', T(4)],
   ['L5 (hard, tomato rush)', T(5)],
-  ['L6–8', T(7)],
+  ['L6', T(6)],
+  ['L7–8', T(7)],
   ['L9 (end of the first shift)', T(9)],
   ['Banquet L10', T(10)],
   ['Normal, L11', targetFor(0, 11, 'normal')],
@@ -238,9 +240,12 @@ const TARGETS_W1 = targetTable([
 ], 'Levels with cloches also need a cloche riddle (a decision where what is hidden matters) and a careful deducer that never guesses (banquets: at most once); levels with ice need the ice to rule out at least 15% of the winning lines (the frozen intro 30%); lidded levels 20% (the lid intro 40%).');
 
 const TARGETS_W2 = targetTable([
-  ['L2–4', B(3)],
+  ['L2–3', B(3)],
+  ['L4', B(4)],
   ['L5 (hard, small tight kitchen)', B(5)],
-  ['L6–9 (breathers)', B(7)],
+  ['L6', B(6)],
+  ['L7–8', B(7)],
+  ['L9', B(9)],
   ['Banquet L10', B(10)],
   ['Normal, L11', targetFor(1, 11, 'normal')],
   ['Normal, L39 (bands slide linearly)', targetFor(1, 39, 'normal')],
@@ -252,11 +257,12 @@ const TARGETS_W2 = targetTable([
 
 const Q = (local: number) => taqueriaSpec(local).target;
 const TARGETS_W3 = targetTable([
-  ['L1–2', Q(2)],
-  ['L3', Q(3)],
+  ['L1 (tutorial)', Q(1)],
+  ['L2–3', Q(3)],
   ['L4 (park intro)', Q(4)],
-  ['L5 (gentle hard)', Q(5)],
-  ['Normal, L6', taqueriaTarget(6, 'normal')],
+  ['L5 (hard)', Q(5)],
+  ['L6 (quesadilla intro)', Q(6)],
+  ['L7–8', Q(7)],
   ['Normal, L9', taqueriaTarget(9, 'normal')],
   ['Normal, L39 (bands slide linearly)', taqueriaTarget(39, 'normal')],
   ['Intro levels (8, 11, 13, 16, 21, 23, 31)', Q(13)],
@@ -453,9 +459,11 @@ kitchen never serve the same set, and a new dish leads the level that introduces
 
 ${TARGETS_W1}
 
-The first shift (L1–10) stays gentle: the teaching levels only ask that a player looking two moves
-ahead wins, L9 is a first taste of planning (two or three moves) and the first banquet asks for
-three. From L11 the normal bands slide: by the end a player who looks two moves ahead wins at most
+The opening engages from the start: L1 is the authored tutorial, and from L2 every level holds a
+forced decision (the obvious move loses) whose trap a player looking two moves ahead sees; by L5–8
+a player needs to look about three moves ahead, L9 hides a deeper trap and the first banquet asks
+for three to four. Each intro level keeps its new dish or rule as its hook. From L11 the normal
+bands slide: by the end a player who looks two moves ahead wins at most
 one level in five and one who looks three ahead at most 40%, while one who looks five ahead still
 wins most of them. Hard levels and banquets go further but stay fair (a five-move planner wins at
 least 40% / 25%).
@@ -495,8 +503,8 @@ plates when they become the next layer. Every level has a 3-spot counter and is 
 
 ${TARGETS_W2}
 
-The ramp is a little longer (L2–4 anyone wins, L6–9 breathers, L5 a small tight kitchen); from
-L11 every level is tight (the intro levels may keep a spare spot).
+The opening is the Trattoria's (a forced decision from L2, about three moves of planning by L5–9,
+L5 a small tight kitchen); from L11 every level is tight (the intro levels may keep a spare spot).
 
 ### Measured
 
@@ -562,8 +570,9 @@ ${section('Menu')}
 ## Targets
 
 The fit guard and the landing-slot rule remove every one-move blunder, so random play is stronger
-than in the Trattoria: the teaching levels keep their random-player bands, and the random cap of
-the planning bands is 1.6 times the Trattoria's. Tightness is recorded but not targeted (a 4-spot
+than in the Trattoria: the random cap of the planning bands is 1.6 times the Trattoria's. The
+opening (L2–8) asks for the same as every kitchen's: a forced decision from L2, about three moves of
+planning by L5–8; L1 stays the tutorial. Tightness is recorded but not targeted (a 4-spot
 counter rarely is; the receiving tortilla is this world's dial).
 
 ${TARGETS_W3}

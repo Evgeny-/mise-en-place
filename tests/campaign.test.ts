@@ -213,19 +213,32 @@ describe('campaign levels', () => {
       expect(st.forced, `L${lv.n} forced`).toBeLessThanOrEqual(st.critical);
       expect(st.deep, `L${lv.n} deep`).toBeLessThanOrEqual(st.critical);
     }
-    // planning grows within each kitchen: a player who looks three moves ahead wins the first shift,
-    // less of the early normal levels, even less of the late ones and the fewest banquets
-    const reach3 = (a: LevelDef[]) => a.reduce((x, l) => x + Math.max(...l.stats!.plan!.slice(0, 3)), 0) / a.length;
+    // planning grows within each kitchen: a player who looks three moves ahead wins the first
+    // levels, less of the early normal levels, even less of the late ones and the fewest banquets
+    const reach = (a: LevelDef[], d: number) => a.reduce((x, l) => x + Math.max(...l.stats!.plan!.slice(0, d)), 0) / a.length;
     for (const w of [0, 1, 2]) {
       const world = levels.filter((l) => l.world === w);
+      const opening = world.filter((l) => l.local! >= 2 && l.local! <= 4);
       const early = world.filter((l) => l.tier === 'normal' && !l.intro && l.local! >= 9 && l.local! <= 20);
       const late = world.filter((l) => l.tier === 'normal' && !l.intro && l.local! > 25);
-      expect(reach3(world.filter((l) => l.local! <= 4)), `kitchen ${w} first levels`).toBeGreaterThan(reach3(early));
-      expect(reach3(early), `kitchen ${w} early normal levels`).toBeGreaterThan(reach3(late));
-      expect(reach3(late), `kitchen ${w} late normal levels`).toBeGreaterThan(reach3(world.filter((l) => l.tier === 'superhard' && l.local! > 10)));
+      expect(reach(opening, 2), `kitchen ${w} opening`).toBeGreaterThan(reach(early, 2));
+      expect(reach(early, 3), `kitchen ${w} early normal levels`).toBeGreaterThan(reach(late, 3));
+      expect(reach(late, 3), `kitchen ${w} late normal levels`).toBeGreaterThan(reach(world.filter((l) => l.tier === 'superhard' && l.local! > 10), 3));
     }
-    // the first shift is gentle: a player who looks two moves ahead wins the teaching levels
-    for (const lv of levels.filter((l) => l.n <= 8)) expect(Math.max(...lv.stats!.plan!.slice(0, 2)), `L${lv.n}`).toBeGreaterThanOrEqual(0.5);
+    // every kitchen opens engaging: its tutorial teaches, and from local 2 on each level holds a
+    // forced decision (the obvious move loses) that a player looking two (later three) moves ahead
+    // handles, so the opening is a real but fair puzzle
+    for (const lv of levels.filter((l) => l.local! <= 8)) {
+      const st = lv.stats!;
+      if (lv.local === 1) {
+        expect(Math.max(...st.plan!.slice(0, 2)), `L${lv.n} tutorial`).toBeGreaterThanOrEqual(0.6);
+        continue;
+      }
+      expect(st.forced, `L${lv.n} forced`).toBeGreaterThanOrEqual(1);
+      expect(st.greedy, `L${lv.n} greedy`).toBe(false);
+      expect(Math.max(...st.plan!.slice(0, 3)), `L${lv.n} fair`).toBeGreaterThanOrEqual(0.5);
+      if (lv.local! <= 4) expect(Math.max(...st.plan!.slice(0, 2)), `L${lv.n} two moves ahead`).toBeGreaterThanOrEqual(0.5);
+    }
     // difficulty grows within each world: the late normal levels are harder than the first ones
     const avg = (a: LevelDef[]) => a.reduce((x, l) => x + l.stats!.random, 0) / a.length;
     for (const w of [0, 1]) {

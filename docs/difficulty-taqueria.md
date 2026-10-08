@@ -34,17 +34,19 @@ spread evenly, and neighbouring levels never serve the same set.
 ## Targets
 
 The fit guard and the landing-slot rule remove every one-move blunder, so random play is stronger
-than in the Trattoria: the teaching levels keep their random-player bands, and the random cap of
-the planning bands is 1.6 times the Trattoria's. Tightness is recorded but not targeted (a 4-spot
+than in the Trattoria: the random cap of the planning bands is 1.6 times the Trattoria's. The
+opening (L2–8) asks for the same as every kitchen's: a forced decision from L2, about three moves of
+planning by L5–8; L1 stays the tutorial. Tightness is recorded but not targeted (a 4-spot
 counter rarely is; the receiving tortilla is this world's dial).
 
 | Levels (local) | Planner reach | Forced / deep decisions | Random win | Also |
 |---|---|---|---|---|
-| L1–2 | d2 ≥ 60% | – | 50%–100% | ≥ 1 critical |
-| L3 | d2 ≥ 60% | – | 35%–90% | ≥ 1 critical |
-| L4 (park intro) | d2 ≥ 60% | – | 20%–90% | ≥ 1 critical |
-| L5 (gentle hard) | d2 25%–85%, d4 ≥ 60% | forced ≥ 1 | 6%–25% | greedy loses, ≥ 3 critical |
-| Normal, L6 | d2 30%–75%, d3 ≥ 60% | forced ≥ 2, deep ≥ 1 | ≤ 48% | greedy loses |
+| L1 (tutorial) | d2 ≥ 60% | – | 50%–100% | – |
+| L2–3 | d1 ≤ 70%, d2 ≥ 60% | forced ≥ 1 | 10%–100% | greedy loses, ≥ 1 critical |
+| L4 (park intro) | d1 ≤ 55%, d2 ≥ 55% | forced ≥ 2 | 10%–100% | greedy loses, ≥ 1 critical |
+| L5 (hard) | d2 ≤ 50%, d3 ≥ 50% | forced ≥ 2, deep ≥ 1 | 3%–30% | greedy loses, ≥ 3 critical |
+| L6 (quesadilla intro) | d2 ≤ 60%, d3 ≥ 50% | forced ≥ 2 | – | greedy loses |
+| L7–8 | d2 ≤ 50%, d3 ≥ 55% | forced ≥ 2, deep ≥ 1 | – | greedy loses |
 | Normal, L9 | d2 ≤ 59%, d3 30%–88%, d5 ≥ 55% | forced ≥ 2, deep ≥ 1 | ≤ 39% | greedy loses |
 | Normal, L39 (bands slide linearly) | d2 ≤ 20%, d3 15%–40%, d5 ≥ 55% | forced ≥ 4, deep ≥ 3 | ≤ 16% | greedy loses |
 | Intro levels (8, 11, 13, 16, 21, 23, 31) | d2 ≤ 75%, d3 ≥ 50%, d5 ≥ 70% | forced ≥ 1 | ≤ 64% | greedy loses |
@@ -66,8 +68,8 @@ guest (36).
 
 | Tier | Levels | Planner d1 / d2 / d3 / d4 / d5 | Planning depth | Forced | Deep | Random win (mean / median) | Critical | Items | Board | Guests | Seats | Tight | Cloches / ice |
 |---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Teaching, L1–5 (L5 a gentle hard) | 5 | 81 / 77 / 86 / 96 / 90 | 1.0 | 1.0 | 1.0 | 62.2% / 67.5% | 2.2 | 14.4 | 3.0 cols | 3.0 | 1–2 | 0/5 | 0 / 0 |
-| Normal, L6–20 | 12 | 22 / 35 / 66 / 75 / 87 | 3.0 | 3.7 | 3.9 | 12.2% / 11.5% | 7.2 | 20.5 | 4.3 cols | 4.2 | 2 | 1/12 | 4 / 2 |
+| Opening, L1–5 (L1 the tutorial, L5 hard) | 5 | 39 / 73 / 89 / 96 / 98 | 2.0 | 2.6 | 2.8 | 41.5% / 31.7% | 5.2 | 14.2 | 3.0 cols | 3.0 | 1–2 | 0/5 | 0 / 0 |
+| Normal, L6–20 | 12 | 17 / 28 / 70 / 77 / 84 | 3.2 | 3.6 | 4.1 | 16.1% / 12.4% | 6.6 | 20.5 | 4.3 cols | 4.2 | 2 | 2/12 | 4 / 2 |
 | Normal, L21–39 | 16 | 10 / 15 / 45 / 67 / 73 | 3.9 | 4.9 | 5.1 | 7.2% / 3.5% | 8.3 | 24.9 | 5.0 cols | 4.9 | 2–3 | 5/16 | 9 / 6 |
 | Hard, L15–35 | 3 | 9 / 17 / 16 / 24 / 53 | 5.3 | 7.7 | 7.7 | 2.8% / 1.7% | 12.0 | 25.7 | 5.0 cols | 5.0 | 2 | 1/3 | 3 / 1 |
 | Banquets, L10–40 | 4 | 5 / 16 / 26 / 37 / 52 | 4.8 | 6.3 | 7.0 | 1.8% / 1.1% | 10.5 | 28.0 | 5.8 cols | 5.8 | 2–3 | 1/4 | 2 / 3 |
@@ -80,13 +82,13 @@ BVe, BVd the burritos, En enchiladas. Board = columns × tallest column.
 | Local | # | Tier | Teaches | Guests | Items | Board | Slots | Seats | Planner d1–d5 | Depth | Forced | Deep | Random | Greedy | Tight | Cloches / ice |
 |---:|---:|---|---|---|---:|---|---:|---:|---|---:|---:|---:|---:|---|---|---|
 | 1 | 26 | normal | **new: tortilla** — a tortilla catches the next three fillings | Ca Ve | 9 | 2×5 | 4 | 1 | 100/100/100/100/100 | 1 | 0 | 0 | 100.0% | wins | – | – |
-| 2 | 27 | normal | **new: chicken taco** — salsa drops into the tortilla | Po Po Ca | 15 | 3×5 | 4 | 2 | 88/83/100/100/100 | 1 | 0 | 1 | 76.7% | wins | – | – |
-| 3 | 28 | normal | finish one taco before the next filling | Po Po Ve | 14 | 3×5 | 4 | 2 | 88/94/100/100/100 | 1 | 2 | 1 | 67.5% | loses | – | – |
-| 4 | 29 | normal | **new: park** — park a half-made taco under a new tortilla | Ca Po Po | 15 | 3×5 | 4 | 2 | 72/67/100/100/75 | 1 | 1 | 2 | 50.2% | loses | – | – |
-| 5 | 30 | hard | tortilla stack | Ve Ca Po Po | 19 | 4×5 | 4 | 2 | 58/42/30/80/77 | 1 | 2 | 1 | 16.5% | loses | – | – |
-| 6 | 41 | normal | **new: quesadilla** — chicken and double cheese | Qu Qu Ve | 12 | 3×5 | 4 | 2 | 41/53/83/100/100 | 2 | 2 | 2 | 11.4% | loses | – | – |
-| 7 | 42 | normal | a taco for the queue; loose fillings get scooped in order | Po Ca Po Qu | 19 | 4×5 | 4 | 2 | 38/70/61/83/100 | 2 | 4 | 1 | 15.2% | loses | – | – |
-| 8 | 43 | normal | **new: bean taco** — beans, cheese and salsa | Fr Fr Ca Ca | 20 | 4×5 | 4 | 2 | 27/45/69/88/97 | 3 | 1 | 1 | 27.0% | loses | – | – |
+| 2 | 27 | normal | **new: chicken taco** — salsa drops into the tortilla | Po Po Ca | 15 | 3×5 | 4 | 2 | 25/100/100/100/100 | 2 | 1 | 2 | 31.7% | loses | – | – |
+| 3 | 28 | normal | finish one taco before the next filling | Po Po Ve | 14 | 3×5 | 4 | 2 | 17/59/72/100/100 | 2 | 3 | 5 | 24.2% | loses | – | – |
+| 4 | 29 | normal | **new: park** — park a half-made taco under a new tortilla | Ca Po Ca | 15 | 3×5 | 4 | 2 | 11/63/91/91/100 | 2 | 3 | 4 | 39.9% | loses | – | – |
+| 5 | 30 | hard | tortilla stack | Po Ve Ve Ca | 18 | 4×5 | 4 | 2 | 42/45/84/89/88 | 3 | 6 | 3 | 11.9% | loses | – | – |
+| 6 | 41 | normal | **new: quesadilla** — chicken and double cheese | Ve Qu Qu | 12 | 3×5 | 4 | 2 | 14/36/92/95/100 | 3 | 2 | 3 | 54.9% | loses | – | – |
+| 7 | 42 | normal | a taco for the queue; loose fillings get scooped in order | Po Ca Ca Qu | 19 | 4×5 | 4 | 2 | 0/0/92/100/59 | 3 | 2 | 1 | 20.9% | loses | yes | – |
+| 8 | 43 | normal | **new: bean taco** — beans, cheese and salsa | Ca Fr Ca Fr | 20 | 4×5 | 4 | 2 | 36/45/77/94/100 | 3 | 2 | 2 | 24.9% | loses | – | – |
 | 9 | 44 | normal | plan for the queue, under a cloche | Fr Fr Ve Po | 19 | 4×5 | 4 | 2 | 27/31/34/80/73 | 4 | 7 | 7 | 8.7% | loses | – | 2 cloches (1 riddle) |
 | 10 | 45 | superhard | banquet: taco night | Qu Po Fr Ve Ca | 23 | 5×5 | 4 | 2 | 20/39/61/81/69 | 3 | 6 | 7 | 4.7% | loses | – | – |
 | 11 | 56 | normal | **new: 3-slot counter** — small counter: three slots | Fr Ca Ca Qu | 19 | 4×5 | 3 | 2 | 11/30/94/88/97 | 3 | 5 | 2 | 11.7% | loses | – | – |
