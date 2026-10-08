@@ -123,14 +123,16 @@ export class Tickets {
       return;
     }
     if (guest && guest.dishes.length > 1) {
-      // a set menu: both dishes with their parts, side by side
+      // a set menu: one dish above the other, each its picture then its parts, so the ticket keeps
+      // a single dish's width (side by side it had to shrink to fit over the guest)
       const row = h('div', { class: 'set-menu' });
-      Object.assign(row.style, { display: 'flex', gap: '6px', alignItems: 'flex-start' });
+      Object.assign(row.style, { display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'stretch' });
       guest.dishes.forEach((d, j) => {
-        const col = h('div', { class: 'set-dish' });
-        Object.assign(col.style, { display: 'flex', flexDirection: 'column', alignItems: 'center' });
+        const line = h('div', { class: 'set-dish' });
+        Object.assign(line.style, { display: 'flex', alignItems: 'center', gap: '6px' });
         const pic = img(icons.dish(d), loc(DISHES[d].name));
         pic.classList.add('dish');
+        Object.assign(pic.style, { margin: '0', flex: 'none' });
         const parts = h('div', { class: 'parts' });
         for (const p of DISHES[d].parts) {
           const el = this.part(p);
@@ -138,9 +140,9 @@ export class Tickets {
           parts.append(el);
         }
         tk.dishes!.push(pic);
-        col.append(pic, parts);
-        if (j) row.append(h('b', { text: '+', style: 'align-self:center;font:900 18px Nunito,sans-serif;color:#8a5a3c' }));
-        row.append(col);
+        line.append(pic, parts);
+        if (j) row.append(h('b', { text: '+', style: 'align-self:center;margin:-2px 0;font:900 18px/1 Nunito,sans-serif;color:#8a5a3c' }));
+        row.append(line);
       });
       tk.root.append(h('div', { class: 'clip' }), row);
       return;

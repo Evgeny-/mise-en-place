@@ -104,7 +104,8 @@ jobs:
           import { setTimeout } from 'node:timers/promises';
           const expected = JSON.parse(readFileSync('dist/version.json', 'utf8')).id;
           const site = 'https://evgeny.io/games/mise-en-place/';
-          for (let attempt = 0; attempt < 60; attempt++) {
+          // GitHub Pages sometimes takes ten minutes to build the site
+          for (let attempt = 0; attempt < 140; attempt++) {
             try {
               const res = await fetch(`${site}version.json?build=${encodeURIComponent(expected)}&attempt=${attempt}`, {
                 cache: 'no-store', signal: AbortSignal.timeout(10000),
