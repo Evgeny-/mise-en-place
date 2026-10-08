@@ -12,10 +12,15 @@
 - **Solver** ([`src/core/solver.ts`](../src/core/solver.ts)). Exhaustive depth-first search with
   memoized results: whether a position can still be won, the safe moves, a winning line, the
   exact win chance of a random player and the number of winning lines. Hint runs it live.
-- **Difficulty is measured** ([`src/core/metrics.ts`](../src/core/metrics.ts),
-  [`src/core/generator.ts`](../src/core/generator.ts)). Levels are built around a known winning
-  line, made tight and accepted only inside the target band of their campaign stage; see
+- **Difficulty is measured and searched for** ([`src/core/metrics.ts`](../src/core/metrics.ts),
+  [`src/core/measure.ts`](../src/core/measure.ts), [`src/core/guided.ts`](../src/core/guided.ts)).
+  Planners that look 1–5 moves ahead, forced and deep decisions, a blind planner and a careful
+  deducer for the cloches. Levels are built around a known winning line and hill-climbed toward the
+  target band of their campaign stage ([`src/core/targets.ts`](../src/core/targets.ts)); see
   [difficulty.md](difficulty.md).
+- **Pantry marks** ([`src/core/pantry.ts`](../src/core/pantry.ts)): frozen tiles (part of the rules:
+  a tile thaws after a number of takes) and cloches (not part of the rules: what the player knows;
+  a lifted cloche stays lifted after an undo).
 - **Rendering** ([`src/render`](../src/render)). three.js with an orthographic camera tilted like
   Pixel Picnic's. The scene is one chef's counter seen by the chef: the worktop runs off the
   bottom of the screen, the guests sit across it behind a low serving ledge, like at a sushi

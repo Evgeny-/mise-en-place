@@ -166,6 +166,33 @@ describe('campaign levels', () => {
     }
   });
 
+  it('cloches and ice come after the levels that introduce them, and they are fair and matter', () => {
+    const at = (intro: string) => levels.find((l) => l.intro === intro)!.n;
+    const cloche = at('cloche');
+    const ice = at('frozen');
+    expect(levels[cloche - 1].tier).toBe('normal');
+    expect(levels[ice - 1].tier).toBe('normal');
+    for (const lv of levels) {
+      if (lv.cloches?.length) {
+        expect(lv.n, `L${lv.n} cloches`).toBeGreaterThanOrEqual(cloche);
+        for (const [c, r] of lv.cloches) {
+          expect(r, `L${lv.n} cloche on a front tile`).toBeGreaterThan(0);
+          expect(r).toBeLessThan(lv.columns[c].length);
+        }
+        expect(lv.stats!.guesses, `L${lv.n} guesses`).toBeLessThanOrEqual(lv.tier === 'superhard' ? 1 : 0);
+        expect(lv.stats!.riddles, `L${lv.n} riddles`).toBeGreaterThanOrEqual(1);
+      }
+      if (lv.frozen?.length) {
+        expect(lv.n, `L${lv.n} ice`).toBeGreaterThanOrEqual(ice);
+        for (const [c, r, t] of lv.frozen) {
+          expect(r).toBeLessThan(lv.columns[c].length);
+          expect(t, `L${lv.n} thaw`).toBeGreaterThanOrEqual(4);
+        }
+        expect(lv.stats!.iceCut, `L${lv.n} ice cut`).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it('carries the measured difficulty', () => {
     for (const lv of levels) {
       const st = lv.stats!;
@@ -178,6 +205,27 @@ describe('campaign levels', () => {
       if (lv.tier !== 'normal' && lv.rules !== 'taco') expect(st.tight, `L${lv.n} tight`).toBe(true);
       if (lv.rules !== 'taco' && (lv.local! >= 11 || (lv.world === 0 && lv.local! >= 9))) expect(st.greedy, `L${lv.n} greedy`).toBe(false);
     }
+    // every level carries its planning numbers
+    for (const lv of levels) {
+      const st = lv.stats!;
+      expect(st.plan, `L${lv.n} plan`).toHaveLength(5);
+      expect(st.depth, `L${lv.n} depth`).toBeGreaterThanOrEqual(1);
+      expect(st.forced, `L${lv.n} forced`).toBeLessThanOrEqual(st.critical);
+      expect(st.deep, `L${lv.n} deep`).toBeLessThanOrEqual(st.critical);
+    }
+    // planning grows within each kitchen: a player who looks three moves ahead wins the first shift,
+    // less of the early normal levels, even less of the late ones and the fewest banquets
+    const reach3 = (a: LevelDef[]) => a.reduce((x, l) => x + Math.max(...l.stats!.plan!.slice(0, 3)), 0) / a.length;
+    for (const w of [0, 1, 2]) {
+      const world = levels.filter((l) => l.world === w);
+      const early = world.filter((l) => l.tier === 'normal' && !l.intro && l.local! >= 9 && l.local! <= 20);
+      const late = world.filter((l) => l.tier === 'normal' && !l.intro && l.local! > 25);
+      expect(reach3(world.filter((l) => l.local! <= 4)), `kitchen ${w} first levels`).toBeGreaterThan(reach3(early));
+      expect(reach3(early), `kitchen ${w} early normal levels`).toBeGreaterThan(reach3(late));
+      expect(reach3(late), `kitchen ${w} late normal levels`).toBeGreaterThan(reach3(world.filter((l) => l.tier === 'superhard' && l.local! > 10)));
+    }
+    // the first shift is gentle: a player who looks two moves ahead wins the teaching levels
+    for (const lv of levels.filter((l) => l.n <= 8)) expect(Math.max(...lv.stats!.plan!.slice(0, 2)), `L${lv.n}`).toBeGreaterThanOrEqual(0.5);
     // difficulty grows within each world: the late normal levels are harder than the first ones
     const avg = (a: LevelDef[]) => a.reduce((x, l) => x + l.stats!.random, 0) / a.length;
     for (const w of [0, 1]) {

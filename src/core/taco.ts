@@ -1,6 +1,7 @@
 import { DISHES, TAQUERIA, type DishId, type FoodId } from './content';
 import type { Rules } from './kitchen';
 import type { SimEvent, Status } from './sim';
+import { ClocheMarks, takesOf, thawTable } from './pantry';
 import type { LevelDef } from './types';
 
 /**
@@ -173,7 +174,7 @@ export interface TState {
 }
 
 /** Why a column can't be taken (for the UI): see TacoRules.refusal. */
-export type TacoRefusal = 'empty' | 'lid' | 'full' | 'fit';
+export type TacoRefusal = 'empty' | 'lid' | 'frozen' | 'full' | 'fit';
 
 /** Rule variants of the design research, used only by the generator's teaching filters. */
 export interface TacoVariant {
@@ -183,7 +184,7 @@ export interface TacoVariant {
   absorb?: boolean;
 }
 
-export type TacoLevel = Pick<LevelDef, 'columns' | 'slots' | 'seats' | 'orders' | 'lids' | 'toppings'>;
+export type TacoLevel = Pick<LevelDef, 'columns' | 'slots' | 'seats' | 'orders' | 'lids' | 'toppings' | 'frozen'>;
 
 interface Ticket {
   c: number;
@@ -199,6 +200,8 @@ export class TacoRules implements Rules<TState> {
   /** dish index per order */
   readonly orders: number[];
   readonly lids: number[] | null;
+  /** frozen tiles: per column and row, the take count they thaw at (see pantry.ts) */
+  readonly thaw: number[][] | null;
   readonly length: number;
   /** per dish index (TACO_DISHES): container, exact fillings, topping */
   readonly tickets: Ticket[];
@@ -220,6 +223,7 @@ export class TacoRules implements Rules<TState> {
     this.nseats = level.seats;
     this.orders = level.orders.map(tacoDish);
     this.lids = level.lids && level.lids.some((x) => x > 0) ? level.lids.slice() : null;
+    this.thaw = thawTable(level);
     this.length = this.cols.reduce((a, c) => a + c.length, 0);
     const tops = level.toppings ?? {};
     this.tickets = TACO_DISHES.map((d, i) => ({ ...COMPILED[i], top: tops[d] ? tacoIndex(tops[d]!) : -1 }));
@@ -471,6 +475,7 @@ export class TacoRules implements Rules<TState> {
     if (p >= c.length) return 'empty';
     const K = this.kinfo[s.k];
     if (this.lids && this.lids[col] > K.served) return 'lid';
+    if (this.thaw && this.thaw[col][p] > takesOf(s.ptr)) return 'frozen';
     const { k, dead } = this.drop(s.k, c[p]);
     if (K.occ >= this.slots && this.kinfo[k].occ > this.slots) return 'full';
     return dead ? 'fit' : null;
@@ -482,6 +487,7 @@ export class TacoRules implements Rules<TState> {
     if (p >= c.length) return null;
     const K = this.kinfo[s.k];
     if (this.lids && this.lids[col] > K.served) return null;
+    if (this.thaw && this.thaw[col][p] > takesOf(s.ptr)) return null;
     const { k, dead } = this.drop(s.k, c[p]);
     if (dead || (K.occ >= this.slots && this.kinfo[k].occ > this.slots)) return null;
     const ptr = s.ptr.slice();
@@ -581,10 +587,13 @@ export class TacoSim {
   private seq = 0;
   private rules: TacoRules;
   private plain: TacoRules | null = null;
+  /** what the player knows: lifted cloches stay lifted (not part of snapshots) */
+  readonly cloches: ClocheMarks;
 
   constructor(level: LevelDef) {
     this.level = level;
     this.rules = new TacoRules(level);
+    this.cloches = new ClocheMarks(level);
     this.ptr = level.columns.map(() => 0);
     this.counter = new Array<FoodId | null>(level.slots).fill(null);
     this.entries = new Array<Entry | null>(level.slots).fill(null);
@@ -611,6 +620,15 @@ export class TacoSim {
 
   lidOpen(col: number): boolean {
     return (this.level.lids?.[col] ?? 0) <= this.served;
+  }
+
+  covered(col: number, row: number): boolean {
+    return this.cloches.covered(col, row);
+  }
+
+  thawLeft(col: number, row: number): number {
+    const at = this.rules.thaw?.[col]?.[row] ?? 0;
+    return at > 0 ? Math.max(0, at - takesOf(this.ptr)) : 0;
   }
 
   queue(): DishId[] {
@@ -729,9 +747,12 @@ export class TacoSim {
   /** The events taking `col` would produce, without taking it (for a touch-down preview). */
   preview(col: number): SimEvent[] | null {
     const snap = this.snapshot();
+    const known = this.cloches.copy();
     const ev = this.take(col);
     this.restore(snap);
-    return ev;
+    // a preview lifts no cloche
+    this.cloches.set(known);
+    return ev?.filter((e) => e.t !== 'reveal') ?? null;
   }
 
   // ------------------------------------------------------------------------------- moves
@@ -759,6 +780,7 @@ export class TacoSim {
     const lidsBefore = this.openLids();
     this.ptr[col]++;
     this.history.push(col);
+    const revealed = this.cloches.reveal(this.ptr);
 
     if (isContainer(item)) {
       const slot = this.landing();
@@ -803,6 +825,7 @@ export class TacoSim {
     }
     const recv = this.receivingSlot();
     if (recv !== recvBefore || ev.some((x) => x.t === 'move' && x.to === recv)) ev.push({ t: 'receive', slot: recv });
+    for (const c of revealed) ev.push({ t: 'reveal', col: c, item: this.top(c)! });
     for (const c of this.openLids()) if (!lidsBefore.includes(c)) ev.push({ t: 'lid', col: c });
     if (this.next >= this.level.orders.length && this.seats.every((d) => d === null)) {
       this.status = 'won';

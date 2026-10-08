@@ -1,4 +1,5 @@
 import { MENUS, type DishId, type FoodId, type Menu } from './content';
+import { takesOf, thawTable } from './pantry';
 import type { LevelDef } from './types';
 
 /**
@@ -14,6 +15,7 @@ import type { LevelDef } from './types';
  *   takes the same seat; resolution continues (a new guest may be served at once).
  * - Landing-slot rule: a take is legal only if, after resolving, the counter holds at most
  *   `slots` items. A full counter therefore still accepts an item that combines immediately.
+ * - Lids and frozen tiles (pantry.ts) block a column until enough dishes were served / takes made.
  * - Win: every guest is served (levels are zero-waste, so the pantry and counter are empty).
  *   Stuck: not won and no legal take.
  */
@@ -137,15 +139,18 @@ export class KitchenRules implements Rules<KState> {
   readonly slots: number;
   readonly orders: number[];
   readonly lids: number[] | null;
+  /** frozen tiles: per column and row, the take count they thaw at (see pantry.ts) */
+  readonly thaw: number[][] | null;
   readonly nseats: number;
   readonly length: number;
 
-  constructor(level: Pick<LevelDef, 'menu' | 'columns' | 'slots' | 'seats' | 'orders' | 'lids'>, slots?: number) {
+  constructor(level: Pick<LevelDef, 'menu' | 'columns' | 'slots' | 'seats' | 'orders' | 'lids' | 'frozen'>, slots?: number) {
     this.k = kitchenFor(level.menu);
     this.cols = level.columns.map((c) => c.map((id) => this.k.item(id)));
     this.slots = slots ?? level.slots;
     this.orders = level.orders.map((d) => this.k.dish(d));
     this.lids = level.lids && level.lids.some((x) => x > 0) ? level.lids.slice() : null;
+    this.thaw = thawTable(level);
     this.nseats = level.seats;
     this.length = this.cols.reduce((a, c) => a + c.length, 0);
   }
@@ -194,6 +199,7 @@ export class KitchenRules implements Rules<KState> {
     const c = this.cols[col];
     if (p >= c.length) return null;
     if (this.lids && this.lids[col] > s.served) return null;
+    if (this.thaw && this.thaw[col][p] > takesOf(s.ptr)) return null;
     const counts = s.counts.slice();
     counts[c[p]]++;
     const seats = s.seats.slice();

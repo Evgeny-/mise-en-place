@@ -12,6 +12,7 @@
  */
 import type { DishId, FoodId } from './content';
 import { taqueriaIntro } from './tacoGen';
+import { planBands } from './targets';
 import type { BurgerShape, LevelSpec, Target } from './generator';
 import {
   CAMPAIGN_LEVELS, LEVELS_PER_KITCHEN, SHIFT_LEN, campaignLevel, kitchenAt, localOf, shiftOf,
@@ -124,6 +125,9 @@ interface Row {
   items?: [number, number];
   lids?: number;
   lidMax?: number;
+  /** cloches and frozen tiles (pantry.ts) */
+  cloches?: number;
+  frozen?: number;
   intro?: Intro;
   /** target overrides */
   t?: Target;
@@ -159,10 +163,12 @@ function tr(theme: string, cols: number, depth: number, slots: number, seats: nu
  * lesson: two tomatoes make sauce (L1) -> bruschetta keeps ONE tomato raw (2) -> caprese, a salad of
  * three raw things (3) -> pizza: flour + egg make dough (4) -> omelette: the egg is wanted twice (6)
  * -> risotto shares the mushroom and the cheese (7) -> pesto: basil + cheese (8) -> carbonara, four
- * parts (11) -> minestrone: soffritto and a lone tomato (13) -> gnocchi: potato + flour (16) ->
- * calzone shares the dough (18) -> a 2-slot counter (19) -> tiramisu: mascarpone + egg = cream (21)
- * -> three-dish mixes -> lids (36). A prep only ever appears on a level after it was taught: basil
- * never meets cheese before L8, potato never meets flour before L16 (checked by the campaign test).
+ * parts (11) -> cloches: a tile hidden until it reaches the front (12) -> minestrone: soffritto and a
+ * lone tomato (13) -> gnocchi: potato + flour (16) -> calzone shares the dough (18) -> a 2-slot
+ * counter (19) -> tiramisu: mascarpone + egg = cream (21) -> frozen tiles (from 26; taught in the
+ * Burger Joint) -> a third seat and six columns (from 30) -> lids (36). A prep only ever appears on
+ * a level after it was taught: basil never meets cheese before L8, potato never meets flour before
+ * L16 (checked by the campaign test).
  */
 const TRATTORIA: Record<number, Row> = {
   2: tr('new: bruschetta — bread and ONE raw tomato', 2, 5, 2, 2, [3, 3], [BR, S], { intro: BR }),
@@ -175,35 +181,35 @@ const TRATTORIA: Record<number, Row> = {
   9: tr('keep the basil away from the cheese', 4, 5, 3, 1, [4, 5], [CA, PZ, OM]),
   10: tr('banquet: the first menu', 5, 6, 3, 2, [6, 7], [BR, PE, RI, S]),
   11: tr('new: carbonara — egg, cheese, bacon and pasta', 4, 5, 3, 2, [3, 4], [CB, OM], { intro: CB }),
-  12: tr('pasta for carbonara or spaghetti?', 5, 5, 3, 1, [5, 5], [CB, CA, S]),
+  12: tr('new: cloches — what is under the dome?', 4, 5, 3, 2, [4, 4], [CB, CA, S], { intro: 'cloche', cloches: 2 }),
   13: tr('new: minestrone — soffritto, a potato and ONE tomato', 4, 5, 3, 2, [3, 4], [MI, BR], { intro: MI }),
-  14: tr('soup, risotto and pesto: whose cheese?', 4, 5, 3, 2, [4, 5], [MI, PE, RI]),
+  14: tr('soup, risotto and pesto: whose cheese?', 5, 5, 3, 2, [5, 5], [MI, PE, RI], { cloches: 2 }),
   15: tr('egg trouble: carbonara or dough?', 5, 5, 3, 2, [5, 6], [CB, PZ, CA]),
   16: tr('new: gnocchi — potato + flour', 4, 5, 3, 2, [3, 4], [GN, MI], { intro: GN }),
-  17: tr('flour for gnocchi or pizza?', 5, 5, 3, 2, [5, 5], [GN, PZ, OM]),
+  17: tr('flour for gnocchi or pizza?', 5, 5, 3, 2, [5, 6], [GN, PZ, OM], { cloches: 3 }),
   18: tr('new: calzone — dough, mozzarella and bacon', 4, 5, 3, 2, [3, 4], [CZ, CA], { intro: CZ }),
   19: tr('new: small kitchen — two slots', 4, 5, 2, 2, [3, 4], [RI, CZ, S], { intro: 'slots' }),
-  20: tr('banquet in a small kitchen', 5, 5, 2, 2, [6, 6], [GN, PE, BR, OM]),
+  20: tr('banquet in a small kitchen', 5, 5, 2, 2, [6, 7], [GN, PE, BR, OM]),
   21: tr('new: tiramisu — mascarpone + egg make cream', 4, 5, 3, 2, [3, 4], [TI, PZ], { intro: TI }),
-  22: tr('small kitchen: tiramisu, caprese, risotto', 4, 5, 2, 2, [4, 5], [TI, CA, RI]),
-  23: tr('soup, carbonara and pesto', 4, 5, 3, 2, [4, 5], [MI, CB, PE]),
-  24: tr('two tomatoes or one?', 4, 5, 3, 2, [4, 5], [GN, TI, BR]),
-  25: tr('dough, cream or omelette? the egg decides', 5, 5, 3, 2, [5, 6], [CZ, TI, OM]),
-  26: tr('basil: pesto or caprese?', 4, 5, 3, 2, [4, 5], [RI, PE, CA]),
-  27: tr('carbonara, gnocchi and bruschetta', 4, 5, 3, 2, [4, 5], [CB, GN, BR]),
-  28: tr('calzone, soup and spaghetti', 5, 5, 3, 2, [5, 5], [CZ, MI, S]),
-  29: tr('every egg counts', 4, 5, 3, 2, [4, 5], [PZ, OM, GN]),
-  30: tr('banquet: dessert night', 6, 5, 3, 3, [7, 7], [S, TI, CA, CB], { lead: [TI] }),
-  31: tr('soup, risotto and calzone', 4, 5, 3, 2, [4, 5], [MI, RI, CZ]),
-  32: tr('pesto, tiramisu and bruschetta', 5, 5, 3, 2, [5, 5], [PE, TI, BR]),
-  33: tr('gnocchi, caprese and omelette', 5, 5, 3, 2, [5, 6], [GN, CA, OM]),
-  34: tr('pizza, carbonara and soup', 5, 5, 3, 2, [5, 6], [PZ, CB, MI]),
-  35: tr('the busy pass', 5, 5, 3, 2, [6, 6], [TI, RI, GN]),
+  22: tr('small kitchen: tiramisu, caprese, risotto', 5, 5, 2, 2, [5, 5], [TI, CA, RI], { cloches: 2 }),
+  23: tr('soup, carbonara and pesto', 5, 5, 3, 2, [5, 6], [MI, CB, PE]),
+  24: tr('two tomatoes or one?', 5, 5, 3, 2, [5, 6], [GN, TI, BR], { cloches: 3 }),
+  25: tr('dough, cream or omelette? the egg decides', 5, 6, 3, 2, [6, 6], [CZ, TI, OM], { cloches: 2 }),
+  26: tr('from the freezer: basil, pesto or caprese?', 5, 5, 3, 2, [5, 6], [RI, PE, CA], { frozen: 1 }),
+  27: tr('carbonara, gnocchi and bruschetta', 5, 5, 3, 2, [5, 6], [CB, GN, BR], { cloches: 3 }),
+  28: tr('calzone, soup and spaghetti on ice', 5, 6, 3, 2, [6, 6], [CZ, MI, S], { frozen: 2 }),
+  29: tr('every egg counts', 5, 5, 3, 2, [5, 6], [PZ, OM, GN], { cloches: 2, frozen: 1 }),
+  30: tr('banquet: dessert night', 6, 5, 3, 3, [7, 7], [S, TI, CA, CB], { lead: [TI], cloches: 3 }),
+  31: tr('three seats: soup, risotto and calzone', 5, 6, 3, 3, [6, 7], [MI, RI, CZ], { frozen: 2 }),
+  32: tr('pesto, tiramisu and bruschetta', 6, 5, 3, 3, [6, 7], [PE, TI, BR], { cloches: 3 }),
+  33: tr('gnocchi, caprese and omelette', 6, 5, 3, 3, [6, 7], [GN, CA, OM], { frozen: 2 }),
+  34: tr('pizza, carbonara and soup', 6, 5, 3, 3, [6, 7], [PZ, CB, MI], { cloches: 3, frozen: 1 }),
+  35: tr('the busy pass', 6, 5, 3, 2, [7, 7], [TI, RI, GN], { cloches: 2, frozen: 1 }),
   36: tr('new: lids — a column opens after k dishes', 5, 5, 3, 2, [4, 5], [S, CZ, OM], { lids: 1, lidMax: 2, intro: 'lid' }),
-  37: tr('a lid: bruschetta, pesto and soup', 5, 5, 3, 2, [5, 6], [BR, PE, MI], { lids: 1, lidMax: 3 }),
-  38: tr('lids: caprese, tiramisu and pizza', 5, 5, 3, 2, [5, 6], [CA, TI, PZ], { lids: 2, lidMax: 3 }),
-  39: tr('lids: carbonara, gnocchi and risotto', 5, 5, 3, 2, [5, 6], [CB, GN, RI], { lids: 2, lidMax: 3 }),
-  40: tr('grand banquet', 6, 6, 3, 3, [7, 8], [MI, PZ, TI, CA, PE]),
+  37: tr('a lid: bruschetta, pesto and soup', 5, 5, 3, 3, [6, 6], [BR, PE, MI], { lids: 1, lidMax: 3, cloches: 2 }),
+  38: tr('lids: caprese, tiramisu and pizza', 6, 5, 3, 3, [6, 7], [CA, TI, PZ], { lids: 2, lidMax: 3, frozen: 1 }),
+  39: tr('a lid: carbonara, gnocchi and risotto', 6, 5, 3, 3, [6, 7], [CB, GN, RI], { lids: 1, lidMax: 3, cloches: 3, frozen: 1 }),
+  40: tr('grand banquet', 6, 6, 3, 3, [8, 8], [MI, PZ, TI, CA, PE], { cloches: 3, frozen: 1 }),
 };
 
 /**
@@ -212,8 +218,9 @@ const TRATTORIA: Record<number, Row> = {
  * fly to the plate that needs them next and park on the counter otherwise (L1) -> a hot dog: bun,
  * sausage, topping (2) -> pancakes: the same layer twice in a row (3) -> a small tight kitchen (5)
  * -> the club sandwich: toast at both ends, so one toast fits two plates (6) -> the sundae (8) ->
- * tight kitchens from L11, new fillings that several dishes share (chocolate, pickles, onion,
- * berries) -> taller tickets -> double patty (21) -> lids from L26 -> a third plate from L31.
+ * tight kitchens and cloches from L11, frozen tiles (12), new fillings that several dishes share
+ * (chocolate, pickles, onion, berries) -> taller tickets -> double patty (21) -> lids from L26 -> a
+ * third plate and six columns from L31.
  * Fillings join in that order; `fillings` lists those in use so far.
  */
 function BURGER_LADDER(): Record<number, Row> {
@@ -245,36 +252,36 @@ function BURGER_LADDER(): Record<number, Row> {
   b(8, 'new: sundae — glass, scoops, a cherry', 4, 5, 2, 4, [4, 5], [SD, PC], 1, 0, { intro: SD });
   b(9, 'tomato for burgers and sandwiches', 4, 5, 2, 4, [5, 5], [SD, BU, SW], 1);
   b(10, 'banquet: the whole menu', 5, 5, 2, 5, [4, 5], ALL, 0);
-  b(11, 'tight counter: every spot counts', 4, 5, 2, 3, [5, 5], [HD, SW], 0);
-  b(12, 'chocolate or vanilla first?', 4, 5, 2, 4, [5, 5], [BU, SD], 0);
-  b(13, 'pickles: hot dog or burger?', 4, 5, 2, 4, [4, 5], [PC, HD, SW], 0);
-  b(14, 'read the columns as recipes', 5, 5, 2, 4, [5, 5], [SD, HD, BU], 0);
-  b(15, 'rush hour', 5, 5, 2, 5, [5, 5], [SW, PC, BU], 0);
-  b(16, 'onion rings', 4, 5, 2, 4, [5, 5], [HD, SW], 0);
-  b(17, 'berries for pancakes and sundaes', 5, 5, 2, 4, [5, 5], [SD, PC, BU], 0);
-  b(18, 'tall tickets', 4, 6, 2, 4, [5, 6], [SW, HD], 0);
-  b(19, 'tall tickets', 5, 5, 2, 4, [5, 6], [BU, SD, PC], 0);
-  b(20, 'banquet: the big order', 5, 6, 2, 6, [5, 5], ALL, 0);
-  b(21, 'double patty', 5, 5, 2, 4, [5, 6], [BU, HD], 0, 0.5);
-  b(22, 'sandwiches, sundaes, pancakes', 5, 5, 2, 4, [5, 6], [SW, SD, PC], 0);
-  b(23, 'double trouble', 4, 6, 2, 4, [6, 6], [BU, PC], 0, 0.5);
-  b(24, 'hot dogs, sandwiches, sundaes', 5, 5, 2, 4, [5, 6], [HD, SW, SD], 0);
-  b(25, 'the stack-up', 4, 6, 2, 4, [6, 6], [BU, SW, SD], 0, 0.5);
+  b(11, 'tight counter, a cloche or two', 4, 5, 2, 4, [5, 5], [HD, SW], 0, 0, { cloches: 2 });
+  b(12, 'new: frozen — it thaws after a few moves', 4, 5, 2, 4, [5, 5], [BU, SD], 0, 0, { intro: 'frozen', frozen: 1 });
+  b(13, 'pickles: hot dog or burger?', 5, 5, 2, 4, [4, 5], [PC, HD, SW], 0, 0, { cloches: 2 });
+  b(14, 'read the columns as recipes', 5, 5, 2, 4, [5, 5], [SD, HD, BU], 0, 0, { frozen: 1 });
+  b(15, 'rush hour', 5, 5, 2, 5, [5, 5], [SW, PC, BU], 0, 0, { cloches: 2 });
+  b(16, 'onion rings', 5, 5, 2, 4, [5, 5], [HD, SW], 0, 0, { cloches: 2 });
+  b(17, 'berries for pancakes and sundaes', 5, 5, 2, 5, [5, 5], [SD, PC, BU], 0, 0, { frozen: 2 });
+  b(18, 'tall tickets', 5, 6, 2, 4, [5, 6], [SW, HD], 0, 0, { cloches: 3 });
+  b(19, 'tall tickets on ice', 5, 6, 2, 5, [5, 6], [BU, SD, PC], 0, 0, { frozen: 1, cloches: 2 });
+  b(20, 'banquet: the big order', 5, 6, 2, 6, [5, 5], ALL, 0, 0, { cloches: 2 });
+  b(21, 'double patty', 5, 5, 2, 4, [5, 6], [BU, HD], 0, 0.5, { frozen: 1 });
+  b(22, 'sandwiches, sundaes, pancakes', 5, 6, 2, 5, [5, 6], [SW, SD, PC], 0, 0, { cloches: 3 });
+  b(23, 'double trouble', 5, 6, 2, 5, [5, 6], [BU, PC], 0, 0.5, { frozen: 2 });
+  b(24, 'hot dogs, sandwiches, sundaes', 5, 6, 2, 5, [5, 6], [HD, SW, SD], 0, 0, { cloches: 2, frozen: 1 });
+  b(25, 'the stack-up', 5, 6, 2, 5, [5, 6], [BU, SW, SD], 0, 0.5, { cloches: 2 });
   b(26, 'new: lids — a column opens after k dishes', 5, 5, 2, 4, [5, 5], [HD, PC, SW], 0, 0, { lids: 1, lidMax: 2, intro: 'lid' });
-  b(27, 'a lid and a double patty', 5, 5, 2, 4, [5, 6], [BU, SD], 0, 0.3, { lids: 1, lidMax: 2 });
-  b(28, 'serve in the right order', 5, 5, 2, 4, [5, 6], [PC, SW, HD], 0, 0, { lids: 1, lidMax: 3 });
-  b(29, 'two lids', 5, 5, 2, 5, [5, 5], [SD, PC, BU], 0, 0, { lids: 2, lidMax: 3 });
-  b(30, 'banquet behind a lid', 5, 6, 2, 6, [5, 5], ALL, 0, 0, { lids: 1, lidMax: 2 });
-  b(31, 'a third plate', 4, 5, 3, 4, [5, 5], [HD, SW, SD], 0);
-  b(32, 'three plates', 5, 5, 3, 4, [5, 6], [BU, PC, SD], 0);
-  b(33, 'three plates, double patty', 5, 5, 3, 4, [5, 6], [BU, HD, SW], 0, 0.3);
-  b(34, 'three plates, long queue', 5, 5, 3, 5, [5, 5], [PC, SW, SD], 0);
-  b(35, 'lunch rush', 5, 5, 3, 5, [5, 5], [HD, SD, BU], 0);
-  b(36, 'three plates and a lid', 5, 5, 3, 4, [5, 6], [SW, PC, HD], 0, 0, { lids: 1, lidMax: 2 });
-  b(37, 'three plates and a lid', 5, 5, 3, 5, [5, 5], [BU, SD, PC], 0, 0.3, { lids: 1, lidMax: 3 });
-  b(38, 'three plates, a late lid', 5, 5, 3, 5, [5, 5], [SD, SW, HD], 0, 0, { lids: 1, lidMax: 3 });
-  b(39, 'three plates, a late lid', 5, 5, 3, 5, [5, 5], [BU, PC, SW], 0, 0.3, { lids: 1, lidMax: 3 });
-  b(40, 'grand banquet: three plates', 5, 6, 3, 6, [5, 5], ALL, 0, 0.3);
+  b(27, 'a lid and a double patty', 5, 6, 2, 5, [5, 6], [BU, SD], 0, 0.3, { lids: 1, lidMax: 2, cloches: 2 });
+  b(28, 'serve in the right order', 5, 6, 2, 5, [5, 6], [PC, SW, HD], 0, 0, { lids: 1, lidMax: 3, frozen: 1 });
+  b(29, 'two lids', 5, 5, 2, 5, [5, 5], [SD, PC, BU], 0, 0, { lids: 2, lidMax: 3, cloches: 2 });
+  b(30, 'banquet behind a lid', 6, 5, 2, 6, [5, 5], ALL, 0, 0, { lids: 1, lidMax: 2, frozen: 1 });
+  b(31, 'a third plate', 5, 5, 3, 5, [5, 5], [HD, SW, SD], 0, 0, { cloches: 2 });
+  b(32, 'three plates', 6, 5, 3, 5, [5, 6], [BU, PC, SD], 0, 0, { frozen: 2 });
+  b(33, 'three plates, double patty', 6, 5, 3, 5, [5, 6], [BU, HD, SW], 0, 0.3, { cloches: 3 });
+  b(34, 'three plates, long queue', 6, 5, 3, 6, [5, 5], [PC, SW, SD], 0, 0, { frozen: 1, cloches: 2 });
+  b(35, 'lunch rush', 6, 5, 3, 6, [5, 5], [HD, SD, BU], 0, 0, { cloches: 2, frozen: 1 });
+  b(36, 'three plates and a lid', 6, 5, 3, 5, [5, 6], [SW, PC, HD], 0, 0, { lids: 1, lidMax: 2, cloches: 2 });
+  b(37, 'three plates and a lid', 6, 5, 3, 5, [5, 5], [BU, SD, PC], 0, 0.3, { lids: 1, lidMax: 3, frozen: 1 });
+  b(38, 'three plates, a late lid', 6, 5, 3, 5, [5, 6], [SD, SW, HD], 0, 0, { lids: 1, lidMax: 3, cloches: 3 });
+  b(39, 'three plates, a late lid', 6, 5, 3, 6, [5, 5], [BU, PC, SW], 0, 0.3, { lids: 1, lidMax: 3, cloches: 2, frozen: 1 });
+  b(40, 'grand banquet: three plates', 6, 5, 3, 6, [5, 5], ALL, 0, 0.3, { cloches: 3, frozen: 1 });
   return rows;
 }
 
@@ -282,56 +289,37 @@ function BURGER_LADDER(): Record<number, Row> {
 const LADDERS: Record<number, Row>[] = [TRATTORIA, BURGER_LADDER()];
 
 /**
- * Target band for a kitchen's local level. Both kitchens share the tier semantics: from local
- * level 11 on, normal levels must beat the greedy player, keep the random player between 4% and
- * 15% (2%–8% by the end of the ladder), need 2–4 moves of lookahead and be tight; hard and super
- * hard levels go further. The thinking player (2–3 moves ahead) must win most normal levels and
- * about half of the hard ones, so the levels stay fair. Each kitchen has its own teaching ramp
- * before that; the generator aims for the middle of every band.
+ * Target band for a kitchen's local level. Both kitchens share the tier semantics. The teaching ramp
+ * (local 2–8, the Burger Joint to 9) keeps the classic "anyone wins" bands of the random player and
+ * only asks that a player looking two moves ahead wins. From local 9 on the planning bands
+ * (targets.ts) take over: normal levels must beat the greedy player and need more and more moves of
+ * planning (deep traps, forced non-greedy decisions), hard levels and banquets go further, and every
+ * level from local 11 on is tight. Lids and ice must matter (they rule out a share of the winning
+ * lines); cloches must hide something that decides a move, and a careful deducer must never guess
+ * (banquets may need one guess, which the docs flag). The generator aims for the middle of every band.
  */
-export function targetFor(world: number, local: number, tier: Tier, intro?: Intro, lids = 0): Target {
-  const lid = lids > 0 ? { minLidCut: intro === 'lid' ? 0.4 : 0.2 } : {};
-  if (world === 1 && local <= 9) {
-    // Burger Joint ramp: raw deals, then breathers with one spare counter spot; L5 is a small tight kitchen.
-    if (local <= 4) return { random: [0.5, 1], minCritical: local >= 3 ? 1 : 0 };
-    if (local === 5) return { random: [0.08, 0.35], minCritical: 3, lookahead: [1, 5], tight: true };
-    if (local === 6) return { random: [0.35, 0.8], minCritical: 1, lookahead: [0, 3] };
-    if (local === 7) return { random: [0.25, 0.6], minCritical: 2, lookahead: [0, 3] };
-    if (local === 8) return { random: [0.2, 0.5], minCritical: 2, lookahead: [1, 4] };
-    return { random: [0.15, 0.45], minCritical: 2, lookahead: [1, 4] };
-  }
-  if (local <= 4) return { random: [0.5, 1], minCritical: local >= 3 ? 1 : 0 };
-  if (local === 5) return { random: [0.15, 0.45], minCritical: 3, lookahead: [1, 4], tight: true };
-  if (local === 6) return { random: [0.35, 0.85], minCritical: 1, lookahead: [0, 3] };
-  if (local === 7) return { random: [0.25, 0.6], minCritical: 2, lookahead: [0, 3] };
-  if (local === 8) return { random: [0.15, 0.45], minCritical: 2, lookahead: [1, 3], tight: true };
-  const stage = Math.min(1, (local - 9) / 31);
-  if (tier === 'hard') {
-    return {
-      random: [0, 0.03], greedyLoses: true, lookahead: [4, 9], minCritical: 5, minLateCritical: 3,
-      phaseRandom: 0.3, thinking: [0.25, 0.8], tight: true, maxTrap: 10, ...lid,
-    };
-  }
-  if (tier === 'superhard') {
-    if (local < 20) {
-      return {
-        random: [0.005, 0.05], greedyLoses: true, lookahead: [3, 9], minCritical: 6, minLateCritical: 3,
-        phaseRandom: 0.3, thinking: [0.15, 0.75], tight: true, maxTrap: 10, ...lid,
-      };
+export function targetFor(world: number, local: number, tier: Tier, intro?: Intro, lids = 0, mech: { cloches?: number; frozen?: number } = {}): Target {
+  const extra: Target = {};
+  if (lids > 0) extra.minLidCut = intro === 'lid' ? 0.4 : 0.2;
+  if (mech.frozen) extra.minIceCut = intro === 'frozen' ? 0.3 : 0.15;
+  if (mech.cloches) extra.minRiddles = 1;
+  const plan = planBands(tier, local, intro, 9);
+  const ramp = world === 1 ? 9 : 8;
+  if (local <= ramp && tier === 'normal') {
+    let classic: Target;
+    if (local <= 4) classic = { random: [0.5, 1], minCritical: local >= 3 ? 1 : 0 };
+    else if (world === 1) {
+      // Burger Joint ramp: breathers with one spare counter spot
+      classic = local === 6 ? { random: [0.35, 0.8], minCritical: 1 } : local === 7 ? { random: [0.25, 0.6], minCritical: 2 }
+        : local === 8 ? { random: [0.2, 0.5], minCritical: 2 } : { random: [0.15, 0.45], minCritical: 2 };
+    } else {
+      classic = local === 6 ? { random: [0.35, 0.85], minCritical: 1 } : local === 7 ? { random: [0.25, 0.6], minCritical: 2 }
+        : { random: [0.15, 0.45], minCritical: 2, tight: true };
     }
-    return {
-      random: [0, 0.01], greedyLoses: true, lookahead: [5, 10], minCritical: 8, minLateCritical: 4,
-      phaseRandom: 0.2, thinking: [0.15, 0.65], tight: true, maxTrap: 10, ...lid,
-    };
+    return { ...classic, ...plan, ...extra };
   }
-  if (intro) {
-    return { random: [0.08, 0.3], lookahead: [1, 4], minCritical: 2, phaseRandom: 0.7, thinking: [0.6, 1], ...lid };
-  }
-  return {
-    random: [local === 9 ? 0.06 : 0.04 - 0.02 * stage, 0.15 - 0.07 * stage], greedyLoses: true, lookahead: [2, 4],
-    minCritical: 3 + Math.round(2 * stage), minLateCritical: 2, phaseRandom: 0.5, thinking: [local === 9 ? 0.6 : 0.5, 1],
-    tight: local >= 11, maxTrap: 7, ...lid,
-  };
+  if (local === 5) return { random: world === 1 ? [0.08, 0.35] : [0.15, 0.45], minCritical: 3, tight: true, ...plan, ...extra };
+  return { ...plan, tight: tier !== 'normal' || (local >= 11 && !intro) ? true : undefined, maxTrap: 12, ...extra };
 }
 
 function specFrom(n: number, world: number, local: number, row: Row, target?: Target): LevelSpec {
@@ -352,9 +340,11 @@ function specFrom(n: number, world: number, local: number, row: Row, target?: Ta
     items: row.items ?? [row.cols + 2, 30],
     lids: row.lids,
     lidMax: row.lidMax,
+    cloches: row.cloches,
+    frozen: row.frozen,
     intro: row.intro,
     theme: row.theme,
-    target: target ?? { ...targetFor(world, local, tier, row.intro, row.lids ?? 0), ...row.t },
+    target: target ?? { ...targetFor(world, local, tier, row.intro, row.lids ?? 0, row), ...row.t },
   };
   if (row.burger) {
     spec.rules = 'burger';
@@ -399,11 +389,26 @@ export function endlessWorld(n: number): number {
 }
 
 /**
+ * The runtime part of a target: the planner bands up to depth 3 (the deeper planners are too slow
+ * for a phone), forced / deep decisions, greedy loses, tight and the random cap. Endless levels are
+ * built by the guided generator in a Web Worker with a small budget (see generateEndlessLevel).
+ */
+export function runtimeTarget(t: Target): Target {
+  const reach: Target['reach'] = {};
+  for (const [d, band] of Object.entries(t.reach ?? {})) if (Number(d) <= 3 && band) reach[Number(d)] = band;
+  return {
+    reach, minForced: t.minForced, minDeep: t.minDeep, greedyLoses: t.greedyLoses, tight: t.tight, maxRandom: t.maxRandom,
+    maxGuesses: t.maxGuesses,
+  };
+}
+
+/**
  * Endless levels after the campaign: 5-level shifts take the kitchens in turn. A shift plays its
  * kitchen's late shapes (local 31–35 or 36–40 on alternate visits, see endlessLocal) with the same
- * tiers (the 5th level of a shift is hard or a banquet) and late-ladder targets. Banquets are smaller than the campaign's, burger
- * levels use four columns, and the thinking player and the lid effect aren't measured, so the
- * runtime generator stays fast. The level's `world` is the kitchen's world.
+ * tiers (the 5th level of a shift is hard or a banquet) and the late ladder's planning targets
+ * (runtimeTarget). Boards are a little smaller than the campaign's late ones (five columns, at most
+ * six guests) so the worker builds a level in well under a second; cloches and ice come with the
+ * rows. The level's `world` is the kitchen's world.
  */
 export function endlessSpec(n: number): LevelSpec {
   const tier = tierForLevel(n);
@@ -411,28 +416,11 @@ export function endlessSpec(n: number): LevelSpec {
   if (world === 2) throw new Error(`endless level ${n} is a Taquería level: see taqueriaEndlessSpec`);
   // a late level of that kitchen with the same tier: its targets apply
   const like = endlessLocal(n);
-  let row: Row;
-  if (world === 0) {
-    const cycle = [31, 32, 33, 34, 37, 38, 39, 26, 27, 28];
-    // 5 columns x 6 and two seats: as hard as the campaign's 6-column banquets at a tenth of the cost.
-    if (tier === 'superhard') row = { ...TRATTORIA[30], cols: 5, depth: 6, seats: 2, orders: [6, 6] };
-    else if (tier === 'hard') row = TRATTORIA[(n % 20 === 5 ? 25 : 35)];
-    else row = TRATTORIA[cycle[(n * 7) % cycle.length]];
-  } else {
-    // Four columns and four tickets keep the guided split at a few tens of milliseconds per
-    // candidate (five columns or five tickets cost ten times more).
-    const B = LADDERS[1];
-    const cycle: Row[] = [B[12], B[13], B[16], B[18], { ...B[16], theme: 'a lid', lids: 1, lidMax: 2 }];
-    if (tier === 'superhard') row = { ...B[25], theme: 'banquet' };
-    else if (tier === 'hard') row = n % 20 === 5 ? B[23] : B[25];
-    else row = cycle[(n * 7) % cycle.length];
-    row = { ...row, burger: { ...row.burger!, guide: 100 } };
-  }
-  row = { ...row, intro: undefined };
-  // The runtime generator skips the slow measurements: the thinking player and the lid effect.
-  let target: Target = { ...targetFor(world, like, tier, undefined, row.lids ?? 0), thinking: undefined, minLidCut: undefined };
-  // Burger levels keep the core of the band (tight, greedy loses, random win) so that the first
-  // or second guided split usually fits.
-  if (world === 1) target = { tight: true, greedyLoses: true, random: tier === 'superhard' ? [0, 0.03] : tier === 'hard' ? [0, 0.04] : [0.02, 0.15] };
+  const L = LADDERS[world];
+  const cycle = world === 0 ? [26, 27, 28, 29, 31, 32, 33, 34, 37, 39] : [27, 28, 29, 31, 32, 33, 34, 36, 37, 38];
+  let row: Row = tier === 'superhard' ? L[30] : tier === 'hard' ? L[n % 20 === 5 ? 25 : 35] : L[cycle[(n * 7) % cycle.length]];
+  const orders: [number, number] = [Math.min(row.orders[0], 6), Math.min(row.orders[1], 6)];
+  row = { ...row, cols: Math.min(row.cols, 5), depth: 6, seats: Math.min(row.seats, 2), orders, intro: undefined };
+  const target = runtimeTarget(targetFor(world, like, tier, undefined, row.lids ?? 0, row));
   return { ...specFrom(n, world, like, row, target), local: undefined, n, tier, theme: 'endless' };
 }

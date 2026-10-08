@@ -12,15 +12,15 @@
  *   LEVELS=5,9 bun scripts/build-levels.ts     rebuild only these campaign levels, keep the others in place
  *   KITCHEN=0 bun scripts/build-levels.ts      only the Trattoria (1: only the Burger Joint)
  *   SALT=2 LEVELS=17 bun ...                   try different seeds for a level
- *   ATTEMPTS=400 ...                           candidates per seed (default 300; burger levels 60,
- *                                              since every burger candidate runs a guided split)
+ *   ATTEMPTS=8 ITERS=150 ...                   drafts per seed and hill-climb steps per draft (guided.ts)
  *
  * The output file is rewritten after every level (checkpoint).
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { aimDistance, generateLevel, objective, type GenResult } from '../src/core/generator';
-import { measureLevel, roundStats } from '../src/core/metrics';
+import { aimDistance, generateGuidedLevel, objective, type GenResult } from '../src/core/generator';
+import { finalStats } from '../src/core/guided';
+import { roundStats } from '../src/core/metrics';
 import { authoredLevel, BUILDER_WORLDS, CAMPAIGN_LEVELS, kitchenAt, levelSpec, localOf } from '../src/core/progression';
 import { hashString } from '../src/core/rng';
 import type { LevelDef } from '../src/core/types';
@@ -30,9 +30,11 @@ const ONLY = process.env.LEVELS ? new Set(process.env.LEVELS.split(',').map(Numb
 const KITCHENS = process.env.KITCHEN ? [Number(process.env.KITCHEN)] : BUILDER_WORLDS;
 const RESUME = process.env.RESUME === '1';
 const SALT = process.env.SALT ?? '';
-const ATTEMPTS = Number(process.env.ATTEMPTS ?? 300);
-/** thinking-player games per candidate near the target (cheap: the planner's search is memoized) */
-const THINK_RUNS = 64;
+const ATTEMPTS = Number(process.env.ATTEMPTS ?? 8);
+const ITERS = Number(process.env.ITERS ?? 140);
+/** planner games per depth: while searching, and for the stored numbers (fresh seeds) */
+const RUNS = 16;
+const HOLDOUT = 64;
 /** seeds tried per level when the first one misses the target */
 const SEEDS = 3;
 
@@ -59,9 +61,10 @@ function line(lv: LevelDef, note: string): string {
   return (
     `#${String(lv.n).padStart(3)} ${'TBQ'[lv.world]}${String(lv.local).padStart(2)} ${lv.tier.padEnd(9)} ${String(st.items).padStart(2)} items ${lv.columns.length}x${depth} ` +
     `slots=${lv.slots} seats=${lv.seats} guests=${lv.orders.length}${lv.lids ? ' lids' : '     '} ` +
-    `rnd=${pct(st.random, 2)}% @1/3=${pct(st.phaseRandom)}% greedy=${st.greedy ? 'win ' : 'lose'} LA=${st.lookahead} ` +
-    `crit=${st.critical}/${st.decisions} late=${st.lateCritical} trap=${st.trapDepth} think=${pct(st.thinking, 0)}% ` +
-    `${st.tight ? 'tight' : '     '} ${note}`
+    `plan=${(st.plan ?? []).map((x) => pct(x, 0).trim()).join('/')} depth=${st.depth} forced=${st.forced} deep=${st.deep} ` +
+    `rnd=${pct(st.random, 2)}% greedy=${st.greedy ? 'win ' : 'lose'} LA=${st.lookahead} crit=${st.critical}/${st.decisions} trap=${st.trapDepth} ` +
+    `${st.tight ? 'tight' : '     '}${lv.frozen ? ` ice=${lv.frozen.length}/${pct(st.iceCut, 0).trim()}%` : ''}` +
+    `${lv.cloches ? ` cloches=${lv.cloches.length} guess=${st.guesses} riddles=${st.riddles}` : ''} ${note}`
   );
 }
 
@@ -78,7 +81,7 @@ for (let n = 1; n <= CAMPAIGN_LEVELS; n++) {
   const authored = authoredLevel(n);
   if (authored) {
     // Tutorials are authored: measure them and store their solution like any other level.
-    const m = measureLevel(authored, { tight: true, thinkRuns: THINK_RUNS, seed: 1 })!;
+    const m = finalStats(authored, { holdout: HOLDOUT, seed: 1 })!;
     const lv: LevelDef = { ...authored, solution: m.solution, stats: roundStats(m.stats) };
     levels.push(lv);
     save();
@@ -89,8 +92,7 @@ for (let n = 1; n <= CAMPAIGN_LEVELS; n++) {
   let best: GenResult | null = null;
   for (let k = 0; k < SEEDS; k++) {
     const seed = hashString(`${spec.menu}:${spec.local}${SALT ? ':' + SALT : ''}${k ? ':' + k : ''}`);
-    const burger = spec.rules === 'burger';
-    const res = generateLevel(spec, seed, { attempts: burger ? Math.min(ATTEMPTS, 60) : ATTEMPTS, thinkRuns: THINK_RUNS, keep: burger ? 3 : 4 });
+    const res = generateGuidedLevel(spec, seed, { attempts: ATTEMPTS, iters: ITERS, keep: 3, runs: RUNS, holdout: HOLDOUT });
     const better = res && (!best || res.dist < best.dist || (res.dist === best.dist && aimDistance(res.level.stats!, spec.target) < aimDistance(best.level.stats!, spec.target)));
     if (better) best = res;
     if (best && best.dist === 0) break;

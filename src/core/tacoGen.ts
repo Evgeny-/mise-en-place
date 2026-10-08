@@ -18,84 +18,23 @@
  */
 import { DISHES, type DishId, type FoodId } from './content';
 import type { Target } from './generator';
+import { generateGuided, planAim, planObjective, type Draft, type GuidedOptions } from './guided';
+import { planBands } from './targets';
 import {
-  alongLine, greedyPlayout, naturalSolution, phaseRandom, requiredLookahead, roundStats, Thinker, type Heuristic,
+  alongLine, greedyPlayout, naturalSolution, phaseRandom, requiredLookahead, roundStats, Thinker,
 } from './metrics';
+import { tacoHeuristic } from './tacoHeuristic';
 import { Rng } from './rng';
 import { campaignLevel } from './shifts';
 import { Solver } from './solver';
-import { TACO_ITEMS, TacoRules, tacoIndex, type TacoLevel, type TacoVariant, type TState } from './taco';
+import { TACO_ITEMS, TacoRules, tacoIndex, type TacoLevel, type TacoVariant } from './taco';
 import type { Intro, LevelDef, LevelStats, Tier } from './types';
 
-const TOMATO = 8;
 const TORTILLA = 12;
 /** item index -> raw items it is made of (salsa -> tomato + onion, guacamole -> avocado + lime) */
 const EXPAND: number[][] = TACO_ITEMS.map((_, i) => (i === 6 ? [8, 9] : i === 7 ? [10, 11] : [i]));
 
-// ---------------------------------------------------------------------------------------------
-// Heuristic for the simulated players
-
-/**
- * The research engine's greedy player, and a position value for the thinking player.
- * - priority 3: the take serves a guest; 2: it adds a filling to an open container that still fits a
- *   seated guest's ticket; 1: a seated guest still needs the item (containers, fillings and prep
- *   halves on the counter count as supply); 0: anything else. Ties go to the leftmost column.
- * - value: 1000 per served dish, +60 per folded taco waiting for its guest, +25 per filling in an
- *   open container that fits a seated guest (+10 if it only fits a queued one), −6 per slot in use,
- *   +8 per column that can be taken (the guard dims the others: a player sees them). Without the
- *   last term a player planning 2–3 moves ahead walks into "stuck with free slots" even on the
- *   tutorial (L81: 50% -> 100%; 66% -> 75% over a trial build of the campaign).
- */
-export function tacoHeuristic(r: TacoRules): Heuristic<TState> {
-  const dem = new Array<number>(TACO_ITEMS.length).fill(0);
-  const deficit = (s: TState): number[] => {
-    const K = r.kitchen(s);
-    dem.fill(0);
-    for (const d of K.seats) {
-      if (d < 0) continue;
-      const t = r.tickets[d];
-      dem[TORTILLA + t.c]++;
-      for (const f of t.exact) for (const x of EXPAND[f]) dem[x]++;
-    }
-    for (const b of K.opens) {
-      dem[TORTILLA + b.c]--;
-      for (const f of b.f) for (const x of EXPAND[f]) dem[x]--;
-    }
-    for (const f of K.loose) for (const x of EXPAND[f]) dem[x]--;
-    for (let i = 0; i < 4; i++) dem[TOMATO + i] -= K.raws[i];
-    return dem.slice();
-  };
-  /** fillings in open containers that still fit a seated guest's ticket */
-  const progress = (s: TState): number => {
-    const K = r.kitchen(s);
-    let p = 0;
-    for (const b of K.opens) if (b.f.length && K.seats.some((d) => d >= 0 && r.fits(d, b.c, b.f, -1))) p += b.f.length;
-    return p;
-  };
-  return {
-    priorities(s, steps) {
-      const sv = r.served(s);
-      let p0 = -1;
-      let def: number[] | null = null;
-      return steps.map(([m, n]) => {
-        if (r.served(n) > sv) return 3;
-        if (p0 < 0) p0 = progress(s);
-        if (progress(n) > p0) return 2;
-        def ??= deficit(s);
-        return def[r.top(s, m)] > 0 ? 1 : 0;
-      });
-    },
-    value(s) {
-      const K = r.kitchen(s);
-      let v = 1000 * K.served + 60 * K.closed.length - 6 * K.occ + 8 * r.moves(s).length;
-      for (const b of K.opens) {
-        if (!b.f.length) continue;
-        v += (K.seats.some((d) => d >= 0 && r.fits(d, b.c, b.f, -1)) ? 25 : 10) * b.f.length;
-      }
-      return v;
-    },
-  };
-}
+export { tacoHeuristic } from './tacoHeuristic';
 
 // ---------------------------------------------------------------------------------------------
 // Measurement
@@ -186,6 +125,9 @@ export interface TacoSpec {
   spread?: number;
   /** twist "topping last" */
   toppings?: Partial<Record<DishId, FoodId>>;
+  /** frozen tiles and cloches (pantry.ts) */
+  frozen?: number;
+  cloches?: number;
   /** teaching filter: the concept must be necessary to win */
   essential?: 'park' | 'scoop';
   intro?: Intro;
@@ -209,12 +151,11 @@ const linBand = (v: number, band: [number, number] | undefined): number => {
 /** Distance of the measured stats from the target (0 = on target); the same terms as world 1. */
 export function tacoObjective(st: LevelStats, t: Target): number {
   let v = logBand(st.random, t.random);
-  if (t.greedyLoses && st.greedy) v += 0.4;
+  v += planObjective(st, t);
   v += 0.25 * linBand(st.lookahead, t.lookahead);
   if (t.minCritical) v += 0.12 * Math.max(0, t.minCritical - st.critical);
   if (t.minLateCritical) v += 0.12 * Math.max(0, t.minLateCritical - (st.lateCritical ?? 0));
   if (t.phaseRandom !== undefined) v += Math.max(0, logBand(st.phaseRandom ?? 1, [0, t.phaseRandom]));
-  if (t.tight && st.tight === false) v += 0.6;
   if (t.thinking) v += st.thinking === undefined ? 0.15 : 1.2 * linBand(st.thinking, t.thinking);
   if (t.maxTrap !== undefined) v += 0.05 * Math.max(0, (st.trapDepth ?? 0) - t.maxTrap);
   return v;
@@ -229,7 +170,7 @@ export function tacoAim(st: LevelStats, t: Target): number {
     d += Math.abs(Math.log10(Math.max(st.random, 1e-5)) - Math.log10(centre));
   }
   if (t.thinking && st.thinking !== undefined) d += Math.abs(st.thinking - (t.thinking[0] + t.thinking[1]) / 2);
-  return d;
+  return d + planAim(st, t);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -369,6 +310,37 @@ export function buildTacoCandidate(spec: TacoSpec, rng: Rng): { level: LevelDef;
   return { level, golden: labels };
 }
 
+/** A draft for the guided generator (guided.ts): orders, golden line and a first dealing. */
+export function draftTaco(spec: TacoSpec, rng: Rng): Draft | null {
+  const cand = buildTacoCandidate(spec, rng);
+  if (!cand) return null;
+  const items: FoodId[] = [];
+  const ptr = cand.level.columns.map(() => 0);
+  for (const c of cand.golden) items.push(cand.level.columns[c][ptr[c]++]);
+  return {
+    base: { ...cand.level, columns: [] }, items, labels: cand.golden, servedBefore: items.map(() => 0), thaw: items.map(() => 0),
+    columns: spec.columns, depth: spec.depth,
+  };
+}
+
+/** Generates a taco level with the guided generator: drafts hill-climbed toward the target. */
+export function generateGuidedTaco(spec: TacoSpec, seed: number, opts: GuidedOptions = {}): TacoGenResult | null {
+  const t = spec.target;
+  const res = generateGuided({
+    target: t,
+    objective: (st) => tacoObjective(st, t),
+    aim: (st) => tacoAim(st, t),
+    draft: (rng) => draftTaco(spec, rng),
+    frozen: spec.frozen,
+    cloches: spec.cloches,
+    accept: (lv) =>
+      !(spec.essential === 'park' && winnableUnder(lv, { route: 'old' }, opts.budget)) &&
+      !(spec.essential === 'scoop' && winnableUnder(lv, { absorb: false }, opts.budget)),
+  }, seed, opts);
+  if (!res) return null;
+  return { ...res, level: { ...res.level, stats: roundStats(res.level.stats!) } };
+}
+
 export interface TacoGenOptions {
   /** candidate levels to build at most */
   attempts?: number;
@@ -473,6 +445,9 @@ interface TacoRow {
   hold?: number;
   toppings?: Partial<Record<DishId, FoodId>>;
   essential?: 'park' | 'scoop';
+  /** frozen tiles and cloches (pantry.ts) */
+  frozen?: number;
+  cloches?: number;
   intro?: Intro;
   /** target overrides */
   t?: Target;
@@ -504,81 +479,58 @@ const TACO_LADDER: Record<number, TacoRow> = {
   6: tq('new: quesadilla — chicken and double cheese', 3, 4, 3, [Q, V], { nest: 1, intro: Q }),
   7: tq('a taco for the queue; loose fillings get scooped in order', 4, 4, 4, [Q, C, P], { essential: 'scoop' }),
   8: tq('new: bean taco — beans, cheese and salsa', 4, 4, 4, [F, C], { nest: 1, intro: F }),
-  9: tq('plan for the queue', 4, 4, 4, [F, P, V], { nest: 1 }),
+  9: tq('plan for the queue, under a cloche', 4, 4, 4, [F, P, V], { nest: 1, cloches: 2 }),
   10: tq('banquet: taco night', 5, 4, 5, [C, P, V, F, Q], { nest: 1 }),
   11: tq('small counter: three slots', 4, 3, 4, [Q, F, C], { intro: 'slots' }),
-  12: tq('small counter', 4, 3, 4, [P, V, F], { nest: 1 }),
+  12: tq('small counter', 4, 3, 4, [P, V, F], { nest: 1, cloches: 2 }),
   13: tq('new: burrito — a wrap holds four', 4, 4, 4, [BV, P], { intro: BV }),
-  14: tq('which container is receiving?', 4, 4, 4, [BV, C, Q], { nest: 1 }),
-  15: tq('three-slot rush', 5, 3, 5, [F, P, BV], { nest: 1 }),
+  14: tq('which container is receiving? one is frozen', 4, 4, 4, [BV, C, Q], { nest: 1, frozen: 1 }),
+  15: tq('three-slot rush', 5, 3, 5, [F, P, BV], { nest: 1, cloches: 2 }),
   16: tq('new: enchiladas — chicken, beans, cheese, salsa', 5, 4, 4, [E, V], { nest: 1, intro: E }),
-  17: tq('tacos, a burrito and enchiladas', 5, 4, 5, [E, C, BV], { depth: 6, nest: 1 }),
-  18: tq('the carnitas burrito', 5, 4, 5, [BC, P, Q], { nest: 1 }),
-  19: tq('two wraps', 5, 4, 5, [BC, F, E], { depth: 6, nest: 1 }),
-  20: tq('banquet: burrito night', 6, 4, 6, [BV, E, P, V, C], { nest: 1 }),
+  17: tq('tacos, a burrito and enchiladas', 5, 4, 5, [E, C, BV], { depth: 6, nest: 1, cloches: 2 }),
+  18: tq('the carnitas burrito', 5, 4, 5, [BC, P, Q], { nest: 1, frozen: 1 }),
+  19: tq('two wraps', 5, 4, 5, [BC, F, E], { depth: 6, nest: 1, cloches: 2 }),
+  20: tq('banquet: burrito night', 6, 4, 6, [BV, E, P, V, C], { nest: 1, frozen: 1 }),
   21: tq('new: taco verde — guacamole: avocado + lime', 4, 4, 4, [G, P], { intro: G }),
-  22: tq('salsa or guacamole', 5, 4, 5, [G, C, BV], { nest: 1 }),
+  22: tq('salsa or guacamole', 5, 4, 5, [G, C, BV], { nest: 1, cloches: 2 }),
   23: tq('new: tostada — beans, lettuce, guacamole', 5, 4, 5, [T, F], { nest: 1, intro: T }),
-  24: tq('the guacamole menu', 5, 4, 5, [T, G, Q], { nest: 1 }),
-  25: tq('beans for everyone', 5, 4, 5, [BC, T, P], { depth: 6, nest: 1 }),
-  26: tq('the chicken burrito', 5, 4, 5, [BP, V, E], { depth: 6, nest: 1 }),
-  27: tq('the full menu, small counter', 5, 3, 5, [G, F, BC], { depth: 6, nest: 1 }),
-  28: tq('the full menu', 5, 4, 5, [Q, T, BP], { nest: 1 }),
-  29: tq('the full menu, small counter', 5, 3, 5, [E, C, G], { depth: 6, nest: 1 }),
-  30: tq('banquet: fiesta', 6, 4, 6, [BG, T, Q, F, P, C], { nest: 1 }),
+  24: tq('the guacamole menu', 5, 4, 5, [T, G, Q], { nest: 1, frozen: 1 }),
+  25: tq('beans for everyone', 5, 4, 5, [BC, T, P], { depth: 6, nest: 1, cloches: 2 }),
+  26: tq('the chicken burrito', 5, 4, 5, [BP, V, E], { depth: 6, nest: 1, frozen: 1, cloches: 2 }),
+  27: tq('the full menu, small counter', 5, 3, 5, [G, F, BC], { depth: 6, nest: 1, cloches: 2 }),
+  28: tq('the full menu on ice', 5, 4, 5, [Q, T, BP], { nest: 1, frozen: 2 }),
+  29: tq('the full menu, small counter', 5, 3, 5, [E, C, G], { depth: 6, nest: 1, cloches: 2 }),
+  30: tq('banquet: fiesta', 6, 4, 6, [BG, T, Q, F, P, C], { nest: 1, cloches: 2, frozen: 1 }),
   31: tq('topping last: cheese goes on top', 4, 4, 4, [C, P], { toppings: CHEESE_TOP, intro: 'topping', must: [C, C, P] }),
-  32: tq('topping last', 5, 4, 5, [P, C, BV], { toppings: TOPS, nest: 1 }),
-  33: tq('topping last', 5, 4, 5, [F, Q, P], { toppings: TOPS, nest: 1 }),
-  34: tq('topping last, small counter', 5, 3, 5, [C, V, T], { toppings: TOPS, nest: 1 }),
-  35: tq('toppings and burritos', 5, 4, 5, [P, C, BV], { toppings: TOPS, nest: 1 }),
-  36: tq('toppings everywhere', 5, 4, 5, [V, P, BV, C], { toppings: TOPS_ALL, nest: 1 }),
-  37: tq('topping last, full menu', 5, 4, 5, [G, E, P], { depth: 6, toppings: TOPS, nest: 1 }),
-  38: tq('topping last, small counter', 5, 3, 5, [F, C, BP], { depth: 6, toppings: TOPS, nest: 1 }),
-  39: tq('toppings everywhere', 5, 4, 5, [V, BG, T], { toppings: TOPS_ALL, nest: 1 }),
-  40: tq('grand fiesta', 6, 4, 6, [P, C, F, BV, G, Q], { toppings: TOPS, nest: 1 }),
+  32: tq('topping last, under a cloche', 5, 4, 5, [P, C, BV], { toppings: TOPS, nest: 1, cloches: 2 }),
+  33: tq('topping last on ice', 5, 4, 5, [F, Q, P], { toppings: TOPS, nest: 1, frozen: 1 }),
+  34: tq('topping last, small counter', 5, 3, 5, [C, V, T], { toppings: TOPS, nest: 1, cloches: 2 }),
+  35: tq('toppings and burritos', 5, 4, 5, [P, C, BV], { toppings: TOPS, nest: 1, cloches: 2, frozen: 1 }),
+  36: tq('three guests: toppings everywhere', 6, 4, 6, [V, P, BV, C], { seats: 3, toppings: TOPS_ALL, nest: 1, frozen: 1 }),
+  37: tq('three guests: topping last, full menu', 5, 4, 5, [G, E, P], { seats: 3, depth: 6, toppings: TOPS, nest: 1, cloches: 2 }),
+  38: tq('topping last, small counter', 5, 3, 5, [F, C, BP], { depth: 6, toppings: TOPS, nest: 1, frozen: 1, cloches: 2 }),
+  39: tq('three guests: toppings everywhere', 6, 4, 5, [V, BG, T], { seats: 3, toppings: TOPS_ALL, nest: 1, cloches: 2 }),
+  40: tq('grand fiesta', 6, 4, 6, [P, C, F, BV, G, Q], { seats: 3, toppings: TOPS, nest: 1, cloches: 2, frozen: 1 }),
 };
 
 /**
- * Target band for the Taquería's local level, with the Trattoria's tier semantics. The fit guard and
- * the landing-slot rule remove every one-move blunder, so random play is stronger than in the
- * Trattoria and the random-win bands sit higher (as in the research tiers): normal levels slide from
- * 12%–40% (local 6) to 5%–18% (local 39) and must beat the greedy player; hard levels 1%–6%;
- * banquets 1%–8% at local 10, then 0.3%–3%. The thinking player (2–3 moves ahead) must win most
- * normal levels.
+ * Target band for the Taquería's local level, with the other kitchens' tier semantics. The fit
+ * guard and the landing-slot rule remove every one-move blunder, so random play is stronger than in
+ * the Trattoria: the teaching levels (1–5) keep their random-player bands, and from local 6 on the
+ * planning bands (targets.ts) apply with a random-player cap 1.6 times the Trattoria's. Tightness is
+ * recorded but not targeted (a 4-spot counter rarely is). Ice must matter, cloches must hide a
+ * riddle, as in every kitchen.
  */
-export function taqueriaTarget(local: number, tier: Tier, intro?: Intro): Target {
-  if (local <= 2) return { random: [0.5, 1], lookahead: [0, 1], minCritical: local === 2 ? 1 : 0 };
-  if (local === 3) return { random: [0.35, 0.9], lookahead: [0, 2], minCritical: 1 };
-  if (local === 4) return { random: [0.2, 0.9], lookahead: [1, 4], minCritical: 1, thinking: [0.6, 1] };
-  if (local === 5) {
-    return { random: [0.06, 0.25], greedyLoses: true, lookahead: [2, 6], minCritical: 3, thinking: [0.4, 1], maxTrap: 10 };
-  }
-  if (tier === 'hard') {
-    return {
-      random: [0.01, 0.06], greedyLoses: true, lookahead: [5, 12], minCritical: 5, minLateCritical: 3,
-      phaseRandom: 0.3, thinking: [0.25, 0.85], maxTrap: 12,
-    };
-  }
-  if (tier === 'superhard') {
-    if (local === 10) {
-      return {
-        random: [0.01, 0.08], greedyLoses: true, lookahead: [4, 12], minCritical: 6, minLateCritical: 3,
-        phaseRandom: 0.3, thinking: [0.2, 0.8], maxTrap: 14,
-      };
-    }
-    return {
-      random: [0.003, 0.03], greedyLoses: true, lookahead: [6, 14], minCritical: 7, minLateCritical: 4,
-      phaseRandom: 0.2, thinking: [0.15, 0.75], maxTrap: 14,
-    };
-  }
-  if (intro) {
-    return { random: [0.12, 0.5], lookahead: [1, 6], minCritical: 2, phaseRandom: 0.7, thinking: [0.6, 1] };
-  }
-  const stage = Math.min(1, Math.max(0, (local - 6) / 33));
-  return {
-    random: [0.12 - 0.07 * stage, 0.4 - 0.22 * stage], greedyLoses: true, lookahead: [2, 6 + Math.round(2 * stage)],
-    minCritical: 2 + Math.round(2 * stage), minLateCritical: 1, phaseRandom: 0.6, thinking: [0.5, 1], maxTrap: 10,
-  };
+export function taqueriaTarget(local: number, tier: Tier, intro?: Intro, mech: { cloches?: number; frozen?: number } = {}): Target {
+  const plan = planBands(tier, local, intro, 6, 1.6);
+  const extra: Target = {};
+  if (mech.frozen) extra.minIceCut = intro === 'frozen' ? 0.3 : 0.15;
+  if (mech.cloches) extra.minRiddles = 1;
+  if (local <= 2) return { random: [0.5, 1], minCritical: local === 2 ? 1 : 0, ...plan, ...extra };
+  if (local === 3) return { random: [0.35, 0.9], minCritical: 1, ...plan, ...extra };
+  if (local === 4) return { random: [0.2, 0.9], minCritical: 1, ...plan, ...extra };
+  if (local === 5) return { random: [0.06, 0.25], greedyLoses: true, minCritical: 3, maxTrap: 10, ...plan, ...extra };
+  return { ...plan, maxTrap: 14, ...extra };
 }
 
 /** Generator spec of the Taquería's local level (1..40); `n` is its campaign level number. */
@@ -602,10 +554,12 @@ export function taqueriaSpec(local: number): TacoSpec {
     holdBias: row.hold ?? 0.5,
     nestBias: row.nest ?? 0,
     toppings: row.toppings,
+    frozen: row.frozen,
+    cloches: row.cloches,
     essential: row.essential,
     intro: row.intro,
     theme: row.theme,
-    target: { ...taqueriaTarget(local, tier, row.intro), ...row.t },
+    target: { ...taqueriaTarget(local, tier, row.intro, row), ...row.t },
   };
 }
 
@@ -621,16 +575,19 @@ export function taqueriaTheme(local: number): string {
 
 /**
  * Endless Taquería levels (after the campaign, see endlessSpec in progression.ts): five-column late
- * shapes with the late targets of the local level `like` (31–40), without the thinking player so
- * the runtime generator stays fast; banquets use the hard shape with the banquet band.
+ * shapes with the late planning targets of the local level `like` (31–40) up to depth 3, so the
+ * runtime generator stays fast; banquets use the hard shape with the banquet band.
  */
 export function taqueriaEndlessSpec(n: number, like: number): TacoSpec {
   const tier = taqueriaTier(like);
-  const cycle = [32, 33, 34, 36, 37, 38, 39, 26, 27, 28];
+  const cycle = [32, 33, 34, 38, 26, 27, 28, 29, 22, 24];
   const local = tier === 'normal' ? cycle[(n * 7) % cycle.length] : 35;
   const spec = taqueriaSpec(local);
+  const full = taqueriaTarget(like, tier, undefined, spec);
+  const reach: Target['reach'] = {};
+  for (const [d, band] of Object.entries(full.reach ?? {})) if (Number(d) <= 3 && band) reach[Number(d)] = band;
   return {
-    ...spec, n, local: undefined, tier, intro: undefined, essential: undefined, theme: 'endless',
-    target: { ...taqueriaTarget(like, tier), thinking: undefined },
+    ...spec, n, local: undefined, tier, intro: undefined, essential: undefined, theme: 'endless', seats: 2,
+    target: { reach, minForced: full.minForced, minDeep: full.minDeep, greedyLoses: full.greedyLoses, maxRandom: full.maxRandom, maxGuesses: full.maxGuesses },
   };
 }

@@ -32,6 +32,12 @@ function once(f: () => void): () => void {
   };
 }
 
+/** Intro-card pictures of the pantry mechanics: a cloche over a plate, an ice block with its countdown. */
+const MECH_ART = {
+  cloche: `<svg width="110" height="96" viewBox="0 0 110 96" aria-hidden="true"><ellipse cx="55" cy="84" rx="48" ry="9" fill="#e9e1d3"/><ellipse cx="55" cy="81" rx="42" ry="6" fill="#fffaf0"/><path d="M14 80a41 41 0 0 1 82 0Z" fill="#c9ced3"/><path d="M22 78a33 33 0 0 1 30-32" fill="none" stroke="#f4f6f8" stroke-width="6" stroke-linecap="round"/><circle cx="55" cy="35" r="7" fill="#aeb4ba"/><text x="58" y="72" font-family="Nunito, sans-serif" font-weight="900" font-size="30" fill="#7c848c" text-anchor="middle">?</text></svg>`,
+  frozen: `<svg width="100" height="100" viewBox="0 0 100 100" aria-hidden="true"><rect x="12" y="14" width="76" height="74" rx="14" fill="#bfe6f5" stroke="#8fcbe0" stroke-width="4"/><path d="M22 26l14 0M22 34l8 0" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M70 88v6M58 88v4" stroke="#8fcbe0" stroke-width="4" stroke-linecap="round"/><text x="52" y="72" font-family="Nunito, sans-serif" font-weight="900" font-size="46" fill="#2f6f8f" text-anchor="middle">3</text></svg>`,
+};
+
 export class App {
   private save: SaveData = loadSave();
   private levels: LevelDef[] = [];
@@ -333,16 +339,20 @@ export class App {
     let st = level.stats;
     if (!st) {
       try {
-        if (level.rules === 'taco') st = (await import('../core/tacoGen')).measureTaco(level as never)?.stats;
-        else st = (await import('../core/metrics')).measureLevel(level)?.stats;
+        st = (await import('../core/measure')).measureDepth(level, { runs: 16 })?.stats;
       } catch {
         /* too big to measure here */
       }
     }
     if (this.game?.level !== level) return;
     const pct = (v: number) => `${(v * 100).toFixed(v < 0.01 ? 2 : 0)}%`;
+    const plan = st?.plan ? ` · plan ${st.plan.map((x) => Math.round(x * 100)).join('/')} (depth ${st.depth ?? '?'})` : '';
+    const mech = [
+      level.cloches?.length ? `cloches ${level.cloches.length}${st?.guesses ? ` (${st.guesses} guess!)` : ''}` : '',
+      level.frozen?.length ? `ice ${level.frozen.length}` : '',
+    ].filter(Boolean).join(' · ');
     this.debugStats = st
-      ? `${level.tier} · random ${pct(st.random)} · greedy ${st.greedy ? 'wins' : 'loses'} · look-ahead ${st.lookahead} · critical ${st.critical}/${st.decisions}`
+      ? `${level.tier}${plan} · forced ${st.forced ?? '?'} · deep ${st.deep ?? '?'} · random ${pct(st.random)} · critical ${st.critical}/${st.decisions}${mech ? ' · ' + mech : ''}`
       : `${level.tier} · can't be won!`;
     this.updateDebug();
   }
@@ -407,6 +417,7 @@ export class App {
     const text = {
       full: t('counterFull'),
       lid: t('lidClosed', { n: lidLeft }),
+      frozen: t('frozenTile', { n: g.sim.thawLeft(col, g.sim.ptr[col]) }),
       empty: t('emptyColumn'),
       fit: t('tacoNoFit'),
       topping: t('toppingLast'),
@@ -592,7 +603,11 @@ export class App {
       next();
     });
     const isDish = intro in DISHES;
-    const art = isDish ? `<img src="${icons.dish(intro as DishId)}" width="120" height="120" alt="">` : intro === 'lid' || intro === 'slots' ? glyph(intro === 'lid' ? 'lid' : 'slot', 84) : `<img src="${icons.food('tortilla')}" width="100" height="100" alt="">`;
+    const art = isDish
+      ? `<img src="${icons.dish(intro as DishId)}" width="120" height="120" alt="">`
+      : intro === 'lid' || intro === 'slots' ? glyph(intro === 'lid' ? 'lid' : 'slot', 84)
+      : intro === 'cloche' || intro === 'frozen' ? MECH_ART[intro]
+      : `<img src="${icons.food('tortilla')}" width="100" height="100" alt="">`;
     openDialog({
       title: t(isDish ? 'newDish' : 'newRule'),
       head: 'green',

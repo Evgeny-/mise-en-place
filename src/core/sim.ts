@@ -2,6 +2,7 @@ import type { DishId, FoodId } from './content';
 import { KitchenRules, kitchenFor, type Kitchen, type KState, type Rules } from './kitchen';
 import { BurgerSim } from './burger';
 import { TacoSim, type TacoRefusal, type TacoSlot } from './taco';
+import { ClocheMarks, takesOf, thawTable } from './pantry';
 import type { LevelDef } from './types';
 
 /** Everything the view needs to animate one move, in order. */
@@ -32,6 +33,8 @@ export type SimEvent =
   | { t: 'receive'; slot: number | null }
   /** a lidded column opens */
   | { t: 'lid'; col: number }
+  /** the cloche on the new front tile of `col` lifts: it is `item` */
+  | { t: 'reveal'; col: number; item: FoodId }
   | { t: 'win' }
   | { t: 'stuck' };
 
@@ -59,6 +62,10 @@ export interface PlaySim {
   addSlot(): void;
   snapshot(): unknown;
   restore(s: never): void;
+  /** is the tile at (col, row) still under a cloche? (row = index in the column, top first) */
+  covered(col: number, row: number): boolean;
+  /** takes still to go before the tile at (col, row) thaws (0 = not frozen or thawed) */
+  thawLeft(col: number, row: number): number;
   /** the solver's view of the current position */
   currentRules(): Rules<unknown> & { successors?(s: unknown): [number, unknown][] };
   state(): unknown;
@@ -113,6 +120,9 @@ export class Sim {
   /** columns taken so far */
   history: number[] = [];
   private rules: KitchenRules;
+  /** what the player knows: lifted cloches stay lifted (not part of snapshots) */
+  readonly cloches: ClocheMarks;
+  private readonly thaw: number[][] | null;
 
   constructor(level: LevelDef) {
     this.level = level;
@@ -124,6 +134,17 @@ export class Sim {
     for (let i = 0; i < level.seats; i++) this.seats.push(level.orders[i] ?? null);
     this.next = Math.min(level.seats, level.orders.length);
     this.served = 0;
+    this.cloches = new ClocheMarks(level);
+    this.thaw = thawTable(level);
+  }
+
+  covered(col: number, row: number): boolean {
+    return this.cloches.covered(col, row);
+  }
+
+  thawLeft(col: number, row: number): number {
+    const at = this.thaw?.[col]?.[row] ?? 0;
+    return at > 0 ? Math.max(0, at - takesOf(this.ptr)) : 0;
   }
 
   /** counter slots (a booster can add one) */
@@ -198,6 +219,7 @@ export class Sim {
       this.counter.push(item);
     } else this.counter[landing] = item;
     events.push({ t: 'take', col, item, slot: landing });
+    for (const c of this.cloches.reveal(this.ptr)) events.push({ t: 'reveal', col: c, item: this.top(c)! });
 
     for (;;) {
       const counts = new Array<number>(k.items.length).fill(0);

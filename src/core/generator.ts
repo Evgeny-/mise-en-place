@@ -19,19 +19,23 @@
 import { BURGER_ITEMS, BurgerRules, makeStackTicket, stackDishOf } from './burger';
 import type { DishId, FoodId } from './content';
 import { KitchenRules, kitchenFor, type Kitchen } from './kitchen';
+import { generateGuided, planAim, planObjective, type Draft, type GuidedOptions, type PlanTarget } from './guided';
 import { isTight, measureLevel, roundStats, thinkingRate } from './metrics';
 import { endlessLocal, endlessSpec, endlessWorld } from './progression';
-import { TAQUERIA_WORLD, generateTacoLevel, taqueriaEndlessSpec } from './tacoGen';
+import { TAQUERIA_WORLD, generateGuidedTaco, taqueriaEndlessSpec } from './tacoGen';
 import { Rng } from './rng';
 import { Solver } from './solver';
 import type { Intro, LevelDef, LevelStats, Tier } from './types';
 
-/** Accepted ranges of the measured difficulty (missing = anything goes). */
-export interface Target {
+/**
+ * Accepted ranges of the measured difficulty (missing = anything goes). The planning fields
+ * (PlanTarget: planner reach bands, forced and deep decisions, greedy loses, tight, cloche
+ * guesses) drive the guided generator; the classic ones (random player, lookahead bot, critical
+ * decisions, lids) are checked on the finished level.
+ */
+export interface Target extends PlanTarget {
   /** exact random-player win probability */
   random?: [number, number];
-  /** the greedy player must lose */
-  greedyLoses?: boolean;
   /** required lookahead of the greedy bot that avoids getting stuck */
   lookahead?: [number, number];
   /** critical decisions along the solution */
@@ -42,8 +46,6 @@ export interface Target {
   phaseRandom?: number;
   /** thinking player (2–3 moves ahead) win rate */
   thinking?: [number, number];
-  /** unwinnable with one counter slot fewer */
-  tight?: boolean;
   /** lid levels: the lids must remove at least this share of the winning lines */
   minLidCut?: number;
   /** soft cap on how many moves a fatal move can stay unnoticed (see LevelStats.trapDepth) */
@@ -78,6 +80,10 @@ export interface LevelSpec {
   items: [number, number];
   /** number of lidded columns */
   lids?: number;
+  /** frozen tiles (they thaw after a number of takes) */
+  frozen?: number;
+  /** cloches (a tile hidden until it reaches the front of its column) */
+  cloches?: number;
   /** a lid opens after at most this many dishes */
   lidMax?: number;
   /** golden line: preference for holding an item over combining it (0 = none) */
@@ -323,12 +329,11 @@ const linBand = (v: number, band: [number, number] | undefined): number => {
 /** Distance of the measured stats from the target (0 = on target). */
 export function objective(st: LevelStats, t: Target): number {
   let v = logBand(st.random, t.random);
-  if (t.greedyLoses && st.greedy) v += 0.4;
+  v += planObjective(st, t);
   v += 0.25 * linBand(st.lookahead, t.lookahead);
   if (t.minCritical) v += 0.12 * Math.max(0, t.minCritical - st.critical);
   if (t.minLateCritical) v += 0.12 * Math.max(0, t.minLateCritical - (st.lateCritical ?? 0));
   if (t.phaseRandom !== undefined) v += Math.max(0, logBand(st.phaseRandom ?? 1, [0, t.phaseRandom]));
-  if (t.tight && st.tight === false) v += 0.6;
   if (t.thinking) v += st.thinking === undefined ? 0.15 : 1.2 * linBand(st.thinking, t.thinking);
   if (t.minLidCut !== undefined) v += Math.max(0, t.minLidCut - (st.lidCut ?? 0));
   if (t.maxTrap !== undefined) v += 0.05 * Math.max(0, (st.trapDepth ?? 0) - t.maxTrap);
@@ -380,6 +385,78 @@ export function buildCandidate(spec: LevelSpec, rng: Rng): { level: LevelDef; go
   return { level, golden: labels, peak: g.peak };
 }
 
+/** The level a spec describes, without its pantry (columns come from a draft). */
+function baseLevel(spec: LevelSpec, orders: DishId[]): LevelDef {
+  const level: LevelDef = {
+    n: spec.n,
+    world: spec.world,
+    ...(spec.local ? { local: spec.local } : {}),
+    menu: spec.menu,
+    tier: spec.tier,
+    columns: [],
+    slots: spec.slots,
+    seats: spec.seats,
+    orders,
+  };
+  if (spec.intro) level.intro = spec.intro;
+  return level;
+}
+
+/** A draft for the guided generator (guided.ts): orders, golden line and a first dealing. */
+export function draftCandidate(spec: LevelSpec, rng: Rng): Draft | null {
+  if (spec.rules === 'burger') {
+    const shape = spec.burger!;
+    const tickets = pickTickets(spec, rng);
+    if (!tickets) return null;
+    const g = burgerGolden(tickets, spec.seats, spec.slots, rng, shape.park ?? 0.9);
+    if (spec.target.tight && g.peak < spec.slots) return null;
+    const items = g.items.map((i) => BURGER_ITEMS[i]);
+    const lens = columnHeights(items.length, spec.columns, spec.depth, rng, spec.spread ?? 1, items.length >= 2 * spec.columns ? 2 : 1);
+    const dealt = deal(spec, lens, g.servedBefore, rng);
+    if (!dealt) return null;
+    const base: LevelDef = { ...baseLevel(spec, tickets.map(stackDishOf)), rules: 'burger', tickets };
+    if (dealt.lids) base.lids = dealt.lids;
+    return { base, items, labels: dealt.labels, servedBefore: g.servedBefore, thaw: items.map(() => 0), columns: spec.columns, depth: spec.depth };
+  }
+  const orders = pickOrders(spec, rng);
+  if (!orders) return null;
+  const g = goldenLine(spec.menu, orders, spec.seats, spec.slots, rng, spec.holdBias ?? 0.6);
+  if (!g) return null;
+  if (spec.target.tight && g.peak < spec.slots) return null;
+  const k = kitchenFor(spec.menu);
+  const lens = columnHeights(g.items.length, spec.columns, spec.depth, rng, spec.spread ?? 1);
+  const dealt = deal(spec, lens, g.servedBefore, rng);
+  if (!dealt) return null;
+  const base = baseLevel(spec, orders);
+  if (dealt.lids) base.lids = dealt.lids;
+  return {
+    base, items: g.items.map((i) => k.items[i]), labels: dealt.labels, servedBefore: g.servedBefore, thaw: g.items.map(() => 0),
+    columns: spec.columns, depth: spec.depth,
+  };
+}
+
+function deal(spec: LevelSpec, lens: number[], servedBefore: number[], rng: Rng): { labels: number[]; lids?: number[] } | null {
+  if (!spec.lids) return { labels: shuffledLabels(lens, rng) };
+  return dealLidLabels(lens, servedBefore, spec.lids, spec.lidMax ?? 2, rng);
+}
+
+/** Generates a level with the guided generator (guided.ts): drafts hill-climbed toward the target. */
+export function generateGuidedLevel(spec: LevelSpec, seed: number, opts: GuidedOptions = {}): GenResult | null {
+  const t = spec.target;
+  const res = generateGuided({
+    target: t,
+    objective: (st) => objective(st, t),
+    aim: (st) => aimDistance(st, t),
+    draft: (rng) => draftCandidate(spec, rng),
+    frozen: spec.frozen,
+    cloches: spec.cloches,
+    minHeight: spec.rules === 'burger' ? 2 : 1,
+    lidCut: t.minLidCut !== undefined,
+  }, seed, opts);
+  if (!res) return null;
+  return { ...res, level: { ...res.level, stats: roundStats(res.level.stats!) } };
+}
+
 /**
  * How far a level is from the middle of its target: the random win on a log scale plus the
  * thinking player's win rate (0 = centred). Used to choose among candidates inside the band, which
@@ -393,7 +470,7 @@ export function aimDistance(st: LevelStats, t: Target): number {
     d += Math.abs(Math.log10(Math.max(st.random, 1e-5)) - Math.log10(centre));
   }
   if (t.thinking && st.thinking !== undefined) d += Math.abs(st.thinking - (t.thinking[0] + t.thinking[1]) / 2);
-  return d;
+  return d + planAim(st, t);
 }
 
 /**
@@ -637,26 +714,34 @@ function buildBurgerCandidate(spec: LevelSpec, rng: Rng): { level: LevelDef; gol
   return { level, golden: labels, peak: g.peak };
 }
 
+/** Search budget of the runtime generator (endless levels in the Web Worker). */
+export const ENDLESS_OPTIONS: GuidedOptions = {
+  attempts: 2, iters: 10, keep: 1, runs: 6, holdout: 8, depths: [1, 2, 3], fast: true, clocheTries: 2, worlds: 8, budget: 150_000,
+};
+
 /**
- * Endless mode (levels after the campaign; blocks of 10 alternate the kitchens, see endlessSpec),
- * safe to run in a Web Worker: a modest attempt budget keeps it under 300 ms per level on a laptop.
- * Deterministic for (n, seed) unless `timeBudgetMs` cuts the search short on a slow device.
+ * Endless mode (levels after the campaign; 5-level shifts take the kitchens in turn, see
+ * endlessSpec): the guided generator with a small budget (ENDLESS_OPTIONS), safe to run in a Web
+ * Worker. Deterministic for (n, seed) unless `timeBudgetMs` cuts the search short on a slow device.
  */
 export function generateEndlessLevel(n: number, seed = 0x5eed, timeBudgetMs?: number): LevelDef {
   const s = (Math.imul(n, 2654435761) ^ seed) >>> 0;
+  const opts: GuidedOptions = { ...ENDLESS_OPTIONS, timeBudgetMs };
   if (endlessWorld(n) === TAQUERIA_WORLD) {
-    // Taquería shifts: a few candidates of a late shape, the closest one wins
     const spec = taqueriaEndlessSpec(n, endlessLocal(n));
-    const res = generateTacoLevel(spec, s, { attempts: 10, timeBudgetMs }) ?? generateTacoLevel({ ...spec, target: {} }, s + 1, { attempts: 10 });
+    const res =
+      generateGuidedTaco(spec, s, opts) ??
+      generateGuidedTaco({ ...spec, cloches: undefined }, s + 1, opts) ??
+      generateGuidedTaco({ ...spec, target: {}, cloches: undefined }, s + 2, { ...opts, iters: 0 });
     if (!res) throw new Error(`endless level ${n}: generation failed`);
     return res.level;
   }
   const spec = endlessSpec(n);
-  // Every burger candidate runs a guided split: fewer candidates, the closest one wins.
-  const attempts = spec.rules === 'burger' ? 4 : 24;
+  // no fair cloche placement or no draft: try without cloches, then without a target
   const res =
-    generateLevel(spec, s, { attempts, timeBudgetMs }) ??
-    generateLevel({ ...spec, target: {} }, s + 1, { attempts });
+    generateGuidedLevel(spec, s, opts) ??
+    generateGuidedLevel({ ...spec, cloches: undefined }, s + 1, opts) ??
+    generateGuidedLevel({ ...spec, target: {}, cloches: undefined }, s + 2, { ...opts, iters: 0 });
   if (!res) throw new Error(`endless level ${n}: generation failed`);
   return res.level;
 }

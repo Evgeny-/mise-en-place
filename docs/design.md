@@ -25,6 +25,22 @@
 - Levels are **zero-waste**: every item is used, so a win always takes exactly as many moves
   as there are items. Stuck = no column can be taken and guests are still waiting.
 
+## Pantry mechanics (every kitchen)
+
+- **Cloches** (taught at campaign level 17). A steel cloche with a "?" hides a tile until it
+  reaches the front of its column, then lifts. The tickets say exactly what the pantry holds, so the
+  hidden items are known as a set, only not where they are: a careful player works out what can be
+  under each cloche and keeps the plan safe for every possibility. Every cloche level is checked by
+  a deducer that never needs to guess (a banquet may need one guess, flagged in the docs), and each
+  hides at least one "riddle" (a decision where what is hidden matters). A lifted cloche stays
+  lifted after an undo: peeking with undo is allowed, it costs the clean-run star like any undo.
+- **Frozen tiles** (taught at campaign level 37). A tile in an ice block can be taken only after a
+  number of takes from any column; the big number on the ice counts down and its column waits
+  behind it. It asks for that many moves that don't clog the counter. The ice cracks and drips
+  away when it thaws.
+- **Lids** (Trattoria L36, Burger Joint L26): a column opens after k dishes.
+- **Bigger kitchens** late in each ladder: six columns, a third seat and up to eight guests.
+
 Where the thinking comes from (measured in the design simulations):
 - the counter size (one spot fewer is the strongest dial),
 - tomato counting: a bruschetta, a caprese or a soup needs a lone raw tomato, a second tomato turns
@@ -35,13 +51,16 @@ Where the thinking comes from (measured in the design simulations):
 - queued guests: items for a later order must wait on the counter,
 - lids: a column opens only after k dishes, which forces a serving order.
 
-Random levels are trivial, so every level is built around a known winning line, made tight,
-and kept only if simulated players find it as hard as its place in the campaign asks
-(see [difficulty.md](difficulty.md)).
+Random levels are trivial, so every level is built around a known winning line and then
+**searched**: a hill climb moves tiles between columns until planners that look 1–5 moves ahead
+find it as hard as its place in the campaign asks (a normal level late in a ladder beats most
+players who look three moves ahead and is won by most who look five), with traps whose consequence
+shows only three or more moves later (see [difficulty.md](difficulty.md)).
 
 ## Help without stress
 
-- Undo is free and unlimited; three stars need a clean run (no undo, no helpers).
+- Undo is free and unlimited; three stars need a clean run (no undo, no helpers). Undo doesn't put
+  a lifted cloche back down.
 - Hint shows a safe column, or says how many moves back the kitchen was still winnable.
 - +Spot adds a counter spot for the rest of the level.
 - On the first levels the game gently says when a kitchen can no longer be finished.

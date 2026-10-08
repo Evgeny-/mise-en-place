@@ -80,7 +80,7 @@ describe('Taquería ladder (local levels 1–40)', () => {
       expect(st.random).toBeGreaterThan(0);
       expect(st.random).toBeLessThanOrEqual(1);
       expect(st.critical).toBeLessThanOrEqual(st.decisions);
-      expect(st.thinking, `L${lv.n} thinking`).toBeDefined();
+      expect(st.plan, `L${lv.n} plan`).toHaveLength(5);
       if (lv.tier !== 'normal' || (lv.local! >= 6 && !lv.intro)) expect(st.greedy, `L${lv.n} greedy`).toBe(false);
       expect(new Solver(new TacoRules(lv)).pRandom(), `L${lv.n} random`).toBeCloseTo(st.random, 5);
     }

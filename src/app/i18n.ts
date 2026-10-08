@@ -44,6 +44,7 @@ const STRINGS = {
   queue: { ru: 'Дальше', en: 'Next' },
   counterFull: { ru: 'Стол занят — это ни с чем не соединится', en: 'The counter is full — this won’t combine' },
   lidClosed: { ru: 'Откроется после ещё {n} блюд', en: 'Opens after {n} more dishes' },
+  frozenTile: { ru: 'Ещё во льду: оттает через {n} ход(а)', en: 'Still frozen: it thaws in {n} more move(s)' },
   emptyColumn: { ru: 'Здесь пусто', en: 'Nothing left here' },
   hintSafe: { ru: 'Попробуйте отсюда', en: 'Try this one' },
   deadKitchen: { ru: 'Эту кухню уже не закончить', en: 'This kitchen can’t be finished anymore' },
@@ -130,6 +131,14 @@ const STRINGS = {
   intro_taco_verde: { ru: 'Гуакамоле получается само, когда на столе встречаются авокадо и лайм.', en: 'Guacamole makes itself when an avocado meets a lime on the counter.' },
   intro_taco_frijol: { ru: 'Тако с фасолью: фасоль, сыр и сальса.', en: 'Bean taco: beans, cheese and salsa.' },
   intro_lid: { ru: 'Крышка: колонка откроется, когда вы подадите несколько блюд.', en: 'Lids: this column opens after you serve a few dishes.' },
+  intro_cloche: {
+    ru: 'Клош: под колпаком спрятан продукт. Колпак поднимется, когда продукт окажется первым в колонке. Подсказка: в кладовой лежит ровно то, что нужно гостям, — сравните билеты с открытыми продуктами и вычислите, что под колпаком.',
+    en: 'A cloche hides an ingredient. It lifts when the tile reaches the front of its column. A clue: the pantry holds exactly what the guests ordered, so compare the tickets with what you can see and work out what is underneath.',
+  },
+  intro_frozen: {
+    ru: 'Из морозилки: продукт во льду, и колонка за ним ждёт. Число на льду — сколько ходов осталось до того, как он оттает. Каждый ход из любой колонки считается — запаситесь ходами, которые не забьют стол.',
+    en: 'From the freezer: this tile is frozen, and its column waits behind it. The number on the ice is how many moves until it thaws. Every take from any column counts, so plan moves that won’t clog the counter.',
+  },
   intro_slots: { ru: 'Стол стал меньше — каждое место на счету.', en: 'A smaller counter: every spot counts.' },
   recipes: { ru: 'Рецепты', en: 'Recipes' },
   prepsTitle: { ru: 'Заготовки — получаются сами', en: 'Preps — they make themselves' },

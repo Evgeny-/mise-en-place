@@ -8,16 +8,25 @@ import { ease, type Tweens } from './anim';
 import { LabelTexture } from './textures';
 import { shade } from './painter';
 import { tileTexture } from './decor';
+import { audio } from '../audio/audio';
 
 interface Entry {
   item: FoodId;
+  /** row in its column (index into the level's column, top first) */
+  row: number;
   /** tile + food, moved together */
   holder: THREE.Group;
+  tile: THREE.Mesh;
+  base: THREE.Mesh;
   food: THREE.Object3D;
   /** current visual row (springs towards the target row) */
   z: number;
   /** level-start drop: seconds into the fall (negative = still waiting) */
   drop: number;
+  /** a cloche over the tile (the food under it stays hidden until it lifts) */
+  dome: THREE.Group | null;
+  /** an ice block around the tile, with the takes still to go */
+  ice: { group: THREE.Group; label: LabelTexture; left: number } | null;
 }
 
 const DROP = 0.55;
@@ -36,6 +45,8 @@ interface Lid {
 }
 
 const TILE_H = 0.14;
+/** The countdown on the ice: big white digits with a deep blue rim (legible at phone size). */
+const ICE_INK = { fill: '#ffffff', stroke: '#1f5f80', shadow: 'rgba(10, 40, 70, 0.4)', scale: 1.45 };
 
 /**
  * The pantry: one tray per column with its items standing on coloured tiles, the top item
@@ -55,6 +66,17 @@ export class PantryView {
   private shadeMat = new THREE.MeshBasicMaterial({ color: '#2b1a10', transparent: true, opacity: 0.32, depthWrite: false });
   private lidMat = new THREE.MeshStandardMaterial({ color: '#9a6a43', roughness: 0.6 });
   private lidTopMat = new THREE.MeshStandardMaterial({ color: '#b98454', roughness: 0.55 });
+  /** cloches: polished steel, a neutral tile that gives nothing away */
+  private domeMat = new THREE.MeshStandardMaterial({ color: '#d7dde2', roughness: 0.22, metalness: 0.75, side: THREE.DoubleSide });
+  private knobMat = new THREE.MeshStandardMaterial({ color: '#aab3bb', roughness: 0.3, metalness: 0.7 });
+  private hiddenTileMat = new THREE.MeshStandardMaterial({ color: '#cfc7b8', roughness: 0.55 });
+  private hiddenBaseMat = new THREE.MeshStandardMaterial({ color: '#8f8676', roughness: 0.5 });
+  private markMat: THREE.MeshBasicMaterial | null = null;
+  private markLabel: LabelTexture | null = null;
+  private domeGeo: THREE.BufferGeometry | null = null;
+  /** ice: translucent blue block */
+  private iceMat = new THREE.MeshStandardMaterial({ color: '#c4ecfa', roughness: 0.1, metalness: 0.05, transparent: true, opacity: 0.45, depthWrite: false });
+  private sim: Sim | null = null;
   private legal: boolean[] = [];
   /** called when a dropped-in tile lands (level start) */
   onLand: ((col: number) => void) | null = null;
@@ -94,16 +116,21 @@ export class PantryView {
     return this.layout.rowZ0 + row * this.layout.rowStep;
   }
 
-  private makeEntry(item: FoodId, col: number, row: number): Entry {
+  /**
+   * A tile of column `col` at visual row `row`; `index` is its row in the level's column (for the
+   * cloche and ice marks of the simulation).
+   */
+  private makeEntry(item: FoodId, col: number, row: number, index = -1): Entry {
     const l = this.layout;
     const holder = new THREE.Group();
     const tw = l.tile;
     const td = l.rowStep * 0.86;
-    const base = new THREE.Mesh(this.baseGeo, this.baseMat(item));
+    const covered = index >= 0 && !!this.sim?.covered(col, index);
+    const base = new THREE.Mesh(this.baseGeo, covered ? this.hiddenBaseMat : this.baseMat(item));
     base.scale.set(tw, 1, td);
     base.position.y = 0.03;
     base.receiveShadow = true;
-    const tile = new THREE.Mesh(this.tileGeo, this.tileMat(item));
+    const tile = new THREE.Mesh(this.tileGeo, covered ? this.hiddenTileMat : this.tileMat(item));
     tile.scale.set(tw * 0.94, 1, td * 0.94);
     tile.position.y = 0.04 + TILE_H / 2;
     tile.castShadow = true;
@@ -111,15 +138,135 @@ export class PantryView {
     const food = foodModel(item);
     food.scale.setScalar(Math.min(1, tw * 0.95));
     food.position.y = 0.04 + TILE_H;
+    food.visible = !covered;
     holder.add(base, tile, food);
+    const dome = covered ? this.makeDome() : null;
+    if (dome) holder.add(dome);
+    const left = index >= 0 ? this.sim?.thawLeft(col, index) ?? 0 : 0;
+    const ice = left > 0 ? this.makeIce(left) : null;
+    if (ice) holder.add(ice.group);
     holder.position.set(l.colX[col], this.trayTop, this.rowZ(row));
     this.group.add(holder);
-    return { item, holder, food, z: row, drop: DROP };
+    return { item, row: index, holder, tile, base, food, z: row, drop: DROP, dome, ice };
+  }
+
+  /** A steel cloche with a knob and a "?" on top: something is under here. */
+  private makeDome(): THREE.Group {
+    const tw = this.layout.tile;
+    if (!this.domeGeo) {
+      const pts: THREE.Vector2[] = [];
+      for (let i = 0; i <= 16; i++) {
+        const a = (i / 16) * (Math.PI / 2);
+        pts.push(new THREE.Vector2(Math.cos(a) * 0.5, Math.sin(a) * 0.42));
+      }
+      pts.unshift(new THREE.Vector2(0.54, 0));
+      this.domeGeo = new THREE.LatheGeometry(pts, 28);
+    }
+    if (!this.markLabel) {
+      this.markLabel = new LabelTexture(128);
+      this.markLabel.draw('?', { fill: '#ffffff', stroke: '#3d464e', scale: 1.4 });
+      this.markMat = new THREE.MeshBasicMaterial({ map: this.markLabel.texture, transparent: true, depthWrite: false });
+    }
+    const g = new THREE.Group();
+    const shell = new THREE.Mesh(this.domeGeo, this.domeMat);
+    shell.castShadow = true;
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.07, 14, 10), this.knobMat);
+    knob.position.set(0, 0.45, -0.1);
+    // the "?" sits on the front of the dome, tilted toward the camera
+    const mark = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.46).rotateX(-Math.PI / 4), this.markMat!);
+    mark.position.set(0, 0.36, 0.31);
+    mark.renderOrder = 6;
+    g.add(shell, knob, mark);
+    g.scale.set(tw * 0.92, tw * 0.92, tw * 0.86);
+    g.position.y = 0.04 + TILE_H;
+    return g;
+  }
+
+  /** An ice block around the tile with a big countdown on top. */
+  private makeIce(left: number): { group: THREE.Group; label: LabelTexture; left: number } {
+    const l = this.layout;
+    const g = new THREE.Group();
+    const w = l.tile * 0.98;
+    const d = l.rowStep * 0.9;
+    const block = new THREE.Mesh(new RoundedBoxGeometry(w, 0.62, d, 3, 0.1), this.iceMat);
+    block.position.y = 0.04 + 0.31;
+    block.renderOrder = 4;
+    const label = new LabelTexture(128);
+    label.draw(String(left), ICE_INK);
+    // a badge on the front corner: the frozen ingredient stays visible through the ice
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.62, w * 0.62).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: label.texture, transparent: true, depthWrite: false }));
+    plane.position.set(w * 0.22, 0.68, d * 0.2);
+    plane.renderOrder = 7;
+    g.add(block, plane);
+    return { group: g, label, left };
+  }
+
+  /**
+   * After a take: lift the cloches that reached the front, count the ice down and thaw what is
+   * due. The simulation already made the move; undo rebuilds everything instead (sync).
+   */
+  private refreshMarks(): void {
+    const sim = this.sim;
+    if (!sim) return;
+    this.cols.forEach((entries, c) => {
+      for (const e of entries) {
+        if (e.dome && !sim.covered(c, e.row)) this.lift(e);
+        if (e.ice) {
+          const left = sim.thawLeft(c, e.row);
+          if (left <= 0) this.thaw(e);
+          else if (left !== e.ice.left) {
+            e.ice.left = left;
+            e.ice.label.draw(String(left), ICE_INK);
+          }
+        }
+      }
+    });
+  }
+
+  /** The cloche lifts off and the ingredient shows. */
+  private lift(e: Entry): void {
+    const dome = e.dome!;
+    e.dome = null;
+    e.tile.material = this.tileMat(e.item);
+    e.base.material = this.baseMat(e.item);
+    e.food.visible = true;
+    e.food.scale.setScalar(0.01);
+    const s = Math.min(1, this.layout.tile * 0.95);
+    const y0 = dome.position.y;
+    this.tweens.add(0.55, (k) => {
+      dome.position.y = y0 + k * 1.6;
+      dome.rotation.z = k * 0.35;
+      (dome.children[2] as THREE.Mesh).visible = k < 0.3;
+    }, { ease: ease.inQuad, done: () => e.holder.remove(dome) });
+    this.tweens.add(0.4, (k) => e.food.scale.setScalar(0.01 + (s - 0.01) * k), { ease: ease.outBack });
+    audio.play('lid');
+  }
+
+  /** The ice cracks, shrinks and drips away. */
+  private thaw(e: Entry): void {
+    const ice = e.ice!;
+    e.ice = null;
+    const g = ice.group;
+    ice.label.draw('');
+    this.tweens.add(0.6, (k) => {
+      const crack = k < 0.25 ? Math.sin(k * 80) * 0.04 * (1 - k / 0.25) : 0;
+      g.position.x = crack;
+      g.scale.set(1 + k * 0.08, Math.max(0.02, 1 - k), 1 + k * 0.08);
+    }, { ease: ease.inQuad, done: () => {
+      e.holder.remove(g);
+      ice.label.dispose();
+    } });
+    audio.play('pop');
+    this.tweens.after(0.25, () => audio.play('plop', { pitch: 4 }));
   }
 
   /** Rebuild every column from the simulation (level start, undo). */
   sync(sim: Sim, intro = false): void {
-    for (const col of this.cols) for (const e of col) this.group.remove(e.holder);
+    this.sim = sim;
+    for (const col of this.cols) for (const e of col) {
+      this.group.remove(e.holder);
+      e.ice?.label.dispose();
+    }
     for (const h of this.hits) this.group.remove(h);
     for (const s of this.shades) this.group.remove(s);
     for (const lid of this.lids) if (lid) this.group.remove(lid.group);
@@ -132,7 +279,7 @@ export class PantryView {
     sim.columns.forEach((items, c) => {
       const entries: Entry[] = [];
       for (let i = sim.ptr[c]; i < items.length; i++) {
-        const e = this.makeEntry(items[i], c, i - sim.ptr[c]);
+        const e = this.makeEntry(items[i], c, i - sim.ptr[c], i);
         // the pantry fills up: front rows first, columns rippling left to right
         if (intro) e.drop = -(0.08 * (i - sim.ptr[c]) + 0.05 * c + 0.15);
         entries.push(e);
@@ -205,7 +352,7 @@ export class PantryView {
   setLegal(legal: boolean[]): void {
     this.legal = legal;
     this.shades.forEach((s, c) => {
-      s.visible = !legal[c] && this.cols[c].length > 0 && !this.lidded(c);
+      s.visible = !legal[c] && this.cols[c].length > 0 && !this.lidded(c) && !this.cols[c][0].ice;
     });
   }
 
@@ -230,12 +377,13 @@ export class PantryView {
     into.attach(food);
     const holder = entry.holder;
     this.tweens.add(0.22, (k) => holder.scale.setScalar(1 - k), { ease: ease.inQuad, done: () => this.group.remove(holder) });
+    this.tweens.after(0.12, () => this.refreshMarks());
     return { food, from };
   }
 
   /** Put an item back on the front of a column (undo). */
   untake(col: number, item: FoodId): void {
-    const e = this.makeEntry(item, col, -1);
+    const e = this.makeEntry(item, col, -1, this.sim ? this.sim.ptr[col] : -1);
     e.z = -1;
     this.cols[col].unshift(e);
     e.holder.scale.setScalar(0.01);
@@ -267,7 +415,7 @@ export class PantryView {
       entries.forEach((e, row) => {
         e.z += (row - e.z) * k;
         if (Math.abs(row - e.z) < 0.001) e.z = row;
-        const front = row === 0 && this.legal[c] && !this.lidded(c);
+        const front = row === 0 && this.legal[c] && !this.lidded(c) && !e.ice;
         const hint = front && this.hintCol === c;
         const lift = front ? 0.05 + Math.sin(time * 3 + c * 0.9) * 0.025 : 0;
         let fall = 0;
@@ -294,5 +442,10 @@ export class PantryView {
     this.lidMat.dispose();
     this.lidTopMat.dispose();
     this.lids.forEach((lid) => lid?.label.dispose());
+    for (const col of this.cols) for (const e of col) e.ice?.label.dispose();
+    for (const m of [this.domeMat, this.knobMat, this.hiddenTileMat, this.hiddenBaseMat, this.iceMat]) m.dispose();
+    this.markMat?.dispose();
+    this.markLabel?.dispose();
+    this.domeGeo?.dispose();
   }
 }

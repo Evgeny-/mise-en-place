@@ -483,5 +483,8 @@ export function roundStats(s: LevelStats): LevelStats {
   if (s.phaseRandom !== undefined) out.phaseRandom = r(s.phaseRandom, 5);
   if (s.thinking !== undefined) out.thinking = r(s.thinking, 3);
   if (s.lidCut !== undefined) out.lidCut = r(s.lidCut, 3);
+  if (s.plan) out.plan = s.plan.map((x) => r(x, 3));
+  if (s.sighted !== undefined) out.sighted = r(s.sighted, 3);
+  if (s.iceCut !== undefined) out.iceCut = r(s.iceCut, 3);
   return out;
 }

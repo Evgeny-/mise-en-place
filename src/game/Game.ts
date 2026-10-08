@@ -15,7 +15,7 @@ export interface GameCallbacks {
   onInvalid(g: Game, why: InvalidReason, col: number): void;
 }
 
-export type InvalidReason = 'full' | 'lid' | 'empty' | 'fit' | 'topping';
+export type InvalidReason = 'full' | 'lid' | 'frozen' | 'empty' | 'fit' | 'topping';
 
 export type HintResult = { kind: 'safe'; col: number } | { kind: 'dead'; back: number } | { kind: 'none' };
 
@@ -59,7 +59,11 @@ export class Game {
       // taco kitchens explain themselves (it won't fit the tortilla you're filling, toppings go last)
       const taco = (sim as unknown as { whyNot?: (c: number) => string | null }).whyNot?.(col);
       const why: InvalidReason =
-        taco === 'fit' || taco === 'topping' ? taco : sim.remaining(col) === 0 ? 'empty' : !sim.lidOpen(col) ? 'lid' : 'full';
+        taco === 'fit' || taco === 'topping' ? taco
+        : sim.remaining(col) === 0 ? 'empty'
+        : !sim.lidOpen(col) ? 'lid'
+        : sim.thawLeft(col, sim.ptr[col]) > 0 ? 'frozen'
+        : 'full';
       audio.play('invalid');
       this.view.shake(col);
       this.cb.onInvalid(this, why, col);

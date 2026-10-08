@@ -9,7 +9,7 @@
  *   LEVELS=5,10 bun scripts/build-taqueria.ts    rebuild only these LOCAL levels, keep the others in place
  *   RESUME=1 bun scripts/build-taqueria.ts       continue an interrupted build from its checkpoint
  *   SALT=2 LEVELS=95 bun ...                     try different seeds for a level
- *   ATTEMPTS=300 ...                             candidates per seed (default 200)
+ *   ATTEMPTS=6 ITERS=80 ...                      drafts per seed and hill-climb steps per draft (guided.ts)
  *
  * The output file is rewritten after every level (checkpoint).
  */
@@ -17,18 +17,21 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname } from 'node:path';
 import { hashString } from '../src/core/rng';
 import {
-  TAQUERIA_LEVELS, generateTacoLevel, tacoAim, tacoObjective, tacoThinking, taqueriaSpec, type TacoGenResult,
+  TAQUERIA_LEVELS, generateGuidedTaco, tacoAim, tacoObjective, taqueriaSpec, type TacoGenResult,
 } from '../src/core/tacoGen';
-import { roundStats } from '../src/core/metrics';
 import type { LevelDef } from '../src/core/types';
 
 const OUT = process.argv[2] ?? 'src/data/levels-taqueria.json';
 const ONLY = process.env.LEVELS ? new Set(process.env.LEVELS.split(',').map(Number)) : null;
 const RESUME = process.env.RESUME === '1';
 const SALT = process.env.SALT ?? '';
-const ATTEMPTS = Number(process.env.ATTEMPTS ?? 200);
-/** thinking-player games per candidate near the target */
-const THINK_RUNS = 64;
+const ATTEMPTS = Number(process.env.ATTEMPTS ?? 6);
+const ITERS = Number(process.env.ITERS ?? 80);
+/** planner games per depth: while searching, and for the stored numbers (fresh seeds) */
+const RUNS = 12;
+const HOLDOUT = 48;
+/** solver state budget per candidate (bigger drafts are skipped: the hint must stay quick) */
+const BUDGET = 300_000;
 /** seeds tried per level when the first one misses the target */
 const SEEDS = 3;
 
@@ -53,9 +56,10 @@ function line(lv: LevelDef, note: string): string {
   return (
     `#${String(lv.n).padStart(3)} Q${String(lv.local).padStart(2)} ${lv.tier.padEnd(9)} ${String(st.items).padStart(2)} items ${lv.columns.length}x${depth} ` +
     `slots=${lv.slots} seats=${lv.seats} guests=${lv.orders.length}${lv.toppings ? ' top' : '    '} ` +
-    `rnd=${pct(st.random, 2)}% @1/3=${pct(st.phaseRandom)}% greedy=${st.greedy ? 'win ' : 'lose'} LA=${st.lookahead} ` +
-    `crit=${st.critical}/${st.decisions} late=${st.lateCritical} trap=${st.trapDepth} think=${pct(st.thinking, 0)}% ` +
-    `${st.tight ? 'tight' : '     '} states=${st.states} ${note}`
+    `plan=${(st.plan ?? []).map((x) => pct(x, 0).trim()).join('/')} depth=${st.depth} forced=${st.forced} deep=${st.deep} ` +
+    `rnd=${pct(st.random, 2)}% greedy=${st.greedy ? 'win ' : 'lose'} LA=${st.lookahead} crit=${st.critical}/${st.decisions} trap=${st.trapDepth} ` +
+    `${st.tight ? 'tight' : '     '}${lv.frozen ? ` ice=${lv.frozen.length}/${pct(st.iceCut, 0).trim()}%` : ''}` +
+    `${lv.cloches ? ` cloches=${lv.cloches.length} guess=${st.guesses} riddles=${st.riddles}` : ''} states=${st.states} ${note}`
   );
 }
 
@@ -72,15 +76,13 @@ for (let local = 1; local <= TAQUERIA_LEVELS; local++) {
   let best: TacoGenResult | null = null;
   for (let k = 0; k < SEEDS; k++) {
     const seed = hashString(`taqueria:${local}${SALT ? ':' + SALT : ''}${k ? ':' + k : ''}`);
-    const res = generateTacoLevel(spec, seed, { attempts: ATTEMPTS, thinkRuns: THINK_RUNS, keep: 4 });
+    const res = generateGuidedTaco(spec, seed, { attempts: ATTEMPTS, iters: ITERS, keep: 2, runs: RUNS, holdout: HOLDOUT, budget: BUDGET, worlds: 16 });
     const better = res && (!best || res.dist < best.dist || (res.dist === best.dist && tacoAim(res.level.stats!, spec.target) < tacoAim(best.level.stats!, spec.target)));
     if (better) best = res;
     if (best && best.dist === 0) break;
   }
   if (!best) throw new Error(`local level ${local}: generation failed`);
   const lv = best.level;
-  // every stored level carries the thinking player's rate (the generator only asks it near the target)
-  if (lv.stats!.thinking === undefined) lv.stats = roundStats({ ...lv.stats!, thinking: tacoThinking(lv, THINK_RUNS, lv.seed!) });
   levels.push(lv);
   save();
   const dist = tacoObjective(lv.stats!, spec.target);

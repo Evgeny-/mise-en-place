@@ -32,6 +32,29 @@ export interface LevelStats {
   items?: number;
   /** lidded levels: share of the winning lines (without lids) that the lids rule out */
   lidCut?: number;
+  /**
+   * Planner profile: win rate of the planning player who looks 1, 2, 3, 4 and 5 moves ahead
+   * (index 0 = depth 1). On cloche levels the planner can't see under the cloches (it plans on a
+   * guess of what is hidden, consistent with what it has seen).
+   */
+  plan?: number[];
+  /** planning depth: the smallest look-ahead (1–5) whose planner wins at least half the games; 6 = deeper */
+  depth?: number;
+  /** decisions along the solution where the greedy (obvious) move loses */
+  forced?: number;
+  /** decisions along the solution with a fatal move that stays playable for 3+ moves (a hidden trap) */
+  deep?: number;
+  /** cloche levels: steps where even a careful deducer had to guess (0 = fair: reasoning always suffices) */
+  guesses?: number;
+  /** cloche levels: depth-3 planner win rate if it could see under the cloches (compare plan[2]) */
+  sighted?: number;
+  /** frozen levels: share of the winning lines (without ice) that the ice rules out */
+  iceCut?: number;
+  /**
+   * cloche levels: decisions (along the deducer's game) where what lies under a cloche decides
+   * whether some move is safe: reasoning about the hidden tiles matters there
+   */
+  riddles?: number;
 }
 
 /**
@@ -39,7 +62,7 @@ export interface LevelStats {
  * (a tortilla catches the next fillings), 'park' (lay a new tortilla over a half-made taco),
  * 'topping' (a ticket's marked filling must go in last).
  */
-export type Intro = DishId | 'lid' | 'slots' | 'tortilla' | 'park' | 'topping';
+export type Intro = DishId | 'lid' | 'slots' | 'tortilla' | 'park' | 'topping' | 'cloche' | 'frozen';
 
 export interface LevelDef {
   /** campaign level number, 1-based (the global position; see shifts.ts) */
@@ -65,6 +88,17 @@ export interface LevelDef {
   tickets?: FoodId[][];
   /** per column: the column opens after this many dishes were served (0 = open) */
   lids?: number[];
+  /**
+   * Cloches: [column, row] of tiles under a cloche (row 0 = the column's top at the start; always
+   * >= 1). A cloche lifts when its tile reaches the front of its column and stays lifted (undo
+   * doesn't cover it again).
+   */
+  cloches?: [number, number][];
+  /**
+   * Frozen tiles: [column, row, thaw]. The tile can be taken only after `thaw` takes in total; the
+   * column is blocked behind it until then. The ice shows the takes still to go.
+   */
+  frozen?: [number, number, number][];
   /** taco kitchens, twist "topping last": per dish, the filling that must go into it last */
   toppings?: Partial<Record<DishId, FoodId>>;
   /** a winning sequence of column indices */

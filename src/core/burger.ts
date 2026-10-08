@@ -2,6 +2,7 @@ import type { DishId, FoodId } from './content';
 import type { Rng } from './rng';
 import type { Rules } from './kitchen';
 import type { SimEvent, Status } from './sim';
+import { ClocheMarks, takesOf, thawTable } from './pantry';
 import type { LevelDef } from './types';
 
 /**
@@ -43,7 +44,7 @@ export interface BState {
   served: number;
 }
 
-type BurgerLevel = Pick<LevelDef, 'columns' | 'slots' | 'seats' | 'lids' | 'tickets'>;
+type BurgerLevel = Pick<LevelDef, 'columns' | 'slots' | 'seats' | 'lids' | 'tickets' | 'frozen'>;
 
 export class BurgerRules implements Rules<BState> {
   readonly cols: number[][];
@@ -51,6 +52,8 @@ export class BurgerRules implements Rules<BState> {
   readonly slots: number;
   readonly nseats: number;
   readonly lids: number[] | null;
+  /** frozen tiles: per column and row, the take count they thaw at (see pantry.ts) */
+  readonly thaw: number[][] | null;
   readonly length: number;
 
   constructor(level: BurgerLevel, slots?: number) {
@@ -60,6 +63,7 @@ export class BurgerRules implements Rules<BState> {
     this.slots = slots ?? level.slots;
     this.nseats = level.seats;
     this.lids = level.lids && level.lids.some((x) => x > 0) ? level.lids.slice() : null;
+    this.thaw = thawTable(level);
     this.length = this.cols.reduce((a, c) => a + c.length, 0);
   }
 
@@ -120,6 +124,7 @@ export class BurgerRules implements Rules<BState> {
     const c = this.cols[col];
     if (pos >= c.length) return null;
     if (this.lids && this.lids[col] > s.served) return null;
+    if (this.thaw && this.thaw[col][pos] > takesOf(s.ptr)) return null;
     const it = c[pos];
     const p = this.target(s, it);
     if (p < 0) {
@@ -198,10 +203,13 @@ export class BurgerSim {
   history: number[] = [];
   private extra = 0;
   private rules: BurgerRules;
+  /** what the player knows: lifted cloches stay lifted (not part of snapshots) */
+  readonly cloches: ClocheMarks;
 
   constructor(level: LevelDef) {
     this.level = level;
     this.rules = new BurgerRules(level);
+    this.cloches = new ClocheMarks(level);
     const s = this.rules.start();
     this.ptr = s.ptr;
     this.plate = s.plate;
@@ -216,6 +224,15 @@ export class BurgerSim {
 
   get columns(): FoodId[][] {
     return this.level.columns;
+  }
+
+  covered(col: number, row: number): boolean {
+    return this.cloches.covered(col, row);
+  }
+
+  thawLeft(col: number, row: number): number {
+    const at = this.rules.thaw?.[col]?.[row] ?? 0;
+    return at > 0 ? Math.max(0, at - takesOf(this.ptr)) : 0;
   }
 
   /** Dish wanted at each seat (the order's stacked dish, or empty), like Sim.seats. */
@@ -290,6 +307,7 @@ export class BurgerSim {
     this.ptr[col]++;
     this.history.push(col);
     const lidsBefore = this.openLids();
+    const revealed = this.cloches.reveal(this.ptr);
     const p = r.target(this, ix(item));
     if (p >= 0) {
       events.push({ t: 'stack', col, item, seat: p, layer: this.done[p] });
@@ -317,6 +335,7 @@ export class BurgerSim {
       this.counter[slot] = item;
       events.push({ t: 'take', col, item, slot });
     }
+    for (const c of revealed) events.push({ t: 'reveal', col: c, item: this.top(c)! });
     for (const c of this.openLids()) if (!lidsBefore.includes(c)) events.push({ t: 'lid', col: c });
     if (this.served === this.level.tickets!.length) {
       this.status = 'won';
