@@ -49,6 +49,8 @@ const STRINGS = {
   hintSafe: { ru: 'Попробуйте отсюда', en: 'Try this one' },
   deadKitchen: { ru: 'Эту кухню уже не закончить', en: 'This kitchen can’t be finished anymore' },
   undoBack: { ru: 'Отменить {n} ход(а)', en: 'Undo {n} moves' },
+  undoOutTitle: { ru: 'Отмены закончились', en: 'Out of undos' },
+  undoOut: { ru: 'На этом уровне три бесплатные отмены, и они закончились. Ещё одна — за монеты?', en: 'Each level has three free undos, and these are used up. One more for coins?' },
   undoBackOne: { ru: 'Отменить ход', en: 'Undo one move' },
   stuckTitle: { ru: 'Кухня встала', en: 'The kitchen is jammed' },
   stuckText: {

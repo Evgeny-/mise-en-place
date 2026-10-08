@@ -16,7 +16,7 @@ import { openDialog, initDialogs, toast, closeAllDialogs, dialogOpen, type Dialo
 import { t, loc, setLang, getLang, type Lang } from './i18n';
 import { loadSave, writeSave, resetSave, BOOSTERS, type BoosterId, type SaveData } from './save';
 import { loadCampaign, getLevel, prefetch, getDaily, dayKey } from './levels';
-import { BOOSTER_GIFT, BOOSTER_PRICE, BOOSTER_UNLOCK, coinsFor, type Reward } from './rewards';
+import { BOOSTER_GIFT, BOOSTER_PRICE, BOOSTER_UNLOCK, UNDO_FREE, UNDO_PRICE, coinsFor, type Reward } from './rewards';
 import { DISHES, FOODS, MENUS, levelRecipes, type DishId } from '../core/content';
 import type { LevelDef } from '../core/types';
 import { campaignLevel } from '../core/shifts';
@@ -54,6 +54,8 @@ export class App {
   private tutorial = 0;
   private darkQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
   private deadShown = false;
+  /** free undos left on this level (debug: unlimited) */
+  private undoLeft = UNDO_FREE;
   /** dev: the level's difficulty numbers for the debug line */
   private debugStats = '';
   /** dishes served for the first time during this level (shown on the win card) */
@@ -245,6 +247,7 @@ export class App {
     view.insets = { top: ins.top, bottom: ins.bottom };
     this.hud.observe(() => this.onResize());
     this.deadShown = false;
+    this.undoLeft = UNDO_FREE;
     this.newDishes = [];
     this.game = new Game(view, level, theme, {
       onWin: (g) => this.onWin(g),
@@ -460,7 +463,7 @@ export class App {
     const g = this.game;
     const n = g?.level.n ?? 1;
     const state = {} as Record<DockButton, DockState>;
-    state.undo = { count: null, locked: false, unlockAt: 1, usable: !!g?.canUndo(), glow: deadGlow };
+    state.undo = { count: this.save.settings.debug ? null : this.undoLeft, locked: false, unlockAt: 1, usable: !!g?.canUndo(), glow: deadGlow };
     for (const b of BOOSTERS) {
       state[b] = { count: this.save.boosters[b], locked: n < BOOSTER_UNLOCK[b] && !this.save.settings.debug, unlockAt: BOOSTER_UNLOCK[b], usable: !!g && g.status !== 'won' };
     }
@@ -473,9 +476,13 @@ export class App {
     if (!g) return;
     if (b === 'recipes') return this.openRecipes(null);
     if (b === 'undo') {
-      if (g.undo()) this.deadShown = false;
-      else audio.play('invalid');
-      this.refreshDock();
+      if (!g.canUndo()) {
+        audio.play('invalid');
+        return;
+      }
+      if (this.undoLeft <= 0 && !this.save.settings.debug) return this.offerUndo(() => this.undoOne());
+      this.spendUndo();
+      this.undoOne();
       return;
     }
     if (g.level.n < BOOSTER_UNLOCK[b] && !this.save.settings.debug) {
@@ -485,6 +492,73 @@ export class App {
     }
     if (this.save.boosters[b] <= 0) return this.openShop(b);
     this.useBooster(b);
+  }
+
+  private undoOne(): void {
+    if (this.game?.undo()) this.deadShown = false;
+    this.refreshDock();
+  }
+
+  /** Uses a free undo (debug: free); false if none are left. */
+  private spendUndo(): boolean {
+    if (this.save.settings.debug) return true;
+    if (this.undoLeft <= 0) return false;
+    this.undoLeft--;
+    return true;
+  }
+
+  /** Out of free undos: one more for coins, then `then`. */
+  private offerUndo(then: () => void): void {
+    const g = this.game;
+    if (g) g.paused = true;
+    const resume = once(() => {
+      if (g) g.paused = false;
+    });
+    openDialog({
+      title: t('undoOutTitle'),
+      head: 'purple',
+      body: [h('div', { class: 'mech-art', html: glyph('undo', 84) }), t('undoOut'), h('p', { class: 'subtle', html: `${glyph('coin', 20)} ${this.save.coins}` })],
+      buttons: [
+        {
+          label: `${t('buy')} <span class="price">${glyph('coin', 26)} ${UNDO_PRICE}</span>`,
+          cls: 'green',
+          onClick: () => {
+            if (this.save.coins < UNDO_PRICE) {
+              audio.play('invalid');
+              toast(this.ui, t('notEnough'));
+              return false;
+            }
+            this.save.coins -= UNDO_PRICE;
+            writeSave(this.save);
+            audio.play('coin');
+            resume();
+            then();
+            return true;
+          },
+        },
+      ],
+      onClose: resume,
+    });
+  }
+
+  /** Rewind `n` moves (stuck card, dead kitchen): one undo, or coins when the free ones are gone. */
+  private rewind(n: number): void {
+    const g = this.game;
+    if (!g) return;
+    const go = () => {
+      g.undoMany(n);
+      this.deadShown = false;
+      this.refreshDock();
+    };
+    if (this.spendUndo()) go();
+    else setTimeout(() => this.offerUndo(go), 200);
+  }
+
+  /** Label of a rewind button: the free undos left, or the price. */
+  private rewindLabel(n: number): string {
+    const text = n === 1 ? t('undoBackOne') : t('undoBack', { n });
+    const tag = this.save.settings.debug ? '' : this.undoLeft > 0 ? ` <span class="price">×${this.undoLeft}</span>` : ` <span class="price">${glyph('coin', 24)} ${UNDO_PRICE}</span>`;
+    return `${glyph('undo', 22)} ${text}${tag}`;
   }
 
   private useBooster(b: BoosterId): void {
@@ -505,7 +579,7 @@ export class App {
           head: 'purple',
           body: [h('div', { class: 'mech-art', html: glyph('pot', 84) })],
           buttons: [
-            { label: `${glyph('undo', 22)} ${r.back === 1 ? t('undoBackOne') : t('undoBack', { n: r.back })}`, cls: 'green', onClick: () => g.undoMany(r.back) },
+            { label: this.rewindLabel(r.back), cls: 'green', onClick: () => this.rewind(r.back) },
             { label: t('close'), cls: 'white small', onClick: () => undefined },
           ],
         });
@@ -752,7 +826,7 @@ export class App {
     const r = g.hint();
     const back = r.kind === 'dead' ? r.back : 1;
     const buttons: DialogButton[] = [
-      { label: `${glyph('undo', 22)} ${back === 1 ? t('undoBackOne') : t('undoBack', { n: back })}`, cls: 'green', onClick: () => g.undoMany(back) },
+      { label: this.rewindLabel(back), cls: 'green', onClick: () => this.rewind(back) },
     ];
     if (g.level.n >= BOOSTER_UNLOCK.slot || this.save.settings.debug) {
       const have = this.save.boosters.slot;
