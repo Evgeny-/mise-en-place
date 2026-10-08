@@ -22,15 +22,16 @@ class IconFactory {
     r.setPixelRatio(1);
     r.setSize(this.size, this.size, false);
     r.toneMapping = THREE.NeutralToneMapping;
-    r.toneMappingExposure = 1.1;
+    r.toneMappingExposure = 1.0;
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.setClearColor(0x000000, 0);
     const pmrem = new THREE.PMREMGenerator(r);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     this.scene.environmentIntensity = 0.5;
     pmrem.dispose();
-    this.scene.add(new THREE.HemisphereLight('#fffaf0', '#b09070', 1.1));
-    const sun = new THREE.DirectionalLight('#fff4e0', 2.6);
+    // less flat fill and a stronger key light: pale foods (dough, egg, flour) keep their form
+    this.scene.add(new THREE.HemisphereLight('#fffaf0', '#8a6a50', 0.85));
+    const sun = new THREE.DirectionalLight('#fff4e0', 3.0);
     sun.position.set(-3, 6, 4);
     this.scene.add(sun);
     this.renderer = r;
@@ -81,9 +82,28 @@ class IconFactory {
     const side = Math.max(x1 - x0 + 1, y1 - y0 + 1) / 0.9;
     const cx = (x0 + x1 + 1) / 2;
     const cy = (y0 + y1 + 1) / 2;
+    // the food, a touch richer than the render
+    const art = document.createElement('canvas');
+    art.width = art.height = this.out;
+    const ag = art.getContext('2d')!;
+    ag.imageSmoothingQuality = 'high';
+    ag.filter = 'saturate(1.15) contrast(1.06)';
+    ag.drawImage(scan, cx - side / 2, cy - side / 2, side, side, 0, 0, this.out, this.out);
+    // a thin ink outline, like a sticker: pale foods stay readable on cream tickets and slots
+    const ink = document.createElement('canvas');
+    ink.width = ink.height = this.out;
+    const ig = ink.getContext('2d')!;
+    ig.drawImage(art, 0, 0);
+    ig.globalCompositeOperation = 'source-in';
+    ig.fillStyle = '#4a3428';
+    ig.fillRect(0, 0, this.out, this.out);
     const og = out.getContext('2d')!;
-    og.imageSmoothingQuality = 'high';
-    og.drawImage(scan, cx - side / 2, cy - side / 2, side, side, 0, 0, this.out, this.out);
+    const r = this.out * 0.022;
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2;
+      og.drawImage(ink, Math.cos(a) * r, Math.sin(a) * r);
+    }
+    og.drawImage(art, 0, 0);
     return out.toDataURL('image/png');
   }
 
