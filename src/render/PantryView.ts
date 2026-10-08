@@ -52,6 +52,9 @@ const ICE_INK = { fill: '#ffffff', stroke: '#1f5f80', shadow: 'rgba(10, 40, 70, 
  * The pantry: one tray per column with its items standing on coloured tiles, the top item
  * nearest to the counter. Tiles slide forward when the front item is taken.
  */
+/** Height of a column's tap area: the items standing in the container. */
+const HIT_H = 0.55;
+
 export class PantryView {
   readonly group = new THREE.Group();
   private cols: Entry[][] = [];
@@ -286,8 +289,11 @@ export class PantryView {
       }
       this.cols.push(entries);
       const len = (l.rows - 1) * l.rowStep + l.tile + 0.3;
-      const hit = new THREE.Mesh(new THREE.BoxGeometry(l.colPitch, 1.2, len + 0.4), this.hitMat);
-      hit.position.set(l.colX[c], 0.6, l.rowZ0 + ((l.rows - 1) * l.rowStep) / 2 - 0.2);
+      // the tap area is the container's footprint (plus a finger's margin) up to the top of the
+      // items standing in it: seen from the tilted camera, a taller or deeper box would catch
+      // taps well above the column, on the cutting board
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(l.colPitch, HIT_H, len + 0.2), this.hitMat);
+      hit.position.set(l.colX[c], HIT_H / 2, l.rowZ0 + ((l.rows - 1) * l.rowStep) / 2);
       hit.userData.col = c;
       this.group.add(hit);
       this.hits.push(hit);
