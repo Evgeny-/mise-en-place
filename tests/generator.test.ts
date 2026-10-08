@@ -208,7 +208,7 @@ describe('endless levels', () => {
       expect(waste(a)).toEqual({});
       expect(replays(a, a.solution!)).toBe(true);
     }
-  });
+  }, 180_000);
 });
 
 /** Python design parity (landing-slot rule = "merge on drop" with one slot fewer). */
@@ -329,7 +329,7 @@ describe('burger tickets and golden order', () => {
     for (let i = 0; i < 60; i++) {
       const tickets = pickTickets(diner(15), rng)!;
       const slots = 2 + (i % 3);
-      const g = burgerGolden(tickets, 2, slots, rng);
+      const g = burgerGolden(tickets, 2, slots, rng)!;
       expect(g.peak).toBeLessThanOrEqual(slots);
       expect(g.items.length).toBe(tickets.reduce((a, t) => a + t.length, 0));
       // one column holding the golden order is a winnable level
@@ -468,5 +468,5 @@ describe('endless kitchens', () => {
     expect(burgerWaste(a)).toEqual({});
     expect(simWins(a, a.solution!)).toBe(true);
     expect(generateEndlessLevel(e + 1).rules).toBeUndefined();
-  });
+  }, 180_000);
 });

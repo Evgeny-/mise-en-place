@@ -128,6 +128,8 @@ interface Row {
   /** cloches and frozen tiles (pantry.ts) */
   cloches?: number;
   frozen?: number;
+  /** the stove: oven dishes and their baking takes, or the patty's grill takes */
+  stove?: LevelDef['stove'];
   intro?: Intro;
   /** target overrides */
   t?: Target;
@@ -146,6 +148,8 @@ const MI: DishId = 'minestrone';
 const GN: DishId = 'gnocchi';
 const CZ: DishId = 'calzone';
 const TI: DishId = 'tiramisu';
+const TG: DishId = 'tagliatelle';
+const LA: DishId = 'lasagne';
 
 /**
  * Trattoria row: `set` is exactly the level's dish set (every dish in it is ordered), so
@@ -192,24 +196,24 @@ const TRATTORIA: Record<number, Row> = {
   20: tr('banquet in a small kitchen', 5, 5, 2, 2, [6, 7], [GN, PE, BR, OM]),
   21: tr('new: tiramisu — mascarpone + egg make cream', 4, 5, 3, 2, [3, 4], [TI, PZ], { intro: TI }),
   22: tr('small kitchen: tiramisu, caprese, risotto', 5, 5, 2, 2, [5, 5], [TI, CA, RI], { cloches: 2 }),
-  23: tr('soup, carbonara and pesto', 5, 5, 3, 2, [5, 6], [MI, CB, PE]),
+  23: tr('new: the oven — pizza and calzone bake for a few moves', 5, 5, 3, 2, [4, 5], [PZ, CZ, CA], { intro: 'oven', stove: { pizza: 2, calzone: 2 } }),
   24: tr('two tomatoes or one?', 5, 5, 3, 2, [5, 6], [GN, TI, BR], { cloches: 3 }),
-  25: tr('dough, cream or omelette? the egg decides', 5, 6, 3, 2, [6, 6], [CZ, TI, OM], { cloches: 2 }),
+  25: tr('dough, cream or omelette? the egg decides', 5, 6, 3, 2, [6, 6], [CZ, TI, OM], { cloches: 2, stove: { calzone: 3 } }),
   26: tr('from the freezer: basil, pesto or caprese?', 5, 5, 3, 2, [5, 6], [RI, PE, CA], { frozen: 1 }),
-  27: tr('carbonara, gnocchi and bruschetta', 5, 5, 3, 2, [5, 6], [CB, GN, BR], { cloches: 3 }),
-  28: tr('calzone, soup and spaghetti on ice', 5, 6, 3, 2, [6, 6], [CZ, MI, S], { frozen: 2 }),
-  29: tr('every egg counts', 5, 5, 3, 2, [5, 6], [PZ, OM, GN], { cloches: 2, frozen: 1 }),
-  30: tr('banquet: dessert night', 6, 5, 3, 3, [7, 7], [S, TI, CA, CB], { lead: [TI], cloches: 3 }),
-  31: tr('three seats: soup, risotto and calzone', 5, 6, 3, 3, [6, 7], [MI, RI, CZ], { frozen: 2 }),
-  32: tr('pesto, tiramisu and bruschetta', 6, 5, 3, 3, [6, 7], [PE, TI, BR], { cloches: 3 }),
+  27: tr('new: tagliatelle al ragù — sauce meets beef: ragù', 5, 5, 3, 2, [4, 5], [TG, S, BR], { intro: TG }),
+  28: tr('calzone, soup and spaghetti on ice', 5, 6, 3, 2, [6, 6], [CZ, MI, S], { frozen: 2, stove: { calzone: 2 } }),
+  29: tr('every egg counts', 5, 5, 3, 2, [5, 6], [PZ, OM, GN], { cloches: 2, frozen: 1, stove: { pizza: 2 } }),
+  30: tr('banquet: ragù night', 6, 5, 3, 3, [7, 7], [S, TI, TG, CB], { lead: [TG], cloches: 3 }),
+  31: tr('three seats: soup, risotto and calzone', 5, 6, 3, 3, [6, 7], [MI, RI, CZ], { frozen: 2, stove: { calzone: 3 } }),
+  32: tr('new: lasagne — pasta, ragù and cheese, baked', 6, 5, 3, 3, [5, 6], [LA, PE, BR], { intro: LA, stove: { lasagne: 2 } }),
   33: tr('gnocchi, caprese and omelette', 6, 5, 3, 3, [6, 7], [GN, CA, OM], { frozen: 2 }),
-  34: tr('pizza, carbonara and soup', 6, 5, 3, 3, [6, 7], [PZ, CB, MI], { cloches: 3, frozen: 1 }),
-  35: tr('the busy pass', 6, 5, 3, 2, [7, 7], [TI, RI, GN], { cloches: 2, frozen: 1 }),
+  34: tr('pizza, carbonara and soup', 6, 5, 3, 3, [6, 7], [PZ, CB, MI], { cloches: 3, frozen: 1, stove: { pizza: 3 } }),
+  35: tr('the busy pass', 6, 5, 3, 2, [7, 7], [TI, TG, GN], { cloches: 2, frozen: 1 }),
   36: tr('new: lids — a column opens after k dishes', 5, 5, 3, 2, [4, 5], [S, CZ, OM], { lids: 1, lidMax: 2, intro: 'lid' }),
-  37: tr('a lid: bruschetta, pesto and soup', 5, 5, 3, 3, [6, 6], [BR, PE, MI], { lids: 1, lidMax: 3, cloches: 2 }),
-  38: tr('lids: caprese, tiramisu and pizza', 6, 5, 3, 3, [6, 7], [CA, TI, PZ], { lids: 2, lidMax: 3, frozen: 1 }),
-  39: tr('a lid: carbonara, gnocchi and risotto', 6, 5, 3, 3, [6, 7], [CB, GN, RI], { lids: 1, lidMax: 3, cloches: 3, frozen: 1 }),
-  40: tr('grand banquet', 6, 6, 3, 3, [8, 8], [MI, PZ, TI, CA, PE], { cloches: 3, frozen: 1 }),
+  37: tr('a lid: bruschetta, ragù and soup', 5, 5, 3, 3, [6, 6], [BR, TG, MI], { lids: 1, lidMax: 3, cloches: 2 }),
+  38: tr('lids: caprese, tiramisu and pizza', 6, 5, 3, 3, [6, 7], [CA, TI, PZ], { lids: 2, lidMax: 3, frozen: 1, stove: { pizza: 2 } }),
+  39: tr('a lid: carbonara, gnocchi and lasagne', 6, 5, 3, 3, [6, 7], [CB, GN, LA], { lids: 1, lidMax: 3, cloches: 3, frozen: 1, stove: { lasagne: 2 } }),
+  40: tr('grand banquet', 6, 6, 3, 3, [7, 8], [MI, PZ, TG, LA, CA], { cloches: 3, frozen: 1, stove: { pizza: 2, lasagne: 3 } }),
 };
 
 /**
@@ -257,31 +261,31 @@ function BURGER_LADDER(): Record<number, Row> {
   b(13, 'pickles: hot dog or burger?', 5, 5, 2, 4, [4, 5], [PC, HD, SW], 0, 0, { cloches: 2 });
   b(14, 'read the columns as recipes', 5, 5, 2, 4, [5, 5], [SD, HD, BU], 0, 0, { frozen: 1 });
   b(15, 'rush hour', 5, 5, 2, 5, [5, 5], [SW, PC, BU], 0, 0, { cloches: 2 });
-  b(16, 'onion rings', 5, 5, 2, 4, [5, 5], [HD, SW], 0, 0, { cloches: 2 });
-  b(17, 'berries for pancakes and sundaes', 5, 5, 2, 5, [5, 5], [SD, PC, BU], 0, 0, { frozen: 2 });
+  b(16, 'new: the grill — patties cook for a few moves', 5, 5, 2, 4, [5, 5], [BU, HD], 0, 0, { intro: 'grill', stove: { patty: 2 } });
+  b(17, 'berries for pancakes and sundaes', 5, 5, 2, 5, [5, 5], [SD, PC, BU], 0, 0, { frozen: 2, stove: { patty: 2 } });
   b(18, 'tall tickets', 5, 6, 2, 4, [5, 6], [SW, HD], 0, 0, { cloches: 3 });
   b(19, 'tall tickets on ice', 5, 6, 2, 5, [5, 6], [BU, SD, PC], 0, 0, { frozen: 1, cloches: 2 });
   b(20, 'banquet: the big order', 5, 6, 2, 6, [5, 5], ALL, 0, 0, { cloches: 2 });
-  b(21, 'double patty', 5, 5, 2, 4, [5, 6], [BU, HD], 0, 0.5, { frozen: 1 });
+  b(21, 'double patty on the grill', 5, 5, 2, 4, [5, 6], [BU, SW], 0, 0.5, { frozen: 1, stove: { patty: 2 } });
   b(22, 'sandwiches, sundaes, pancakes', 5, 6, 2, 5, [5, 6], [SW, SD, PC], 0, 0, { cloches: 3 });
-  b(23, 'double trouble', 5, 6, 2, 5, [5, 6], [BU, PC], 0, 0.5, { frozen: 2 });
+  b(23, 'double trouble', 5, 6, 2, 5, [5, 6], [BU, PC], 0, 0.5, { frozen: 2, stove: { patty: 3 } });
   b(24, 'hot dogs, sandwiches, sundaes', 5, 6, 2, 5, [5, 6], [HD, SW, SD], 0, 0, { cloches: 2, frozen: 1 });
-  b(25, 'the stack-up', 5, 6, 2, 5, [5, 6], [BU, SW, SD], 0, 0.5, { cloches: 2 });
+  b(25, 'the stack-up', 5, 6, 2, 5, [5, 6], [BU, SW, SD], 0, 0.5, { cloches: 2, stove: { patty: 2 } });
   b(26, 'new: lids — a column opens after k dishes', 5, 5, 2, 4, [5, 5], [HD, PC, SW], 0, 0, { lids: 1, lidMax: 2, intro: 'lid' });
-  b(27, 'a lid and a double patty', 5, 6, 2, 5, [5, 6], [BU, SD], 0, 0.3, { lids: 1, lidMax: 2, cloches: 2 });
+  b(27, 'a lid and a double patty', 5, 6, 2, 5, [5, 6], [BU, SD], 0, 0.3, { lids: 1, lidMax: 2, cloches: 2, stove: { patty: 2 } });
   b(28, 'serve in the right order', 5, 6, 2, 5, [5, 6], [PC, SW, HD], 0, 0, { lids: 1, lidMax: 3, frozen: 1 });
   b(29, 'two lids', 5, 5, 2, 5, [5, 5], [SD, PC, BU], 0, 0, { lids: 2, lidMax: 3, cloches: 2 });
-  b(30, 'banquet behind a lid', 6, 5, 2, 6, [5, 5], ALL, 0, 0, { lids: 1, lidMax: 2, frozen: 1 });
+  b(30, 'banquet behind a lid', 6, 5, 2, 6, [5, 5], ALL, 0, 0, { lids: 1, lidMax: 2, frozen: 1, stove: { patty: 2 } });
   b(31, 'a third plate', 5, 5, 3, 5, [5, 5], [HD, SW, SD], 0, 0, { cloches: 2 });
-  b(32, 'three plates', 6, 5, 3, 5, [5, 6], [BU, PC, SD], 0, 0, { frozen: 2 });
+  b(32, 'three plates', 6, 5, 3, 5, [5, 6], [BU, PC, SD], 0, 0, { frozen: 2, stove: { patty: 3 } });
   b(33, 'three plates, double patty', 6, 5, 3, 5, [5, 6], [BU, HD, SW], 0, 0.3, { cloches: 3 });
   b(34, 'three plates, long queue', 6, 5, 3, 6, [5, 5], [PC, SW, SD], 0, 0, { frozen: 1, cloches: 2 });
-  b(35, 'lunch rush', 6, 5, 3, 6, [5, 5], [HD, SD, BU], 0, 0, { cloches: 2, frozen: 1 });
+  b(35, 'lunch rush', 6, 5, 3, 6, [5, 5], [HD, SD, BU], 0, 0, { cloches: 2, frozen: 1, stove: { patty: 2 } });
   b(36, 'three plates and a lid', 6, 5, 3, 5, [5, 6], [SW, PC, HD], 0, 0, { lids: 1, lidMax: 2, cloches: 2 });
-  b(37, 'three plates and a lid', 6, 5, 3, 5, [5, 5], [BU, SD, PC], 0, 0.3, { lids: 1, lidMax: 3, frozen: 1 });
+  b(37, 'three plates and a lid', 6, 5, 3, 5, [5, 5], [BU, SD, PC], 0, 0.3, { lids: 1, lidMax: 3, frozen: 1, stove: { patty: 2 } });
   b(38, 'three plates, a late lid', 6, 5, 3, 5, [5, 6], [SD, SW, HD], 0, 0, { lids: 1, lidMax: 3, cloches: 3 });
-  b(39, 'three plates, a late lid', 6, 5, 3, 6, [5, 5], [BU, PC, SW], 0, 0.3, { lids: 1, lidMax: 3, cloches: 2, frozen: 1 });
-  b(40, 'grand banquet: three plates', 6, 5, 3, 6, [5, 5], ALL, 0, 0.3, { cloches: 3, frozen: 1 });
+  b(39, 'three plates, a late lid', 6, 5, 3, 6, [5, 5], [BU, PC, SW], 0, 0.3, { lids: 1, lidMax: 3, cloches: 2, frozen: 1, stove: { patty: 3 } });
+  b(40, 'grand banquet: three plates', 6, 5, 3, 6, [5, 5], ALL, 0, 0.3, { cloches: 3, frozen: 1, stove: { patty: 2 } });
   return rows;
 }
 
@@ -304,6 +308,8 @@ export function targetFor(world: number, local: number, tier: Tier, intro?: Intr
   if (mech.frozen) extra.minIceCut = intro === 'frozen' ? 0.3 : 0.15;
   if (mech.cloches) extra.minRiddles = 1;
   const plan = planBands(tier, local, intro, 9);
+  // the stacks have fewer single-move passages (the leftmost plate decides), so their bottleneck bar is lower
+  if (world === 1 && plan.minBottleneck) plan.minBottleneck = Math.max(1, Math.round(plan.minBottleneck / 2));
   const ramp = world === 1 ? 9 : 8;
   if (local <= ramp && tier === 'normal') {
     // the opening: a real decision from the second level on (openingBands); the random player
@@ -336,6 +342,7 @@ function specFrom(n: number, world: number, local: number, row: Row, target?: Ta
     lidMax: row.lidMax,
     cloches: row.cloches,
     frozen: row.frozen,
+    stove: row.stove,
     intro: row.intro,
     theme: row.theme,
     target: target ?? { ...targetFor(world, local, tier, row.intro, row.lids ?? 0, row), ...row.t },
@@ -391,9 +398,35 @@ export function runtimeTarget(t: Target): Target {
   const reach: Target['reach'] = {};
   for (const [d, band] of Object.entries(t.reach ?? {})) if (Number(d) <= 3 && band) reach[Number(d)] = band;
   return {
-    reach, minForced: t.minForced, minDeep: t.minDeep, greedyLoses: t.greedyLoses, tight: t.tight, maxRandom: t.maxRandom,
+    reach, goal: t.goal, minForced: t.minForced, minDeep: t.minDeep, greedyLoses: t.greedyLoses, tight: t.tight, maxRandom: t.maxRandom,
     maxGuesses: t.maxGuesses,
   };
+}
+
+/** Late ladder rows the endless pool cycles through, per kitchen (normal tier). */
+const POOL_CYCLE = [
+  [24, 26, 28, 29, 31, 33, 34, 37, 38, 39],
+  [27, 28, 29, 31, 32, 33, 34, 36, 37, 38, 39, 24],
+];
+
+/**
+ * The pre-built endless pool (scripts/build-endless.ts, levels 121–240): campaign quality. Each
+ * level plays a late row of its kitchen at full size with the full late targets of the local level
+ * it plays like (endlessLocal: its shift's hard level or banquet included). `step` picks another
+ * row of the cycle (the builder uses it to keep neighbouring dish sets apart).
+ */
+export function poolSpec(n: number, step = 0): LevelSpec {
+  const tier = tierForLevel(n);
+  const world = endlessWorld(n);
+  if (world === 2) throw new Error(`pool level ${n} is a Taquería level: see taqueriaPoolSpec`);
+  const like = endlessLocal(n);
+  const L = LADDERS[world];
+  const cycle = POOL_CYCLE[world];
+  const visit = shiftOf(n).visit;
+  let row: Row = tier === 'superhard' ? L[visit % 2 ? 30 : 40] : tier === 'hard' ? L[visit % 2 ? 25 : 35] : L[cycle[(n * 5 + step) % cycle.length]];
+  row = { ...row, intro: undefined };
+  const target = targetFor(world, like, tier, undefined, row.lids ?? 0, row);
+  return { ...specFrom(n, world, like, row, target), local: undefined, n, tier, theme: 'endless pool' };
 }
 
 /**

@@ -11,11 +11,12 @@
   2. Only when no prep fires, **one dish** is served: the leftmost seated guest whose dish
      parts are all on the counter. The next guest in line takes that seat and the counter
      resolves again (a new guest can be served at once).
-- **Dishes (12, a new one every one or two levels at first):** spaghetti = pasta + sauce,
+- **Dishes (14, a new one every one or two levels at first):** spaghetti = pasta + sauce,
   bruschetta = bread + a *raw* tomato, caprese = mozzarella + tomato + basil, pizza = dough + sauce +
   cheese, omelette = egg + mushroom + cheese, risotto = rice + mushroom + cheese, pasta al pesto =
   pasta + pesto, carbonara = pasta + egg + cheese + bacon, minestrone = soffritto + potato + a *raw*
-  tomato, gnocchi = gnocchi + sauce, calzone = dough + mozzarella + bacon, tiramisu = cream + coffee.
+  tomato, gnocchi = gnocchi + sauce, calzone = dough + mozzarella + bacon, tiramisu = cream + coffee,
+  tagliatelle al ragù = pasta + ragù, lasagne = pasta + ragù + cheese (ragù = sauce + minced beef).
   No dish holds both halves of a prep raw, and a prep only shows up on a level once it was taught.
 - **Menus vary:** a level mixes two or three dishes (banquets more), its orders spread evenly over
   them, a new dish leads the level that introduces it, and neighbouring levels never serve the same
@@ -38,6 +39,15 @@
   number of takes from any column; the big number on the ice counts down and its column waits
   behind it. It asks for that many moves that don't clog the counter. The ice cracks and drips
   away when it thaws.
+- **The stove** (moves, not real time). The oven (Trattoria, from campaign level 48): a pizza, a
+  calzone or a lasagne whose parts are together bakes for 2–3 takes in its counter spot while its
+  guest waits (the ticket shows ♨ and the countdown). The grill (Burger Joint, from level 51): a
+  patty grills 2–3 takes in a counter spot before it can go on a plate. Every take cooks one take
+  more; when the pantry is empty the stove finishes. A full counter while something cooks jams the
+  kitchen — keep moves ready that don't clog it.
+- **The ragù chain** (Trattoria, from level 62): tomato + tomato make sauce, sauce + minced beef make
+  ragù at once, for tagliatelle al ragù and lasagne. Beef waiting on the counter steals the sauce a
+  spaghetti, a pizza or gnocchi needed: a trap that shows several moves later.
 - **Lids** (Trattoria L36, Burger Joint L26): a column opens after k dishes.
 - **Bigger kitchens** late in each ladder: six columns, a third seat and up to eight guests.
 
@@ -52,10 +62,12 @@ Where the thinking comes from (measured in the design simulations):
 - lids: a column opens only after k dishes, which forces a serving order.
 
 Random levels are trivial, so every level is built around a known winning line and then
-**searched**: a hill climb moves tiles between columns until planners that look 1–5 moves ahead
-find it as hard as its place in the campaign asks (a normal level late in a ladder beats most
-players who look three moves ahead and is won by most who look five), with traps whose consequence
-shows only three or more moves later (see [difficulty.md](difficulty.md)).
+**searched**: a hill climb moves tiles between columns until a goal-directed player — one who
+reasons backwards from the orders like a person, plans 4 moves along them and slips now and then —
+finds it as hard as its place in the campaign asks: it wins most early levels on the first try,
+about every third late one, and loses most hard levels and banquets, while a careful player (6 moves,
+no slips) still wins them. Narrow passages whose mistakes show late are counted too (see
+[difficulty.md](difficulty.md)).
 
 ## Help without stress
 

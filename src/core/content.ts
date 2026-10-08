@@ -9,8 +9,8 @@ export type Text = Record<Lang, string>;
 export type FoodId =
   // Trattoria
   | 'tomato' | 'onion' | 'carrot' | 'potato' | 'cheese' | 'egg' | 'flour' | 'pasta' | 'mushroom'
-  | 'bread' | 'basil' | 'mozzarella' | 'rice' | 'bacon' | 'mascarpone' | 'coffee'
-  | 'sauce' | 'dough' | 'soffritto' | 'pesto' | 'gnocchi_dough' | 'cream'
+  | 'bread' | 'basil' | 'mozzarella' | 'rice' | 'bacon' | 'mascarpone' | 'coffee' | 'beef'
+  | 'sauce' | 'dough' | 'soffritto' | 'pesto' | 'gnocchi_dough' | 'cream' | 'ragu'
   // Burger Joint (also uses bacon): bases, layers, tops
   | 'bun_bottom' | 'patty' | 'cheese_slice' | 'lettuce' | 'tomato_slice' | 'onion_rings' | 'bun_top'
   | 'pickles' | 'toast' | 'hotdog_bun' | 'sausage' | 'pancake' | 'butter' | 'berries' | 'cup' | 'ice_cream' | 'chocolate' | 'cherry'
@@ -21,6 +21,7 @@ export type FoodId =
 export type DishId =
   | 'pizza' | 'spaghetti' | 'minestrone' | 'omelette'
   | 'bruschetta' | 'caprese' | 'risotto' | 'pesto_pasta' | 'carbonara' | 'gnocchi' | 'calzone' | 'tiramisu'
+  | 'tagliatelle' | 'lasagne'
   // Burger Joint: stacked dishes (each ticket lists its exact layers, see burger.ts)
   | 'burger' | 'hotdog' | 'pancakes' | 'sandwich' | 'sundae'
   // Taquería: tacos (a tortilla + 3 fillings) and burritos (a wrap + 4 fillings)
@@ -82,6 +83,8 @@ export const FOODS: Record<FoodId, FoodDef> = {
   pesto: { id: 'pesto', kind: 'prep', color: '#5d9e2f', name: { en: 'Pesto', ru: 'Песто' } },
   gnocchi_dough: { id: 'gnocchi_dough', kind: 'prep', color: '#ecc97e', name: { en: 'Gnocchi', ru: 'Ньокки' } },
   cream: { id: 'cream', kind: 'prep', color: '#f6e7c4', name: { en: 'Mascarpone cream', ru: 'Крем маскарпоне' } },
+  beef: { id: 'beef', kind: 'raw', color: '#b5413a', name: { en: 'Minced beef', ru: 'Говяжий фарш' } },
+  ragu: { id: 'ragu', kind: 'prep', color: '#8f3a22', name: { en: 'Ragù', ru: 'Рагу' } },
   bun_bottom: { id: 'bun_bottom', kind: 'raw', color: '#d9953f', name: { en: 'Bottom bun', ru: 'Низ булочки' } },
   patty: { id: 'patty', kind: 'raw', color: '#6b3b26', name: { en: 'Patty', ru: 'Котлета' } },
   cheese_slice: { id: 'cheese_slice', kind: 'raw', color: '#f7c22f', name: { en: 'Cheese', ru: 'Сыр' } },
@@ -125,6 +128,8 @@ export const DISHES: Record<DishId, DishDef> = {
   gnocchi: { id: 'gnocchi', parts: ['gnocchi_dough', 'sauce'], name: { en: 'Gnocchi al pomodoro', ru: 'Ньокки с томатами' } },
   calzone: { id: 'calzone', parts: ['dough', 'mozzarella', 'bacon'], name: { en: 'Calzone', ru: 'Кальцоне' } },
   tiramisu: { id: 'tiramisu', parts: ['cream', 'coffee'], name: { en: 'Tiramisu', ru: 'Тирамису' } },
+  tagliatelle: { id: 'tagliatelle', parts: ['pasta', 'ragu'], name: { en: 'Tagliatelle al ragù', ru: 'Тальятелле с рагу' } },
+  lasagne: { id: 'lasagne', parts: ['pasta', 'ragu', 'cheese'], name: { en: 'Lasagne', ru: 'Лазанья' } },
   // Burger Joint: parts = one example stack, bottom to top (every ticket lists its own layers)
   burger: { id: 'burger', parts: ['bun_bottom', 'patty', 'cheese_slice', 'lettuce', 'bun_top'], name: { en: 'Burger', ru: 'Бургер' } },
   hotdog: { id: 'hotdog', parts: ['hotdog_bun', 'sausage', 'pickles'], name: { en: 'Hot dog', ru: 'Хот-дог' } },
@@ -147,8 +152,10 @@ export const DISHES: Record<DishId, DishDef> = {
 };
 
 /**
- * Trattoria: six preps that make themselves, in priority order (an egg next to flour becomes dough
- * before it can become cream). No dish holds both halves of a prep raw, so every dish can be served;
+ * Trattoria: seven preps that make themselves, in priority order (an egg next to flour becomes dough
+ * before it can become cream). Ragù is a chain: tomato + tomato make sauce, and sauce + minced beef
+ * make ragù at once, so beef waiting on the counter steals the sauce a spaghetti, a pizza or gnocchi
+ * needed. No dish holds both halves of a prep raw, so every dish can be served;
  * the puzzle is keeping halves apart until the right moment (a lone tomato, a basil leaf away from
  * the cheese, a potato away from the flour).
  */
@@ -156,11 +163,13 @@ export const TRATTORIA: Menu = {
   id: 'trattoria',
   items: [
     'tomato', 'onion', 'carrot', 'potato', 'cheese', 'egg', 'flour', 'pasta', 'mushroom',
-    'bread', 'basil', 'mozzarella', 'rice', 'bacon', 'mascarpone', 'coffee',
-    'sauce', 'dough', 'soffritto', 'pesto', 'gnocchi_dough', 'cream',
+    'bread', 'basil', 'mozzarella', 'rice', 'bacon', 'mascarpone', 'coffee', 'beef',
+    'sauce', 'dough', 'soffritto', 'pesto', 'gnocchi_dough', 'cream', 'ragu',
   ],
   preps: [
     { out: 'sauce', from: ['tomato', 'tomato'] },
+    // a chain: the sauce turns into ragù the moment it meets minced beef (before any dish can take it)
+    { out: 'ragu', from: ['sauce', 'beef'] },
     { out: 'dough', from: ['flour', 'egg'] },
     { out: 'soffritto', from: ['onion', 'carrot'] },
     { out: 'pesto', from: ['basil', 'cheese'] },
@@ -171,6 +180,7 @@ export const TRATTORIA: Menu = {
   dishes: [
     DISHES.spaghetti, DISHES.bruschetta, DISHES.caprese, DISHES.pizza, DISHES.omelette, DISHES.risotto,
     DISHES.pesto_pasta, DISHES.carbonara, DISHES.minestrone, DISHES.gnocchi, DISHES.calzone, DISHES.tiramisu,
+    DISHES.tagliatelle, DISHES.lasagne,
   ],
 };
 
@@ -219,6 +229,20 @@ export const MENUS: Record<string, Menu> = { trattoria: TRATTORIA, diner: DINER,
 export function levelRecipes(menu: Menu, orders: readonly DishId[], pantry: readonly FoodId[]): { preps: PrepDef[]; dishes: DishDef[] } {
   const count = new Map<FoodId, number>();
   for (const it of pantry) count.set(it, (count.get(it) ?? 0) + 1);
-  const preps = menu.preps.filter((p) => (p.from[0] === p.from[1] ? (count.get(p.from[0]) ?? 0) >= 2 : count.has(p.from[0]) && count.has(p.from[1])));
+  // a prep can happen when its two parts can be on the counter: from the pantry, or made by an
+  // earlier prep (chains: sauce + beef = ragù)
+  const preps: PrepDef[] = [];
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const p of menu.preps) {
+      if (preps.includes(p)) continue;
+      const ok = p.from[0] === p.from[1] ? (count.get(p.from[0]) ?? 0) >= 2 : count.has(p.from[0]) && count.has(p.from[1]);
+      if (!ok) continue;
+      preps.push(p);
+      count.set(p.out, (count.get(p.out) ?? 0) + 1);
+      changed = true;
+    }
+  }
+  preps.sort((a, b) => menu.preps.indexOf(a) - menu.preps.indexOf(b));
   return { preps, dishes: menu.dishes.filter((d) => orders.includes(d.id)) };
 }

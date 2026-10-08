@@ -27,6 +27,21 @@ makes. The boards were small too (4–5 columns, 4–5 guests).
 
 ## The players and numbers
 
+- **Strong player / careful player** (`GoalPlayer` in `src/core/measure.ts`) — goal-directed
+  players that reason backwards from the orders, as people do. They only consider purposeful moves:
+  taking an item a seated guest (or the next one in the queue) still needs — preps and chains
+  expanded to their raw parts — or digging toward one at most two rows down; moves outside the
+  orders only when nothing purposeful is left or every purposeful plan jams the kitchen. Along those
+  moves they plan ahead, past the next serve, comparing plans by the kitchen's position value (a free
+  spot, no extra sauce, nothing nobody needs). The **strong player** plans 4 moves ahead and slips
+  5% of the time (takes a plausible move unchecked): a strong human's first try. The **careful
+  player** plans 6 moves ahead and never slips: the fairness check. Their win rates are the main
+  targets now. Calibration on the campaign before this round: the strong player sits between the
+  depth-3 and depth-4 planners, the careful one above the depth-5 planner.
+- **Bottlenecks** — winning lines are drawn uniformly (every winning line as likely as any other);
+  a position where exactly one of several legal moves keeps the level winnable scores 1 plus the
+  moves a wrong choice stays hidden (playable before the kitchen jams, at most 9). The score is the
+  mean per line: narrow passages whose mistakes show late make a level hard for anybody.
 - **Planner at depth d** (`src/core/measure.ts`) — looks exactly d moves ahead and takes the move
   with the best reachable position; ties are broken at random. Two planner families play and the
   better one counts: the kitchen planner values positions with its kitchen's knowledge (served
@@ -72,6 +87,17 @@ makes. The boards were small too (4–5 columns, 4–5 guests).
   an ice block can't be taken until a number of takes were made, from any column; the number on the
   ice counts down, and its column waits behind it. You need that many moves that don't clog the
   counter. Free for the solver: the take count is the sum of the column pointers.
+- **The stove** (`level.stove`). **The oven** (the Trattoria from L23, campaign level 48): once a
+  pizza, a calzone or a lasagne has all its parts on the counter it bakes there for 2–3 takes; the
+  dish takes a counter slot and its guest waits (the ticket shows ♨ and the takes left). **The
+  grill** (the Burger Joint from L16, campaign level 51): a patty grills in a counter spot for 2–3
+  takes before it can slide onto a plate. Every take, from any column, cooks one take more; when the
+  pantry is empty the stove finishes by itself. A full counter while something cooks can jam the
+  kitchen: that is the timing puzzle. The Taquería has no stove yet.
+- **The ragù chain** (from the Trattoria's L27, campaign level 62). Tomato + tomato make sauce, and
+  sauce next to minced beef turns into ragù at once — before any dish can take the sauce. Beef
+  waiting on the counter steals the sauce a spaghetti, a pizza or gnocchi needed, several moves
+  later: a long-range trap. Ragù is for tagliatelle al ragù (L27) and lasagne (L32, an oven dish).
 - **Bigger kitchens late.** Six columns, a third seat and longer queues (up to 8 guests) from the
   middle of each ladder.
 
@@ -83,53 +109,55 @@ because the items are dealt in its order; lidded columns only receive items the 
 after their lid opens, and ice always thaws by the time the golden line needs the tile. So every
 level is solvable by construction. A **hill climb** then changes the draft — swap two tiles between
 columns, move a tile to another column, move the ice — and keeps a change when the level gets no
-further from its target (planner bands, forced and deep decisions, greedy loses, the random cap and,
-for tight targets, a counter one slot smaller that gets ever harder to win). Cloches go on last: a
+further from its target (the goal-directed players' bands, bottlenecks, planner bands, forced and
+deep decisions, greedy loses, the random cap and, for tight targets, a counter one slot smaller that
+gets ever harder to win). Cloches go on last: a
 few placements are tried, and the one closest to the target that the deducer solves without
-guessing is kept. A level is measured again with fresh planner games before it is stored. About
-2–30 seconds per level on a laptop; every level of the campaign landed on its target.
+guessing is kept. A level is measured again with fresh games before it is stored. About 10 seconds to
+10 minutes per level on a laptop.
 
 ## Before and after
 
-The old campaign (commit 77e16eb), measured with today's players:
+The campaign before round 3 (commit 7919e84: planner targets only, no stove or chain), measured
+with today's players (32 games each):
 
-| Kitchen, tier | Levels | Random (mean / median) | Planner d1 / d2 / d3 / d4 / d5 | Depth | Forced | Deep | Items | Columns | Guests |
-|---|---:|---:|---|---:|---:|---:|---:|---:|---:|
-| T teaching, L1–8 | 8 | 56.3% / 62.5% | 86 / 100 / 100 / 100 / 100 | 1.1 | 0.5 | 0.0 | 8.9 | 2.9 | 3.0 |
-| T normal, L9–20 | 9 | 13.6% / 16.0% | 57 / 83 / 94 / 97 / 98 | 1.4 | 2.3 | 1.1 | 14.9 | 4.2 | 4.1 |
-| T normal, L21–39 | 16 | 6.5% / 4.9% | 42 / 78 / 92 / 99 / 100 | 1.9 | 3.3 | 0.6 | 16.2 | 4.5 | 4.6 |
-| T hard | 3 | 1.1% / 1.2% | 19 / 45 / 59 / 70 / 82 | 2.7 | 6.0 | 5.7 | 21.3 | 5.0 | 6.0 |
-| T superhard | 4 | 0.5% / 0.4% | 22 / 41 / 79 / 84 / 95 | 2.8 | 6.3 | 3.3 | 21.5 | 5.5 | 7.0 |
-| B teaching, L1–8 | 8 | 61.0% / 69.9% | 84 / 87 / 97 / 99 / 100 | 1.4 | 1.0 | 0.3 | 12.3 | 3.3 | 3.1 |
-| B normal, L9–20 | 9 | 8.7% / 6.8% | 42 / 70 / 90 / 93 / 93 | 1.7 | 2.4 | 1.9 | 18.7 | 4.3 | 3.9 |
-| B normal, L21–39 | 16 | 6.6% / 6.1% | 49 / 76 / 90 / 97 / 97 | 1.5 | 2.4 | 2.1 | 21.6 | 4.9 | 4.3 |
-| B hard | 3 | 1.0% / 1.0% | 9 / 31 / 69 / 75 / 73 | 3.0 | 3.7 | 6.0 | 23.7 | 4.7 | 4.7 |
-| B superhard | 4 | 0.6% / 0.8% | 20 / 50 / 49 / 70 / 96 | 2.8 | 5.5 | 5.3 | 27.0 | 5.0 | 5.8 |
-| Q teaching, L1–5 | 5 | 50.7% / 49.1% | 85 / 94 / 98 / 100 / 100 | 1.0 | 0.6 | 0.8 | 14.2 | 3.0 | 3.0 |
-| Q normal, L6–20 | 12 | 24.3% / 23.1% | 70 / 80 / 94 / 99 / 99 | 1.1 | 2.3 | 2.0 | 20.6 | 4.3 | 4.2 |
-| Q normal, L21–39 | 16 | 15.2% / 14.9% | 41 / 77 / 96 / 99 / 99 | 1.6 | 3.1 | 3.1 | 24.4 | 4.9 | 4.9 |
-| Q hard | 3 | 3.7% / 4.1% | 11 / 38 / 83 / 61 / 60 | 2.7 | 5.7 | 5.3 | 25.3 | 5.0 | 5.0 |
-| Q superhard | 4 | 2.1% / 1.6% | 12 / 31 / 58 / 51 / 67 | 3.3 | 7.0 | 10.0 | 28.0 | 5.8 | 5.8 |
+| Kitchen, tier | Levels | Planner d2 / d3 / d5 | Strong player | Careful player | Bottlenecks | Items | Guests |
+|---|---:|---|---:|---:|---:|---:|---:|
+| T opening, L1–8 | 8 | 66 / 88 / 100 | 73% | 95% | 1.4 | 9.1 | 3.1 |
+| T normal, L9–20 | 9 | 34 / 69 / 85 | 64% | 88% | 3.2 | 14.2 | 4.0 |
+| T normal, L21–39 | 16 | 20 / 43 / 70 | 38% | 77% | 3.6 | 18.9 | 5.5 |
+| T hard | 3 | 5 / 17 / 55 | 18% | 46% | 4.1 | 21.0 | 6.0 |
+| T superhard | 4 | 17 / 25 / 54 | 22% | 64% | 3.5 | 21.3 | 6.8 |
+| B opening, L1–8 | 8 | 55 / 86 / 100 | 87% | 99% | 1.4 | 12.3 | 3.1 |
+| B normal, L9–20 | 9 | 31 / 55 / 81 | 55% | 94% | 1.3 | 19.9 | 4.2 |
+| B normal, L21–39 | 16 | 21 / 38 / 75 | 43% | 79% | 1.7 | 24.9 | 5.0 |
+| B hard | 3 | 9 / 22 / 71 | 29% | 61% | 1.2 | 26.3 | 5.3 |
+| B superhard | 4 | 19 / 22 / 59 | 17% | 66% | 3.4 | 27.0 | 5.8 |
+| Q opening, L1–5 | 5 | 75 / 89 / 97 | 86% | 96% | 1.1 | 14.2 | 3.0 |
+| Q normal, L6–20 | 12 | 23 / 68 / 83 | 42% | 75% | 2.2 | 20.5 | 4.2 |
+| Q normal, L21–39 | 16 | 17 / 47 / 72 | 54% | 82% | 3.4 | 24.9 | 4.9 |
+| Q hard | 3 | 17 / 22 / 57 | 8% | 76% | 4.1 | 25.7 | 5.0 |
+| Q superhard | 4 | 16 / 30 / 45 | 30% | 62% | 4.1 | 28.0 | 5.8 |
 
-The campaign now (holdout planner games with fresh seeds):
+The campaign now (holdout games with fresh seeds):
 
-| Kitchen, tier | Levels | Random (mean / median) | Planner d1 / d2 / d3 / d4 / d5 | Depth | Forced | Deep | Items | Columns | Guests |
-|---|---:|---:|---|---:|---:|---:|---:|---:|---:|
-| T teaching, L1–8 | 8 | 33.8% / 17.1% | 42 / 71 / 87 / 94 / 100 | 2.3 | 2.0 | 1.3 | 9.1 | 2.9 | 3.1 |
-| T normal, L9–20 | 9 | 11.6% / 7.9% | 22 / 31 / 66 / 79 / 86 | 2.7 | 4.2 | 3.3 | 14.2 | 4.2 | 4.0 |
-| T normal, L21–39 | 16 | 1.7% / 1.2% | 11 / 22 / 42 / 62 / 69 | 3.9 | 6.3 | 5.7 | 18.9 | 5.3 | 5.5 |
-| T hard | 3 | 0.3% / 0.2% | 6 / 7 / 18 / 41 / 55 | 5.3 | 6.3 | 7.3 | 21.0 | 5.3 | 6.0 |
-| T superhard | 4 | 0.8% / 0.3% | 6 / 14 / 24 / 42 / 63 | 5.0 | 5.8 | 6.5 | 21.3 | 5.5 | 6.8 |
-| B teaching, L1–8 | 8 | 40.8% / 36.1% | 42 / 53 / 88 / 95 / 98 | 2.3 | 2.3 | 1.4 | 12.3 | 3.3 | 3.1 |
-| B normal, L9–20 | 9 | 11.4% / 7.4% | 18 / 30 / 52 / 68 / 78 | 3.3 | 3.4 | 4.3 | 19.9 | 4.7 | 4.2 |
-| B normal, L21–39 | 16 | 4.2% / 4.1% | 9 / 19 / 39 / 58 / 74 | 4.3 | 5.2 | 5.8 | 24.9 | 5.4 | 5.0 |
-| B hard | 3 | 2.7% / 2.1% | 8 / 10 / 21 / 59 / 67 | 4.0 | 4.3 | 7.0 | 26.3 | 5.3 | 5.3 |
-| B superhard | 4 | 0.7% / 0.6% | 8 / 16 / 24 / 32 / 61 | 5.3 | 5.8 | 7.3 | 27.0 | 5.5 | 5.8 |
-| Q teaching, L1–5 | 5 | 41.5% / 31.7% | 39 / 73 / 89 / 96 / 98 | 2.0 | 2.6 | 2.8 | 14.2 | 3.0 | 3.0 |
-| Q normal, L6–20 | 12 | 16.1% / 12.4% | 17 / 28 / 70 / 77 / 84 | 3.2 | 3.6 | 4.1 | 20.5 | 4.3 | 4.2 |
-| Q normal, L21–39 | 16 | 7.2% / 3.5% | 10 / 15 / 45 / 67 / 73 | 3.9 | 4.9 | 5.1 | 24.9 | 5.0 | 4.9 |
-| Q hard | 3 | 2.8% / 1.7% | 9 / 17 / 16 / 24 / 53 | 5.3 | 7.7 | 7.7 | 25.7 | 5.0 | 5.0 |
-| Q superhard | 4 | 1.8% / 1.1% | 5 / 16 / 26 / 37 / 52 | 4.8 | 6.3 | 7.0 | 28.0 | 5.8 | 5.8 |
+| Kitchen, tier | Levels | Planner d2 / d3 / d5 | Strong player | Careful player | Bottlenecks | Items | Guests |
+|---|---:|---|---:|---:|---:|---:|---:|
+| T opening, L1–8 | 8 | 68 / 86 / 96 | 85% | 100% | 2.0 | 9.3 | 3.1 |
+| T normal, L9–20 | 9 | 37 / 70 / 97 | 74% | 96% | 2.9 | 14.4 | 4.0 |
+| T normal, L21–39 | 16 | 22 / 52 / 79 | 56% | 88% | 4.2 | 20.0 | 5.6 |
+| T hard | 3 | 5 / 20 / 43 | 7% | 41% | 8.2 | 23.0 | 6.3 |
+| T superhard | 4 | 16 / 24 / 38 | 21% | 48% | 9.7 | 22.8 | 6.8 |
+| B opening, L1–8 | 8 | 62 / 81 / 100 | 82% | 100% | 0.4 | 12.0 | 3.1 |
+| B normal, L9–20 | 9 | 29 / 53 / 82 | 59% | 88% | 1.9 | 20.0 | 4.2 |
+| B normal, L21–39 | 16 | 16 / 33 / 72 | 51% | 86% | 3.0 | 25.3 | 5.0 |
+| B hard | 3 | 6 / 13 / 40 | 20% | 40% | 8.6 | 26.3 | 5.3 |
+| B superhard | 4 | 14 / 20 / 57 | 10% | 45% | 6.8 | 26.8 | 5.8 |
+| Q opening, L1–5 | 5 | 72 / 89 / 94 | 84% | 100% | 0.8 | 14.4 | 3.0 |
+| Q normal, L6–20 | 12 | 32 / 60 / 86 | 69% | 94% | 2.8 | 20.5 | 4.2 |
+| Q normal, L21–39 | 16 | 24 / 44 / 82 | 50% | 84% | 4.4 | 25.0 | 4.9 |
+| Q hard | 3 | 3 / 18 / 47 | 16% | 53% | 11.5 | 25.7 | 5.0 |
+| Q superhard | 4 | 14 / 20 / 50 | 23% | 37% | 8.7 | 28.0 | 5.8 |
 
 ## Menus
 
@@ -156,22 +184,22 @@ kitchen never serve the same set, and a new dish leads the level that introduces
 
 ### Targets
 
-| Levels (local) | Planner reach | Forced / deep decisions | Random win | Also |
-|---|---|---|---|---|
-| L2–3 | d1 ≤ 70%, d2 ≥ 60% | forced ≥ 1 | 15%–100% | greedy loses, ≥ 1 critical |
-| L4 | d1 ≤ 55%, d2 ≥ 55% | forced ≥ 2 | 15%–100% | greedy loses, ≥ 1 critical |
-| L5 (hard, tomato rush) | d2 ≤ 50%, d3 ≥ 50% | forced ≥ 2, deep ≥ 1 | 3%–45% | greedy loses, tight, ≥ 3 critical |
-| L6 | d2 ≤ 60%, d3 ≥ 50% | forced ≥ 2 | 5%–70% | greedy loses, ≥ 2 critical |
-| L7–8 | d2 ≤ 50%, d3 ≥ 55% | forced ≥ 2, deep ≥ 1 | 5%–70% | greedy loses, ≥ 2 critical |
-| L9 (end of the first shift) | d2 ≤ 45%, d3 40%–85%, d5 ≥ 60% | forced ≥ 3, deep ≥ 2 | ≤ 30% | greedy loses |
-| Banquet L10 | d2 10%–50%, d3 30%–70%, d5 ≥ 60% | forced ≥ 3, deep ≥ 2 | ≤ 8% | greedy loses, tight |
-| Normal, L11 | d2 ≤ 60%, d3 30%–90%, d5 ≥ 55% | forced ≥ 2, deep ≥ 1 | ≤ 25% | greedy loses, tight |
-| Normal, L25 (bands slide linearly) | d2 ≤ 40%, d3 22%–65%, d5 ≥ 55% | forced ≥ 3, deep ≥ 2 | ≤ 18% | greedy loses, tight |
-| Normal, L39 | d2 ≤ 20%, d3 15%–40%, d5 ≥ 55% | forced ≥ 4, deep ≥ 3 | ≤ 10% | greedy loses, tight |
-| Intro levels (11, 12, 13, 16, 18, 19, 21, 36) | d2 ≤ 75%, d3 ≥ 50%, d5 ≥ 70% | forced ≥ 1 | ≤ 40% | greedy loses |
-| Hard L15 | d2 ≤ 20%, d3 ≤ 38%, d5 ≥ 40% | forced ≥ 3, deep ≥ 3 | ≤ 6% | greedy loses, tight |
-| Hard L35 | d2 ≤ 20%, d3 ≤ 27%, d5 ≥ 40% | forced ≥ 4, deep ≥ 5 | ≤ 6% | greedy loses, tight, ice cuts ≥ 15%, ≥ 1 cloche riddle |
-| Banquets L20, 30, 40 | d3 ≤ 25%, d4 ≤ 40%, d5 ≥ 25% | forced ≥ 4, deep ≥ 4 | ≤ 3% | greedy loses, tight, ≤ 1 cloche guess |
+| Levels (local) | Goal-directed players | Planner reach | Forced / deep / bottlenecks | Random win | Also |
+|---|---|---|---|---|---|
+| L2–3 | strong 60%–100%, careful 85%–100% | d1 ≤ 70%, d2 ≥ 60% | forced ≥ 1 | 15%–100% | greedy loses, ≥ 1 critical |
+| L4 | strong 55%–100%, careful 85%–100% | d1 ≤ 55%, d2 ≥ 55% | forced ≥ 2 | 15%–100% | greedy loses, ≥ 1 critical |
+| L5 (hard, tomato rush) | strong 40%–90%, careful 80%–100% | d2 ≤ 50%, d3 ≥ 50% | forced ≥ 2, deep ≥ 1 | 3%–45% | greedy loses, tight, ≥ 3 critical |
+| L6 | strong 45%–95%, careful 80%–100% | d2 ≤ 60%, d3 ≥ 50% | forced ≥ 2 | 5%–70% | greedy loses, ≥ 2 critical |
+| L7–8 | strong 40%–90%, careful 80%–100% | d2 ≤ 50%, d3 ≥ 55% | forced ≥ 2, deep ≥ 1 | 5%–70% | greedy loses, ≥ 2 critical |
+| L9 (end of the first shift) | strong 30%–85%, careful 70%–100% | d2 ≤ 45%, d3 40%–85% | forced ≥ 3, deep ≥ 2 | ≤ 30% | greedy loses |
+| Banquet L10 | strong 15%–60%, careful 50%–100% | d2 10%–50%, d3 30%–70% | forced ≥ 3, deep ≥ 2 | ≤ 8% | greedy loses, tight |
+| Normal, L11 | strong 45%–85%, careful 60%–100% | d2 ≤ 60%, d3 30%–90% | forced ≥ 2, deep ≥ 1, bottlenecks ≥ 1 | ≤ 25% | greedy loses, tight |
+| Normal, L25 (bands slide linearly) | strong 35%–70%, careful 55%–100% | d2 ≤ 40%, d3 22%–65% | forced ≥ 3, deep ≥ 2, bottlenecks ≥ 3 | ≤ 18% | greedy loses, tight |
+| Normal, L39 | strong 25%–55%, careful 50%–100% | d2 ≤ 20%, d3 15%–40% | forced ≥ 4, deep ≥ 3, bottlenecks ≥ 4 | ≤ 10% | greedy loses, tight |
+| Intro levels (11, 12, 13, 16, 18, 19, 21, 23, 27, 32, 36) | strong 40%–95%, careful 75%–100% | d2 ≤ 75%, d3 ≥ 50% | forced ≥ 1 | ≤ 40% | greedy loses |
+| Hard L15 | strong 0%–30%, careful 20%–70% | d2 ≤ 20%, d3 ≤ 38% | forced ≥ 3, deep ≥ 3, bottlenecks ≥ 4 | ≤ 6% | greedy loses, tight |
+| Hard L35 | strong 0%–30%, careful 20%–70% | d2 ≤ 20%, d3 ≤ 27% | forced ≥ 4, deep ≥ 5, bottlenecks ≥ 6 | ≤ 6% | greedy loses, tight, ice cuts ≥ 15%, ≥ 1 cloche riddle |
+| Banquets L20, 30, 40 | strong 0%–20%, careful 15%–60% | d3 ≤ 25%, d4 ≤ 40% | forced ≥ 4, deep ≥ 4, bottlenecks ≥ 6 | ≤ 3% | greedy loses, tight, ≤ 1 cloche guess |
 
 Levels with cloches also need a cloche riddle (a decision where what is hidden matters) and a careful deducer that never guesses (banquets: at most once); levels with ice need the ice to rule out at least 15% of the winning lines (the frozen intro 30%); lidded levels 20% (the lid intro 40%).
 
@@ -179,20 +207,21 @@ The opening engages from the start: L1 is the authored tutorial, and from L2 eve
 forced decision (the obvious move loses) whose trap a player looking two moves ahead sees; by L5–8
 a player needs to look about three moves ahead, L9 hides a deeper trap and the first banquet asks
 for three to four. Each intro level keeps its new dish or rule as its hook. From L11 the normal
-bands slide: by the end a player who looks two moves ahead wins at most
-one level in five and one who looks three ahead at most 40%, while one who looks five ahead still
-wins most of them. Hard levels and banquets go further but stay fair (a five-move planner wins at
-least 40% / 25%).
+bands slide: the strong player (a strong human's first try) wins 45–85% of the early normal
+levels and 25–55% of the last ones, while the careful player wins most of them. Hard levels and
+banquets are meant to be lost on the first try (the strong player wins at most 30% / 20%) but stay
+fair: the careful player wins 20–70% / 15–60%, and their bottlenecks are narrow (a score of at least
+4–6).
 
 ### Measured
 
-| Tier | Levels | Planner d1 / d2 / d3 / d4 / d5 | Planning depth | Forced | Deep | Random win (mean / median) | Critical | Items | Board | Guests | Seats | Tight | Cloches / ice |
-|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Opening, L1–8 (L1 the tutorial, L5 hard) | 8 | 42 / 71 / 87 / 94 / 100 | 2.3 | 2.0 | 1.3 | 33.8% / 17.1% | 3.3 | 9.1 | 2.9 cols | 3.1 | 1–2 | 7/8 | 0 / 0 |
-| Normal, L9–20 | 9 | 22 / 31 / 66 / 79 / 86 | 2.7 | 4.2 | 3.3 | 11.6% / 7.9% | 7.6 | 14.2 | 4.2 cols | 4.0 | 1–2 | 8/9 | 3 / 0 |
-| Normal, L21–39 | 16 | 11 / 22 / 42 / 62 / 69 | 3.9 | 6.3 | 5.7 | 1.7% / 1.2% | 9.5 | 18.9 | 5.3 cols | 5.5 | 2–3 | 16/16 | 8 / 8 |
-| Hard, L15–35 | 3 | 6 / 7 / 18 / 41 / 55 | 5.3 | 6.3 | 7.3 | 0.3% / 0.2% | 12.7 | 21.0 | 5.3 cols | 6.0 | 2 | 3/3 | 2 / 1 |
-| Banquets, L10–40 | 4 | 6 / 14 / 24 / 42 / 63 | 5.0 | 5.8 | 6.5 | 0.8% / 0.3% | 12.0 | 21.3 | 5.5 cols | 6.8 | 2–3 | 4/4 | 2 / 1 |
+| Tier | Levels | Strong player | Careful player | Bottlenecks | Planner d1 / d2 / d3 / d4 / d5 | Planning depth | Forced | Deep | Random win (mean / median) | Items | Board | Guests | Seats | Tight | Cloches / ice / stove |
+|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Opening, L1–8 (L1 the tutorial, L5 hard) | 8 | 85% | 100% | 2.0 | 43 / 68 / 86 / 95 / 96 | 2.3 | 2.5 | 0.8 | 32.9% / 18.1% | 9.3 | 2.9 cols | 3.1 | 1–2 | 7/8 | 0 / 0 / 0 |
+| Normal, L9–20 | 9 | 74% | 96% | 2.9 | 24 / 37 / 70 / 91 / 97 | 2.7 | 3.7 | 1.9 | 7.0% / 3.7% | 14.4 | 4.2 cols | 4.0 | 1–2 | 9/9 | 3 / 0 / 0 |
+| Normal, L21–39 | 16 | 56% | 88% | 4.2 | 13 / 22 / 52 / 71 / 79 | 3.7 | 6.7 | 5.0 | 2.9% / 0.5% | 20.0 | 5.3 cols | 5.6 | 2–3 | 14/16 | 6 / 8 / 8 |
+| Hard, L15–35 | 3 | 7% | 41% | 8.2 | 2 / 5 / 20 / 23 / 43 | 5.7 | 7.7 | 6.3 | 0.1% / 0.1% | 23.0 | 5.3 cols | 6.3 | 2 | 3/3 | 2 / 1 / 1 |
+| Banquets, L10–40 | 4 | 21% | 48% | 9.7 | 7 / 16 / 24 / 27 / 38 | 5.3 | 7.0 | 5.0 | 0.6% / 0.1% | 22.8 | 5.5 cols | 6.8 | 2–3 | 4/4 | 2 / 1 / 1 |
 
 ### Levels
 
@@ -200,48 +229,48 @@ Dishes: Sp spaghetti, Br bruschetta, Cp caprese, Pz pizza, Om omelette, Ri risot
 pesto, Cb carbonara, Mi minestrone, Gn gnocchi, Cz calzone, Ti tiramisu. Board = columns × tallest
 column; a lidded column opens after the given number of served dishes.
 
-| Local | # | Tier | Teaches | Guests | Items | Board | Slots | Seats | Planner d1–d5 | Depth | Forced | Deep | Random | Greedy | Tight | Cloches / ice |
-|---:|---:|---|---|---|---:|---|---:|---:|---|---:|---:|---:|---:|---|---|---|
-| 1 | 1 | normal | **new: Spaghetti** — tutorial: two tomatoes make sauce | Sp Sp | 6 | 2×3 | 2 | 1 | 100/100/100/100/100 | 1 | 0 | 0 | 100.0% | wins | – | – |
-| 2 | 2 | normal | **new: bruschetta** — bread and ONE raw tomato | Br Br Sp | 7 | 2×4 | 2 | 2 | 39/100/100/100/100 | 2 | 1 | 0 | 50.0% | loses | yes | – |
-| 3 | 3 | normal | **new: caprese** — mozzarella, tomato, basil | Cp Br Br Cp | 10 | 3×4 | 2 | 2 | 36/100/100/100/100 | 2 | 1 | 0 | 19.3% | loses | yes | – |
-| 4 | 4 | normal | **new: pizza** — flour + egg make dough | Pz Sp | 8 | 3×3 | 3 | 1 | 47/78/81/100/100 | 2 | 2 | 1 | 50.9% | loses | yes | – |
-| 5 | 5 | hard | tomato rush: sauce, bruschetta or caprese? | Br Cp Sp Sp Br | 13 | 4×4 | 2 | 2 | 36/48/77/100/100 | 3 | 3 | 2 | 14.3% | loses | yes | – |
-| 6 | 6 | normal | **new: omelette** — the egg is wanted twice | Om Pz Om | 11 | 3×4 | 3 | 2 | 17/42/72/48/100 | 3 | 4 | 1 | 14.8% | loses | yes | – |
-| 7 | 7 | normal | **new: risotto** — mushroom and cheese for two dishes | Ri Om Ri | 9 | 3×5 | 3 | 1 | 30/52/69/100/100 | 2 | 3 | 3 | 9.7% | loses | yes | – |
-| 8 | 8 | normal | **new: pesto** — basil + cheese | Pe Ri Pe | 9 | 3×4 | 3 | 1 | 31/48/100/100/100 | 3 | 2 | 3 | 11.5% | loses | yes | – |
-| 9 | 9 | normal | keep the basil away from the cheese | Pz Om Om Cp | 14 | 4×5 | 3 | 1 | 0/8/55/73/53 | 3 | 8 | 6 | 0.01% | loses | yes | – |
-| 10 | 10 | superhard | banquet: the first menu | Sp Ri Br Ri Pe Sp | 17 | 5×5 | 3 | 2 | 16/38/48/81/91 | 4 | 4 | 3 | 2.6% | loses | yes | – |
-| 11 | 16 | normal | **new: carbonara** — egg, cheese, bacon and pasta | Cb Om Cb | 11 | 4×4 | 3 | 2 | 45/63/67/56/86 | 2 | 1 | 2 | 14.8% | loses | yes | – |
-| 12 | 17 | normal | **new: cloches** — what is under the dome? | Cp Sp Cb Cb | 14 | 4×5 | 3 | 2 | 22/42/66/75/86 | 3 | 5 | 3 | 7.9% | loses | yes | 2 cloches (3 riddles) |
-| 13 | 18 | normal | **new: minestrone** — soffritto, a potato and ONE tomato | Br Mi Mi Br | 12 | 4×5 | 3 | 2 | 41/56/70/75/100 | 2 | 3 | 2 | 13.9% | loses | – | – |
-| 14 | 19 | normal | soup, risotto and pesto: whose cheese? | Ri Mi Ri Pe Mi | 17 | 5×5 | 3 | 2 | 2/9/61/77/88 | 3 | 6 | 7 | 0.10% | loses | yes | 2 cloches (4 riddles) |
-| 15 | 20 | hard | egg trouble: carbonara or dough? | Pz Cp Cp Pz Cb | 20 | 5×5 | 3 | 2 | 6/8/14/39/53 | 5 | 7 | 8 | 0.16% | loses | yes | – |
-| 16 | 31 | normal | **new: gnocchi** — potato + flour | Gn Mi Gn | 12 | 4×5 | 3 | 2 | 34/52/80/77/92 | 2 | 4 | 3 | 23.4% | loses | yes | – |
-| 17 | 32 | normal | flour for gnocchi or pizza? | Gn Om Gn Om Pz Pz | 24 | 5×5 | 3 | 2 | 9/22/52/78/73 | 3 | 8 | 6 | 0.33% | loses | yes | 3 cloches (1 riddle) |
-| 18 | 33 | normal | **new: calzone** — dough, mozzarella and bacon | Cz Cz Cp | 11 | 4×4 | 3 | 2 | 31/28/73/100/100 | 3 | 1 | 0 | 39.1% | loses | yes | – |
-| 19 | 34 | normal | **new: small kitchen** — two slots | Sp Cz Ri Ri | 13 | 4×5 | 2 | 2 | 14/0/72/100/100 | 3 | 2 | 1 | 4.7% | loses | yes | – |
-| 20 | 35 | superhard | banquet in a small kitchen | Br Br Pe Gn Om Om | 17 | 5×4 | 2 | 2 | 2/11/16/39/61 | 5 | 4 | 7 | 0.33% | loses | yes | – |
-| 21 | 46 | normal | **new: tiramisu** — mascarpone + egg make cream | Ti Ti Pz | 11 | 4×4 | 3 | 2 | 30/36/64/95/91 | 3 | 6 | 2 | 7.2% | loses | yes | – |
-| 22 | 47 | normal | small kitchen: tiramisu, caprese, risotto | Cp Ti Ri Ti Cp | 15 | 5×5 | 2 | 2 | 6/27/39/63/56 | 4 | 4 | 4 | 1.5% | loses | yes | 2 cloches (3 riddles) |
-| 23 | 48 | normal | soup, carbonara and pesto | Pe Cb Cb Mi Mi | 19 | 5×5 | 3 | 2 | 17/16/52/73/70 | 3 | 7 | 8 | 0.44% | loses | yes | – |
-| 24 | 49 | normal | two tomatoes or one? | Ti Gn Br Br Ti Gn | 18 | 5×5 | 3 | 2 | 14/25/44/84/94 | 4 | 4 | 3 | 2.9% | loses | yes | 3 cloches (2 riddles) |
-| 25 | 50 | hard | dough, cream or omelette? the egg decides | Ti Om Cz Om Cz Ti | 20 | 5×6 | 3 | 2 | 2/3/27/44/36 | 6 | 4 | 6 | 0.54% | loses | yes | 2 cloches (1 riddle) |
-| 26 | 61 | normal | from the freezer: basil, pesto or caprese? | Pe Cp Cp Ri Pe | 15 | 5×5 | 3 | 2 | 3/19/50/56/80 | 3 | 8 | 7 | 1.2% | loses | yes | 1 ice (cuts 63%) |
-| 27 | 62 | normal | carbonara, gnocchi and bruschetta | Br Gn Cb Cb Br | 16 | 5×5 | 3 | 2 | 6/22/53/52/67 | 3 | 3 | 5 | 1.3% | loses | yes | 3 cloches (3 riddles) |
-| 28 | 63 | normal | calzone, soup and spaghetti on ice | Sp Mi Cz Cz Sp Mi | 22 | 5×6 | 3 | 2 | 0/27/38/80/77 | 4 | 4 | 3 | 1.6% | loses | yes | 2 ice (cuts 67%) |
-| 29 | 64 | normal | every egg counts | Pz Gn Om Gn Om | 19 | 5×5 | 3 | 2 | 8/25/25/33/36 | 6 | 5 | 6 | 2.0% | loses | yes | 2 cloches (1 riddle), 1 ice (cuts 85%) |
-| 30 | 65 | superhard | banquet: dessert night | Cp Ti Ti Cb Sp Sp Cp | 22 | 6×5 | 3 | 3 | 3/3/17/20/48 | 6 | 7 | 4 | 0.02% | loses | yes | 3 cloches (3 riddles) |
-| 31 | 76 | normal | three seats: soup, risotto and calzone | Mi Cz Mi Cz Ri Mi Ri | 26 | 5×6 | 3 | 3 | 3/13/34/47/80 | 5 | 4 | 6 | 0.24% | loses | yes | 2 ice (cuts 97%) |
-| 32 | 77 | normal | pesto, tiramisu and bruschetta | Pe Br Ti Pe Ti Br | 16 | 6×5 | 3 | 3 | 9/31/38/47/61 | 5 | 10 | 10 | 0.31% | loses | yes | 3 cloches (4 riddles) |
-| 33 | 78 | normal | gnocchi, caprese and omelette | Gn Om Cp Cp Gn Om | 20 | 6×5 | 3 | 3 | 5/16/28/50/81 | 4 | 6 | 7 | 0.11% | loses | yes | 2 ice (cuts 96%) |
-| 34 | 79 | normal | pizza, carbonara and soup | Mi Cb Pz Cb Mi Pz | 26 | 6×5 | 3 | 3 | 5/2/36/44/56 | 5 | 11 | 8 | 0.03% | loses | yes | 3 cloches (6 riddles), 1 ice (cuts 50%) |
-| 35 | 80 | hard | the busy pass | Ti Ti Gn Gn Ti Ri Ri | 23 | 6×5 | 3 | 2 | 11/9/13/41/77 | 5 | 8 | 8 | 0.19% | loses | yes | 2 cloches (1 riddle), 1 ice (cuts 57%) |
-| 36 | 91 | normal | **new: lids** — a column opens after k dishes | Cz Sp Om Cz Sp | 17 | 5×5 + lid (after 1) | 3 | 2 | 36/52/75/75/86 | 2 | 6 | 4 | 3.8% | loses | yes | – |
-| 37 | 92 | normal | a lid: bruschetta, pesto and soup | Br Pe Br Pe Mi Mi | 18 | 5×5 + lid (after 2) | 3 | 3 | 19/16/33/67/69 | 4 | 4 | 3 | 3.5% | loses | yes | 2 cloches (3 riddles) |
-| 38 | 93 | normal | lids: caprese, tiramisu and pizza | Ti Ti Pz Cp Pz Cp | 22 | 6×5 + lids (after 3, 3) | 3 | 3 | 9/13/30/56/48 | 4 | 7 | 7 | 0.60% | loses | yes | 1 ice (cuts 65%) |
-| 39 | 94 | normal | a lid: carbonara, gnocchi and risotto | Gn Ri Cb Gn Cb Ri | 22 | 6×5 + lid (after 2) | 3 | 3 | 0/9/34/67/56 | 4 | 12 | 8 | 0.02% | loses | yes | 3 cloches (1 riddle), 1 ice (cuts 48%) |
-| 40 | 95 | superhard | grand banquet | Pz Mi Pe Ti Pz Pe Cp Cp | 29 | 6×6 | 3 | 3 | 5/6/14/28/52 | 5 | 8 | 12 | 0.25% | loses | yes | 3 cloches (4 riddles), 1 ice (cuts 76%) |
+| Local | # | Tier | Teaches | Guests | Items | Board | Slots | Seats | Strong / careful | Bottlenecks | Planner d1–d5 | Depth | Forced | Deep | Random | Greedy | Tight | Mechanics |
+|---:|---:|---|---|---|---:|---|---:|---:|---|---:|---|---:|---:|---:|---:|---|---|---|
+| 1 | 1 | normal | **new: Spaghetti** — tutorial: two tomatoes make sauce | Sp Sp | 6 | 2×3 | 2 | 1 | 100% / 100% | 0.0 | 100/100/100/100/100 | 1 | 0 | 0 | 100.0% | wins | – | – |
+| 2 | 2 | normal | **new: bruschetta** — bread and ONE raw tomato | Br Br Sp | 7 | 2×4 | 2 | 2 | 97% / 100% | 1.8 | 39/100/100/100/100 | 2 | 1 | 0 | 50.0% | loses | yes | – |
+| 3 | 3 | normal | **new: caprese** — mozzarella, tomato, basil | Cp Br Cp Br | 10 | 3×4 | 2 | 2 | 88% / 100% | 3.0 | 55/100/100/100/100 | 1 | 3 | 0 | 17.5% | loses | yes | – |
+| 4 | 4 | normal | **new: pizza** — flour + egg make dough | Pz Sp | 8 | 3×4 | 3 | 1 | 95% / 100% | 0.3 | 38/73/100/100/100 | 2 | 2 | 1 | 46.3% | loses | yes | – |
+| 5 | 5 | hard | tomato rush: sauce, bruschetta or caprese? | Cp Sp Cp Sp Br | 14 | 4×5 | 2 | 2 | 75% / 100% | 1.4 | 23/48/55/67/66 | 3 | 3 | 1 | 3.1% | loses | yes | – |
+| 6 | 6 | normal | **new: omelette** — the egg is wanted twice | Om Pz Om | 11 | 3×5 | 3 | 2 | 91% / 100% | 2.7 | 44/44/100/100/100 | 3 | 4 | 0 | 14.5% | loses | yes | – |
+| 7 | 7 | normal | **new: risotto** — mushroom and cheese for two dishes | Ri Ri Om | 9 | 3×5 | 3 | 1 | 80% / 100% | 2.6 | 44/41/58/91/100 | 3 | 5 | 2 | 18.8% | loses | yes | – |
+| 8 | 8 | normal | **new: pesto** — basil + cheese | Pe Ri Pe | 9 | 3×5 | 3 | 1 | 58% / 100% | 4.3 | 5/34/72/100/100 | 3 | 2 | 2 | 12.9% | loses | yes | – |
+| 9 | 9 | normal | keep the basil away from the cheese | Pz Om Pz Cp Cp | 19 | 4×5 | 3 | 1 | 75% / 100% | 2.3 | 3/14/64/92/100 | 3 | 3 | 3 | 0.81% | loses | yes | – |
+| 10 | 10 | superhard | banquet: the first menu | Br Ri Ri Sp Pe Sp | 17 | 5×6 | 3 | 2 | 48% / 88% | 0.9 | 13/38/50/41/72 | 3 | 3 | 3 | 2.2% | loses | yes | – |
+| 11 | 16 | normal | **new: carbonara** — egg, cheese, bacon and pasta | Om Cb Om Cb | 14 | 4×5 | 3 | 2 | 75% / 100% | 0.9 | 36/36/70/88/100 | 3 | 1 | 0 | 17.0% | loses | yes | – |
+| 12 | 17 | normal | **new: cloches** — what is under the dome? | Sp Cb Cb Cp | 14 | 4×4 | 3 | 2 | 83% / 100% | 1.8 | 28/48/77/89/97 | 3 | 4 | 2 | 3.7% | loses | yes | 2 cloches (3 riddles) |
+| 13 | 18 | normal | **new: minestrone** — soffritto, a potato and ONE tomato | Mi Mi Br | 10 | 4×3 | 3 | 2 | 86% / 100% | 8.6 | 52/69/66/100/100 | 1 | 5 | 5 | 3.7% | loses | yes | – |
+| 14 | 19 | normal | soup, risotto and pesto: whose cheese? | Ri Ri Mi Mi Pe | 17 | 5×5 | 3 | 2 | 53% / 91% | 3.1 | 3/33/56/69/81 | 3 | 6 | 3 | 2.2% | loses | yes | 2 cloches (3 riddles) |
+| 15 | 20 | hard | egg trouble: carbonara or dough? | Pz Cp Cb Cp Cb Pz | 24 | 5×5 | 3 | 2 | 13% / 48% | 6.9 | 0/3/20/23/38 | 6 | 10 | 5 | 0.02% | loses | yes | – |
+| 16 | 31 | normal | **new: gnocchi** — potato + flour | Mi Gn Gn | 12 | 4×5 | 3 | 2 | 75% / 100% | 0.9 | 25/22/66/100/100 | 3 | 3 | 1 | 12.5% | loses | yes | – |
+| 17 | 32 | normal | flour for gnocchi or pizza? | Pz Om Gn Gn Om | 19 | 5×5 | 3 | 2 | 61% / 73% | 6.0 | 3/22/67/89/91 | 3 | 5 | 1 | 1.6% | loses | yes | 3 cloches (6 riddles) |
+| 18 | 33 | normal | **new: calzone** — dough, mozzarella and bacon | Cz Cz Cp | 11 | 4×4 | 3 | 2 | 84% / 100% | 0.4 | 39/52/78/97/100 | 2 | 4 | 1 | 16.1% | loses | yes | – |
+| 19 | 34 | normal | **new: small kitchen** — two slots | Cz Cz Sp Ri | 14 | 4×5 | 2 | 2 | 73% / 100% | 1.9 | 23/34/84/95/100 | 3 | 2 | 1 | 5.5% | loses | yes | – |
+| 20 | 35 | superhard | banquet in a small kitchen | Br Om Pe Pe Br Gn Gn | 21 | 5×5 | 2 | 2 | 6% / 39% | 10.4 | 5/13/28/16/23 | 6 | 5 | 4 | 0.18% | loses | yes | – |
+| 21 | 46 | normal | **new: tiramisu** — mascarpone + egg make cream | Ti Pz Ti Pz | 16 | 4×5 | 3 | 2 | 77% / 97% | 0.6 | 47/44/73/88/81 | 3 | 6 | 1 | 15.1% | loses | yes | – |
+| 22 | 47 | normal | small kitchen: tiramisu, caprese, risotto | Ri Ti Cp Ti Ri | 15 | 5×4 | 2 | 2 | 48% / 100% | 1.8 | 6/27/44/52/83 | 4 | 4 | 4 | 1.1% | loses | yes | 2 cloches (1 riddle) |
+| 23 | 48 | normal | **new: the oven** — pizza and calzone bake for a few moves | Cz Pz Cp Cp | 15 | 5×5 | 3 | 2 | 66% / 100% | 4.6 | 23/44/67/75/100 | 3 | 4 | 2 | 4.0% | loses | yes | oven (Pz 2, Cz 2) |
+| 24 | 49 | normal | two tomatoes or one? | Ti Gn Br Br Ti Gn | 18 | 5×5 | 3 | 2 | 69% / 92% | 6.3 | 8/22/36/33/52 | 5 | 4 | 5 | 1.6% | loses | yes | 3 cloches (9 riddles) |
+| 25 | 50 | hard | dough, cream or omelette? the egg decides | Cz Ti Om Cz Ti Om | 20 | 5×5 | 3 | 2 | 5% / 58% | 9.2 | 3/0/16/30/58 | 5 | 6 | 7 | 0.08% | loses | yes | 2 cloches (1 riddle), oven (Cz 3) |
+| 26 | 61 | normal | from the freezer: basil, pesto or caprese? | Cp Pe Pe Ri Cp Ri | 18 | 5×5 | 3 | 2 | 44% / 72% | 6.4 | 3/3/36/67/81 | 4 | 7 | 5 | 1.1% | loses | yes | 1 ice (cuts 99%) |
+| 27 | 62 | normal | **new: tagliatelle al ragù** — sauce meets beef: ragù | ta Br Sp ta | 13 | 5×5 | 3 | 2 | 66% / 100% | 0.7 | 27/63/100/100/100 | 2 | 1 | 2 | 14.7% | loses | – | – |
+| 28 | 63 | normal | calzone, soup and spaghetti on ice | Mi Sp Mi Sp Cz Cz | 22 | 5×6 | 3 | 2 | 41% / 88% | 4.3 | 5/9/41/66/89 | 4 | 10 | 5 | 0.50% | loses | yes | 2 ice (cuts 37%), oven (Cz 2) |
+| 29 | 64 | normal | every egg counts | Om Gn Pz Om Gn | 19 | 5×5 | 3 | 2 | 45% / 98% | 3.7 | 2/5/27/66/66 | 4 | 5 | 7 | 0.36% | loses | yes | 2 cloches (1 riddle), 1 ice (cuts 52%), oven (Pz 2) |
+| 30 | 65 | superhard | banquet: ragù night | Cb Ti Sp Cb Sp ta ta | 25 | 6×5 | 3 | 3 | 14% / 30% | 4.1 | 13/14/14/23/19 | 6 | 11 | 8 | 0.02% | loses | yes | 3 cloches (5 riddles) |
+| 31 | 76 | normal | three seats: soup, risotto and calzone | Ri Cz Ri Mi Mi Mi Cz | 26 | 5×6 | 3 | 3 | 55% / 78% | 5.2 | 5/11/42/75/75 | 4 | 5 | 3 | 0.04% | loses | yes | 2 ice (cuts 28%), oven (Cz 3) |
+| 32 | 77 | normal | **new: lasagne** — pasta, ragù and cheese, baked | la Pe Br Br la | 17 | 6×5 | 3 | 3 | 69% / 100% | 0.5 | 19/45/72/91/100 | 3 | 4 | 3 | 6.7% | loses | – | oven (la 2) |
+| 33 | 78 | normal | gnocchi, caprese and omelette | Cp Om Gn Gn Gn Cp Om | 24 | 6×5 | 3 | 3 | 50% / 83% | 6.5 | 2/9/41/67/70 | 4 | 13 | 13 | 0.01% | loses | yes | 2 ice (cuts 63%) |
+| 34 | 79 | normal | pizza, carbonara and soup | Cb Pz Mi Pz Cb Mi | 26 | 6×5 | 3 | 3 | 38% / 84% | 7.6 | 6/5/47/70/88 | 4 | 11 | 9 | 0.04% | loses | yes | 3 cloches (4 riddles), 1 ice (cuts 43%), oven (Pz 3) |
+| 35 | 80 | hard | the busy pass | Ti Ti Gn Gn Ti ta ta | 25 | 6×5 | 3 | 2 | 5% / 16% | 8.4 | 3/13/23/16/34 | 6 | 7 | 7 | 0.08% | loses | yes | 2 cloches (3 riddles), 1 ice (cuts 87%) |
+| 36 | 91 | normal | **new: lids** — a column opens after k dishes | Om Cz Om Cz Sp | 17 | 5×5 + lid (after 2) | 3 | 2 | 80% / 80% | 3.9 | 31/25/86/100/100 | 3 | 4 | 1 | 0.45% | loses | yes | – |
+| 37 | 92 | normal | a lid: bruschetta, ragù and soup | Br Br ta ta Mi Mi | 20 | 5×5 + lid (after 2) | 3 | 3 | 50% / 84% | 9.1 | 19/19/44/59/41 | 4 | 4 | 4 | 0.41% | loses | yes | 2 cloches (4 riddles) |
+| 38 | 93 | normal | lids: caprese, tiramisu and pizza | Cp Pz Ti Pz Cp Ti Cp | 25 | 6×5 + lids (after 2, 1) | 3 | 3 | 45% / 67% | 3.6 | 11/17/45/52/64 | 4 | 12 | 12 | 0.38% | loses | yes | 1 ice (cuts 20%), oven (Pz 2) |
+| 39 | 94 | normal | a lid: carbonara, gnocchi and lasagne | la Cb Cb Gn Gn Cb Gn | 29 | 6×5 + lid (after 3) | 3 | 3 | 50% / 83% | 2.9 | 2/5/30/73/78 | 4 | 13 | 4 | 0.01% | loses | yes | 3 cloches (5 riddles), 1 ice (cuts 75%), oven (la 2) |
+| 40 | 95 | superhard | grand banquet | ta la Mi Mi Cp Pz Cp | 28 | 6×6 | 3 | 3 | 16% / 36% | 23.3 | 0/2/5/27/38 | 6 | 9 | 5 | 0.03% | loses | yes | 3 cloches (3 riddles), 1 ice (cuts 42%), oven (Pz 2, la 3) |
 
 ### What moves difficulty
 
@@ -264,21 +293,21 @@ plates when they become the next layer. Every level has a 3-spot counter and is 
 
 ### Targets
 
-| Levels (local) | Planner reach | Forced / deep decisions | Random win | Also |
-|---|---|---|---|---|
-| L2–3 | d1 ≤ 70%, d2 ≥ 60% | forced ≥ 1 | 15%–100% | greedy loses, ≥ 1 critical |
-| L4 | d1 ≤ 55%, d2 ≥ 55% | forced ≥ 2 | 15%–100% | greedy loses, ≥ 1 critical |
-| L5 (hard, small tight kitchen) | d2 ≤ 50%, d3 ≥ 50% | forced ≥ 2, deep ≥ 1 | 3%–45% | greedy loses, tight, ≥ 3 critical |
-| L6 | d2 ≤ 60%, d3 ≥ 50% | forced ≥ 2 | 5%–70% | greedy loses, ≥ 2 critical |
-| L7–8 | d2 ≤ 50%, d3 ≥ 55% | forced ≥ 2, deep ≥ 1 | 5%–70% | greedy loses, ≥ 2 critical |
-| L9 | d2 ≤ 45%, d3 40%–85%, d5 ≥ 60% | forced ≥ 3, deep ≥ 2 | 5%–70% | greedy loses, ≥ 2 critical |
-| Banquet L10 | d2 10%–50%, d3 30%–70%, d5 ≥ 60% | forced ≥ 3, deep ≥ 2 | ≤ 8% | greedy loses, tight |
-| Normal, L11 | d2 ≤ 60%, d3 30%–90%, d5 ≥ 55% | forced ≥ 2, deep ≥ 1 | ≤ 25% | greedy loses, tight |
-| Normal, L39 (bands slide linearly) | d2 ≤ 20%, d3 15%–40%, d5 ≥ 55% | forced ≥ 4, deep ≥ 3 | ≤ 10% | greedy loses, tight |
-| Frozen intro (12) | d2 ≤ 75%, d3 ≥ 50%, d5 ≥ 70% | forced ≥ 1 | ≤ 40% | greedy loses, ice cuts ≥ 30% |
-| Hard L15 | d2 ≤ 20%, d3 ≤ 38%, d5 ≥ 40% | forced ≥ 3, deep ≥ 3 | ≤ 6% | greedy loses, tight, ≥ 1 cloche riddle |
-| Hard L35 | d2 ≤ 20%, d3 ≤ 27%, d5 ≥ 40% | forced ≥ 4, deep ≥ 5 | ≤ 6% | greedy loses, tight, ice cuts ≥ 15%, ≥ 1 cloche riddle |
-| Banquets L20, 30, 40 | d3 ≤ 25%, d4 ≤ 40%, d5 ≥ 25% | forced ≥ 4, deep ≥ 4 | ≤ 3% | greedy loses, tight, ≤ 1 cloche guess, ≥ 1 cloche riddle |
+| Levels (local) | Goal-directed players | Planner reach | Forced / deep / bottlenecks | Random win | Also |
+|---|---|---|---|---|---|
+| L2–3 | strong 60%–100%, careful 85%–100% | d1 ≤ 70%, d2 ≥ 60% | forced ≥ 1 | 15%–100% | greedy loses, ≥ 1 critical |
+| L4 | strong 55%–100%, careful 85%–100% | d1 ≤ 55%, d2 ≥ 55% | forced ≥ 2 | 15%–100% | greedy loses, ≥ 1 critical |
+| L5 (hard, small tight kitchen) | strong 40%–90%, careful 80%–100% | d2 ≤ 50%, d3 ≥ 50% | forced ≥ 2, deep ≥ 1 | 3%–45% | greedy loses, tight, ≥ 3 critical |
+| L6 | strong 45%–95%, careful 80%–100% | d2 ≤ 60%, d3 ≥ 50% | forced ≥ 2 | 5%–70% | greedy loses, ≥ 2 critical |
+| L7–8 | strong 40%–90%, careful 80%–100% | d2 ≤ 50%, d3 ≥ 55% | forced ≥ 2, deep ≥ 1 | 5%–70% | greedy loses, ≥ 2 critical |
+| L9 | strong 30%–85%, careful 70%–100% | d2 ≤ 45%, d3 40%–85% | forced ≥ 3, deep ≥ 2 | 5%–70% | greedy loses, ≥ 2 critical |
+| Banquet L10 | strong 15%–60%, careful 50%–100% | d2 10%–50%, d3 30%–70% | forced ≥ 3, deep ≥ 2 | ≤ 8% | greedy loses, tight |
+| Normal, L11 | strong 45%–85%, careful 60%–100% | d2 ≤ 60%, d3 30%–90% | forced ≥ 2, deep ≥ 1, bottlenecks ≥ 1 | ≤ 25% | greedy loses, tight |
+| Normal, L39 (bands slide linearly) | strong 25%–55%, careful 50%–100% | d2 ≤ 20%, d3 15%–40% | forced ≥ 4, deep ≥ 3, bottlenecks ≥ 2 | ≤ 10% | greedy loses, tight |
+| Frozen intro (12) | strong 40%–95%, careful 75%–100% | d2 ≤ 75%, d3 ≥ 50% | forced ≥ 1 | ≤ 40% | greedy loses, ice cuts ≥ 30% |
+| Hard L15 | strong 0%–30%, careful 20%–70% | d2 ≤ 20%, d3 ≤ 38% | forced ≥ 3, deep ≥ 3, bottlenecks ≥ 2 | ≤ 6% | greedy loses, tight, ≥ 1 cloche riddle |
+| Hard L35 | strong 0%–30%, careful 20%–70% | d2 ≤ 20%, d3 ≤ 27% | forced ≥ 4, deep ≥ 5, bottlenecks ≥ 3 | ≤ 6% | greedy loses, tight, ice cuts ≥ 15%, ≥ 1 cloche riddle |
+| Banquets L20, 30, 40 | strong 0%–20%, careful 15%–60% | d3 ≤ 25%, d4 ≤ 40% | forced ≥ 4, deep ≥ 4, bottlenecks ≥ 3 | ≤ 3% | greedy loses, tight, ≤ 1 cloche guess, ≥ 1 cloche riddle |
 
 Cloches, ice and lids as in the Trattoria.
 
@@ -287,13 +316,13 @@ L5 a small tight kitchen); from L11 every level is tight (the intro levels may k
 
 ### Measured
 
-| Tier | Levels | Planner d1 / d2 / d3 / d4 / d5 | Planning depth | Forced | Deep | Random win (mean / median) | Critical | Items | Board | Guests | Seats | Tight | Cloches / ice |
-|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Opening, L1–8 (L1 the tutorial, L5 hard) | 8 | 42 / 53 / 88 / 95 / 98 | 2.3 | 2.3 | 1.4 | 40.8% / 36.1% | 2.9 | 12.3 | 3.3 cols | 3.1 | 1–2 | 1/8 | 0 / 0 |
-| Normal, L9–20 | 9 | 18 / 30 / 52 / 68 / 78 | 3.3 | 3.4 | 4.3 | 11.4% / 7.4% | 7.6 | 19.9 | 4.7 cols | 4.2 | 2 | 9/9 | 5 / 4 |
-| Normal, L21–39 | 16 | 9 / 19 / 39 / 58 / 74 | 4.3 | 5.2 | 5.8 | 4.2% / 4.1% | 9.6 | 24.9 | 5.4 cols | 5.0 | 2–3 | 16/16 | 10 / 8 |
-| Hard, L15–35 | 3 | 8 / 10 / 21 / 59 / 67 | 4.0 | 4.3 | 7.0 | 2.7% / 2.1% | 10.3 | 26.3 | 5.3 cols | 5.3 | 2–3 | 3/3 | 3 / 1 |
-| Banquets, L10–40 | 4 | 8 / 16 / 24 / 32 / 61 | 5.3 | 5.8 | 7.3 | 0.7% / 0.6% | 11.8 | 27.0 | 5.5 cols | 5.8 | 2–3 | 4/4 | 2 / 2 |
+| Tier | Levels | Strong player | Careful player | Bottlenecks | Planner d1 / d2 / d3 / d4 / d5 | Planning depth | Forced | Deep | Random win (mean / median) | Items | Board | Guests | Seats | Tight | Cloches / ice / stove |
+|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Opening, L1–8 (L1 the tutorial, L5 hard) | 8 | 82% | 100% | 0.4 | 45 / 62 / 81 / 92 / 100 | 2.3 | 2.1 | 1.6 | 44.1% / 39.8% | 12.0 | 3.3 cols | 3.1 | 1–2 | 1/8 | 0 / 0 / 0 |
+| Normal, L9–20 | 9 | 59% | 88% | 1.9 | 18 / 29 / 53 / 69 / 82 | 3.2 | 3.3 | 3.9 | 6.5% / 4.6% | 20.0 | 4.7 cols | 4.2 | 2 | 8/9 | 4 / 4 / 2 |
+| Normal, L21–39 | 16 | 51% | 86% | 3.0 | 10 / 16 / 33 / 62 / 72 | 4.1 | 4.6 | 5.6 | 3.2% / 2.1% | 25.3 | 5.4 cols | 5.0 | 2–3 | 16/16 | 10 / 8 / 6 |
+| Hard, L15–35 | 3 | 20% | 40% | 8.6 | 4 / 6 / 13 / 31 / 40 | 5.0 | 4.0 | 8.3 | 1.1% / 0.3% | 26.3 | 5.3 cols | 5.3 | 2–3 | 3/3 | 3 / 1 / 2 |
+| Banquets, L10–40 | 4 | 10% | 45% | 6.8 | 9 / 14 / 20 / 25 / 57 | 5.5 | 4.3 | 5.3 | 1.8% / 0.4% | 26.8 | 5.5 cols | 5.8 | 2–3 | 4/4 | 2 / 2 / 2 |
 
 ### Levels
 
@@ -301,48 +330,48 @@ Guests: each ticket's dish and its layer count (Bu burger, Hd hot dog, Pk pancak
 sandwich, Su sundae). Board = columns × tallest column; a lidded column opens after the given
 number of served dishes.
 
-| Local | # | Tier | Teaches | Guests | Items | Board | Slots | Seats | Planner d1–d5 | Depth | Forced | Deep | Random | Greedy | Tight | Cloches / ice |
-|---:|---:|---|---|---|---:|---|---:|---:|---|---:|---:|---:|---:|---|---|---|
-| 1 | 11 | normal | **new: Burger** — tutorial: a burger is an exact stack | Bu3 Bu4 | 7 | 2×4 | 3 | 1 | 100/100/100/100/100 | 1 | 0 | 0 | 100.0% | wins | – | – |
-| 2 | 12 | normal | **new: hot dog** — bun, sausage, topping | Hd3 Bu4 Hd3 | 10 | 3×4 | 3 | 2 | 56/61/100/100/100 | 1 | 2 | 1 | 32.4% | loses | – | – |
-| 3 | 13 | normal | **new: pancakes** — the same layer twice | Pk4 Pk4 Bu4 | 12 | 3×5 | 3 | 2 | 44/67/100/100/100 | 2 | 2 | 0 | 39.8% | loses | – | – |
-| 4 | 14 | normal | count the counter spots | Pk5 Hd3 Hd3 | 11 | 3×5 | 3 | 2 | 42/72/100/100/100 | 2 | 2 | 1 | 53.7% | loses | – | – |
-| 5 | 15 | hard | a tight little kitchen | Hd3 Pk5 Bu4 | 12 | 3×5 | 3 | 2 | 19/22/100/100/100 | 3 | 2 | 1 | 10.9% | loses | yes | – |
-| 6 | 21 | normal | **new: club sandwich** — one toast fits two plates | Sw4 Sw4 Bu5 | 13 | 4×4 | 3 | 2 | 31/42/67/72/95 | 3 | 2 | 2 | 55.6% | loses | – | – |
-| 7 | 22 | normal | lettuce for the sandwich | Sw4 Sw5 Hd3 Hd3 | 15 | 4×5 | 3 | 2 | 6/31/66/100/100 | 3 | 5 | 4 | 8.8% | loses | – | – |
-| 8 | 23 | normal | **new: sundae** — glass, scoops, a cherry | Su4 Su4 Pk5 Pk5 | 18 | 4×5 | 3 | 2 | 34/31/67/89/91 | 3 | 3 | 2 | 25.5% | loses | – | – |
-| 9 | 24 | normal | tomato for burgers and sandwiches | Bu5 Su5 Sw5 Sw5 | 20 | 4×5 | 3 | 2 | 22/20/44/45/72 | 5 | 3 | 4 | 15.8% | loses | yes | – |
-| 10 | 25 | superhard | banquet: the whole menu | Su5 Bu4 Pk5 Sw4 Hd3 | 21 | 5×5 | 3 | 2 | 19/31/41/61/86 | 4 | 5 | 4 | 0.19% | loses | yes | – |
-| 11 | 36 | normal | tight counter, a cloche or two | Hd3 Hd3 Sw5 Sw5 | 16 | 4×5 | 3 | 2 | 16/41/64/70/94 | 3 | 3 | 5 | 15.1% | loses | yes | 2 cloches (5 riddles) |
-| 12 | 37 | normal | **new: frozen** — it thaws after a few moves | Bu5 Bu5 Su5 Su5 | 20 | 4×5 | 3 | 2 | 17/52/59/77/92 | 2 | 2 | 2 | 35.7% | loses | yes | 1 ice (cuts 31%) |
-| 13 | 38 | normal | pickles: hot dog or burger? | Pk4 Sw4 Hd4 Hd4 | 16 | 5×5 | 3 | 2 | 27/30/55/53/66 | 3 | 3 | 4 | 5.0% | loses | yes | 2 cloches (2 riddles) |
-| 14 | 39 | normal | read the columns as recipes | Su5 Su5 Hd4 Bu5 | 19 | 5×5 | 3 | 2 | 17/20/56/69/73 | 3 | 4 | 5 | 3.3% | loses | yes | 1 ice (cuts 82%) |
-| 15 | 40 | hard | rush hour | Bu5 Sw5 Pk5 Pk5 Bu5 | 25 | 5×5 | 3 | 2 | 2/17/33/67/70 | 4 | 3 | 7 | 2.1% | loses | yes | 2 cloches (3 riddles) |
-| 16 | 51 | normal | onion rings | Sw5 Sw5 Hd4 Hd4 | 18 | 5×5 | 3 | 2 | 44/48/47/53/80 | 4 | 3 | 2 | 17.3% | loses | yes | 2 cloches (4 riddles) |
-| 17 | 52 | normal | berries for pancakes and sundaes | Bu5 Bu5 Su5 Pk5 Pk5 | 25 | 5×5 | 3 | 2 | 9/6/36/91/70 | 4 | 3 | 5 | 2.4% | loses | yes | 2 ice (cuts 76%) |
-| 18 | 53 | normal | tall tickets | Hd4 Sw5 Sw6 Hd4 | 19 | 5×6 | 3 | 2 | 6/20/52/75/67 | 3 | 6 | 7 | 7.4% | loses | yes | 3 cloches (7 riddles) |
-| 19 | 54 | normal | tall tickets on ice | Bu5 Su5 Su5 Bu6 Pk5 | 26 | 5×6 | 3 | 2 | 8/28/53/77/86 | 3 | 4 | 5 | 0.33% | loses | yes | 2 cloches (4 riddles), 1 ice (cuts 100%) |
-| 20 | 55 | superhard | banquet: the big order | Sw5 Sw5 Bu5 Hd4 Pk5 Su5 | 29 | 5×6 | 3 | 2 | 3/8/28/19/63 | 5 | 7 | 9 | 1.6% | loses | yes | 2 cloches (1 riddle) |
-| 21 | 66 | normal | double patty | Hd4 Hd4 Bu6 Bu6, double patty | 20 | 5×5 | 3 | 2 | 0/16/44/75/81 | 4 | 5 | 4 | 0.19% | loses | yes | 1 ice (cuts 89%) |
-| 22 | 67 | normal | sandwiches, sundaes, pancakes | Pk5 Pk5 Sw6 Sw5 Su5 | 26 | 5×6 | 3 | 2 | 13/16/50/55/69 | 3 | 5 | 5 | 1.9% | loses | yes | 3 cloches (8 riddles) |
-| 23 | 68 | normal | double trouble | Pk5 Pk5 Bu5 Bu5 Bu6 | 26 | 5×6 | 3 | 2 | 13/28/45/48/56 | 5 | 4 | 8 | 5.1% | loses | yes | 2 ice (cuts 65%) |
-| 24 | 69 | normal | hot dogs, sandwiches, sundaes | Sw5 Su5 Hd4 Sw6 Hd4 | 24 | 5×6 | 3 | 2 | 19/19/34/39/70 | 5 | 5 | 4 | 2.9% | loses | yes | 2 cloches (3 riddles), 1 ice (cuts 22%) |
-| 25 | 70 | hard | the stack-up | Su5 Bu5 Su5 Sw5 Sw6 | 26 | 5×6 | 3 | 2 | 2/11/17/56/78 | 4 | 4 | 8 | 4.2% | loses | yes | 2 cloches (4 riddles) |
-| 26 | 81 | normal | **new: lids** — a column opens after k dishes | Sw5 Hd4 Pk5 Pk5 | 19 | 5×5 + lid (after 1) | 3 | 2 | 3/38/73/100/100 | 3 | 3 | 3 | 5.4% | loses | yes | – |
-| 27 | 82 | normal | a lid and a double patty | Su5 Su5 Bu6 Bu5 Bu5, double patty | 26 | 5×6 + lid (after 1) | 3 | 2 | 19/13/53/63/63 | 3 | 4 | 3 | 6.3% | loses | yes | 2 cloches (2 riddles) |
-| 28 | 83 | normal | serve in the right order | Hd4 Sw5 Pk5 Pk5 Sw6 | 25 | 5×6 + lid (after 2) | 3 | 2 | 2/17/38/66/75 | 4 | 3 | 6 | 0.55% | loses | yes | 1 ice (cuts 17%) |
-| 29 | 84 | normal | two lids | Bu5 Pk5 Pk5 Su5 Su5 | 25 | 5×5 + lids (after 3, 1) | 3 | 2 | 20/25/45/67/91 | 4 | 5 | 5 | 12.9% | loses | yes | 2 cloches (1 riddle) |
-| 30 | 85 | superhard | banquet behind a lid | Sw5 Hd4 Bu5 Su5 Su5 Pk5 | 29 | 6×5 + lid (after 1) | 3 | 2 | 3/13/20/28/48 | 6 | 6 | 7 | 1.1% | loses | yes | 1 ice (cuts 76%) |
-| 31 | 96 | normal | a third plate | Su5 Sw5 Sw5 Hd4 Su5 | 24 | 5×5 | 3 | 3 | 17/34/16/81/75 | 4 | 8 | 6 | 4.3% | loses | yes | 2 cloches (2 riddles) |
-| 32 | 97 | normal | three plates | Su5 Su5 Pk5 Bu5 Bu5 | 25 | 6×5 | 3 | 3 | 0/14/28/42/78 | 5 | 7 | 9 | 4.3% | loses | yes | 2 ice (cuts 100%) |
-| 33 | 98 | normal | three plates, double patty | Hd4 Bu5 Sw6 Hd4 Bu6 | 25 | 6×5 | 3 | 3 | 17/36/25/66/59 | 4 | 5 | 9 | 2.9% | loses | yes | 3 cloches (4 riddles) |
-| 34 | 99 | normal | three plates, long queue | Pk5 Su5 Su5 Sw5 Pk5 Sw5 | 30 | 6×5 | 3 | 3 | 8/25/39/36/67 | 5 | 4 | 6 | 0.56% | loses | yes | 2 cloches (3 riddles), 1 ice (cuts 100%) |
-| 35 | 100 | hard | lunch rush | Su5 Hd4 Su5 Bu5 Hd4 Bu5 | 28 | 6×5 | 3 | 3 | 20/3/13/53/52 | 4 | 6 | 6 | 1.8% | loses | yes | 2 cloches (1 riddle), 1 ice (cuts 94%) |
-| 36 | 106 | normal | three plates and a lid | Pk5 Hd4 Sw5 Hd4 Sw5 | 23 | 6×5 + lid (after 2) | 3 | 3 | 6/11/31/47/75 | 5 | 5 | 7 | 7.7% | loses | yes | 2 cloches (4 riddles) |
-| 37 | 107 | normal | three plates and a lid | Pk5 Bu5 Su5 Bu5 Su5 | 25 | 6×5 + lid (after 2) | 3 | 3 | 9/11/45/61/84 | 4 | 5 | 3 | 6.8% | loses | yes | 1 ice (cuts 45%) |
-| 38 | 108 | normal | three plates, a late lid | Sw6 Su5 Su5 Hd4 Sw6 | 26 | 6×5 + lid (after 2) | 3 | 3 | 0/2/33/53/89 | 4 | 6 | 7 | 1.1% | loses | yes | 3 cloches (5 riddles) |
-| 39 | 109 | normal | three plates, a late lid | Bu5 Pk5 Pk5 Bu5 Sw5 Sw5 | 30 | 6×5 + lid (after 3) | 3 | 3 | 0/3/20/23/48 | 6 | 9 | 7 | 3.9% | loses | yes | 2 cloches (2 riddles), 1 ice (cuts 55%) |
-| 40 | 110 | superhard | grand banquet: three plates | Pk5 Bu5 Bu5 Sw5 Su5 Hd4, double patty | 29 | 6×5 | 3 | 3 | 6/14/6/19/45 | 6 | 5 | 9 | 0.06% | loses | yes | 3 cloches (2 riddles), 1 ice (cuts 40%) |
+| Local | # | Tier | Teaches | Guests | Items | Board | Slots | Seats | Strong / careful | Bottlenecks | Planner d1–d5 | Depth | Forced | Deep | Random | Greedy | Tight | Mechanics |
+|---:|---:|---|---|---|---:|---|---:|---:|---|---:|---|---:|---:|---:|---:|---|---|---|
+| 1 | 11 | normal | **new: Burger** — tutorial: a burger is an exact stack | Bu3 Bu4 | 7 | 2×4 | 3 | 1 | 100% / 100% | 0.0 | 100/100/100/100/100 | 1 | 0 | 0 | 100.0% | wins | – | – |
+| 2 | 12 | normal | **new: hot dog** — bun, sausage, topping | Hd3 Bu4 Hd3 | 10 | 3×4 | 3 | 2 | 89% / 100% | 0.3 | 31/83/100/100/100 | 2 | 3 | 1 | 44.1% | loses | – | – |
+| 3 | 13 | normal | **new: pancakes** — the same layer twice | Bu4 Pk4 Pk4 | 12 | 3×5 | 3 | 2 | 78% / 100% | 0.0 | 59/78/77/97/100 | 1 | 2 | 2 | 53.8% | loses | – | – |
+| 4 | 14 | normal | count the counter spots | Hd3 Pk5 Hd3 | 11 | 3×5 | 3 | 2 | 97% / 100% | 0.1 | 47/77/80/100/100 | 2 | 2 | 1 | 53.7% | loses | – | – |
+| 5 | 15 | hard | a tight little kitchen | Pk4 Hd3 Bu4 | 11 | 3×5 | 3 | 2 | 59% / 100% | 0.3 | 19/36/69/84/100 | 3 | 3 | 2 | 35.5% | loses | yes | – |
+| 6 | 21 | normal | **new: club sandwich** — one toast fits two plates | Sw4 Bu4 Sw4 | 12 | 4×4 | 3 | 2 | 86% / 100% | 1.1 | 44/42/81/88/100 | 3 | 1 | 2 | 33.7% | loses | – | – |
+| 7 | 22 | normal | lettuce for the sandwich | Sw4 Sw4 Hd3 Hd3 | 14 | 4×5 | 3 | 2 | 67% / 100% | 1.2 | 39/36/77/77/100 | 3 | 3 | 3 | 6.9% | loses | – | – |
+| 8 | 23 | normal | **new: sundae** — glass, scoops, a cherry | Pk5 Su4 Pk5 Su5 | 19 | 4×5 | 3 | 2 | 78% / 97% | 0.1 | 23/41/63/88/100 | 3 | 3 | 2 | 24.7% | loses | – | – |
+| 9 | 24 | normal | tomato for burgers and sandwiches | Su5 Sw5 Sw5 Bu5 | 20 | 4×5 | 3 | 2 | 47% / 84% | 0.6 | 20/44/59/63/86 | 3 | 3 | 3 | 17.9% | loses | yes | – |
+| 10 | 25 | superhard | banquet: the whole menu | Sw5 Pk4 Hd3 Bu5 Su4 | 21 | 5×5 | 3 | 2 | 27% / 72% | 1.9 | 28/44/48/38/64 | 5 | 3 | 3 | 6.6% | loses | yes | – |
+| 11 | 36 | normal | tight counter, a cloche or two | Hd3 Sw5 Hd3 Sw5 | 16 | 4×5 | 3 | 2 | 58% / 91% | 3.6 | 33/20/55/53/88 | 3 | 3 | 2 | 7.7% | loses | yes | 2 cloches (5 riddles) |
+| 12 | 37 | normal | **new: frozen** — it thaws after a few moves | Su5 Bu5 Bu5 Su5 | 20 | 4×5 | 3 | 2 | 72% / 81% | 1.1 | 19/53/70/75/86 | 2 | 4 | 8 | 3.3% | loses | yes | 1 ice (cuts 98%) |
+| 13 | 38 | normal | pickles: hot dog or burger? | Hd4 Hd4 Sw4 Pk5 | 17 | 5×4 | 3 | 2 | 75% / 100% | 1.3 | 33/55/48/78/86 | 2 | 2 | 1 | 4.6% | loses | yes | 2 cloches (2 riddles) |
+| 14 | 39 | normal | read the columns as recipes | Bu5 Bu5 Hd4 Su5 | 19 | 5×5 | 3 | 2 | 39% / 83% | 0.6 | 6/14/44/53/52 | 4 | 4 | 7 | 4.6% | loses | yes | 1 ice (cuts 18%) |
+| 15 | 40 | hard | rush hour | Sw5 Bu5 Pk5 Sw5 Bu5 | 25 | 5×5 | 3 | 2 | 39% / 33% | 2.7 | 11/17/23/55/36 | 4 | 3 | 3 | 2.8% | loses | yes | 2 cloches (2 riddles) |
+| 16 | 51 | normal | **new: the grill** — patties cook for a few moves | Hd4 Bu5 Bu5 Hd4 | 18 | 5×5 | 3 | 2 | 56% / 89% | 0.1 | 22/31/81/100/100 | 3 | 1 | 0 | 11.7% | loses | – | grill 2 |
+| 17 | 52 | normal | berries for pancakes and sundaes | Bu5 Pk5 Su5 Bu5 Su5 | 25 | 5×5 | 3 | 2 | 64% / 100% | 3.5 | 0/0/39/73/100 | 4 | 6 | 3 | 0.48% | loses | yes | 2 ice (cuts 100%), grill 2 |
+| 18 | 53 | normal | tall tickets | Hd4 Sw5 Sw6 Hd4 | 19 | 5×6 | 3 | 2 | 55% / 72% | 1.6 | 25/13/41/66/73 | 4 | 4 | 6 | 7.3% | loses | yes | 3 cloches (6 riddles) |
+| 19 | 54 | normal | tall tickets on ice | Bu5 Su5 Bu6 Pk5 Pk5 | 26 | 5×6 | 3 | 2 | 63% / 91% | 4.5 | 2/28/44/58/69 | 4 | 3 | 5 | 1.3% | loses | yes | 2 cloches (5 riddles), 1 ice (cuts 90%) |
+| 20 | 55 | superhard | banquet: the big order | Pk5 Hd4 Su5 Bu5 Su5 Sw5 | 29 | 5×6 | 3 | 2 | 0% / 45% | 8.6 | 8/0/0/0/39 | 6 | 4 | 4 | 0.58% | loses | yes | 2 cloches (3 riddles) |
+| 21 | 66 | normal | double patty on the grill | Sw5 Sw5 Bu5 Bu6, double patty | 21 | 5×5 | 3 | 2 | 58% / 70% | 1.8 | 6/27/66/75/92 | 3 | 6 | 6 | 3.3% | loses | yes | 1 ice (cuts 30%), grill 2 |
+| 22 | 67 | normal | sandwiches, sundaes, pancakes | Sw6 Su5 Pk5 Sw6 Su5 | 27 | 5×6 | 3 | 2 | 73% / 92% | 3.9 | 14/33/53/75/81 | 3 | 5 | 3 | 4.4% | loses | yes | 3 cloches (3 riddles) |
+| 23 | 68 | normal | double trouble | Pk5 Pk5 Pk5 Bu5 Bu6 | 26 | 5×6 | 3 | 2 | 53% / 84% | 6.2 | 0/2/38/50/69 | 4 | 4 | 5 | 4.7% | loses | yes | 2 ice (cuts 97%), grill 3 |
+| 24 | 69 | normal | hot dogs, sandwiches, sundaes | Sw5 Su5 Hd4 Sw5 Hd4 | 23 | 5×6 | 3 | 2 | 55% / 69% | 6.1 | 3/3/42/42/42 | 6 | 5 | 5 | 0.18% | loses | yes | 2 cloches (5 riddles), 1 ice (cuts 43%) |
+| 25 | 70 | hard | the stack-up | Bu6 Sw5 Su5 Bu5 Sw5, double patty | 26 | 5×6 | 3 | 2 | 11% / 53% | 10.6 | 2/2/5/20/31 | 6 | 5 | 8 | 0.26% | loses | yes | 2 cloches (1 riddle), grill 2 |
+| 26 | 81 | normal | **new: lids** — a column opens after k dishes | Pk5 Hd4 Sw5 Pk5 | 19 | 5×5 + lid (after 1) | 3 | 2 | 59% / 100% | 0.3 | 28/41/63/78/100 | 3 | 3 | 3 | 11.3% | loses | yes | – |
+| 27 | 82 | normal | a lid and a double patty | Su5 Bu6 Bu6 Su5 Su5, double patty | 27 | 5×6 + lid (after 1) | 3 | 2 | 56% / 66% | 3.5 | 2/6/27/89/77 | 4 | 7 | 7 | 0.65% | loses | yes | 2 cloches (6 riddles), grill 2 |
+| 28 | 83 | normal | serve in the right order | Hd4 Sw6 Pk5 Sw5 Pk5 | 25 | 5×6 + lid (after 2) | 3 | 2 | 50% / 95% | 9.4 | 0/11/39/59/72 | 4 | 4 | 5 | 0.42% | loses | yes | 1 ice (cuts 96%) |
+| 29 | 84 | normal | two lids | Bu5 Su5 Bu5 Su5 Pk5 | 25 | 5×5 + lids (after 2, 2) | 3 | 2 | 53% / 97% | 3.0 | 16/14/13/52/67 | 4 | 5 | 3 | 5.9% | loses | yes | 2 cloches (2 riddles) |
+| 30 | 85 | superhard | banquet behind a lid | Su5 Bu5 Hd4 Hd4 Sw5 Pk5 | 28 | 6×5 + lid (after 2) | 3 | 2 | 3% / 53% | 7.0 | 0/14/27/44/100 | 5 | 4 | 3 | 0.18% | loses | yes | 1 ice (cuts 53%), grill 2 |
+| 31 | 96 | normal | a third plate | Su5 Sw5 Sw5 Hd4 Su5 | 24 | 5×5 | 3 | 3 | 61% / 100% | 1.7 | 6/20/33/61/69 | 4 | 4 | 9 | 3.0% | loses | yes | 2 cloches (5 riddles) |
+| 32 | 97 | normal | three plates | Su5 Bu6 Pk5 Bu6 Su5 | 27 | 6×5 | 3 | 3 | 56% / 95% | 3.1 | 13/8/19/94/91 | 4 | 4 | 5 | 0.97% | loses | yes | 2 ice (cuts 92%), grill 3 |
+| 33 | 98 | normal | three plates, double patty | Hd4 Sw6 Bu6 Sw5 Bu6, double patty | 27 | 6×5 | 3 | 3 | 39% / 89% | 1.4 | 42/34/30/63/77 | 4 | 5 | 3 | 1.3% | loses | yes | 3 cloches (1 riddle) |
+| 34 | 99 | normal | three plates, long queue | Su5 Su5 Sw5 Pk5 Pk5 Sw5 | 30 | 6×5 | 3 | 3 | 52% / 100% | 1.9 | 6/0/11/22/42 | 6 | 4 | 4 | 0.50% | loses | yes | 2 cloches (10 riddles), 1 ice (cuts 84%) |
+| 35 | 100 | hard | lunch rush | Su5 Bu5 Su5 Bu5 Hd4 Hd4 | 28 | 6×5 | 3 | 3 | 11% / 33% | 12.6 | 0/0/9/19/53 | 5 | 4 | 14 | 0.10% | loses | yes | 2 cloches (2 riddles), 1 ice (cuts 100%), grill 2 |
+| 36 | 106 | normal | three plates and a lid | Pk5 Pk5 Sw5 Sw5 Hd4 | 24 | 6×5 + lid (after 2) | 3 | 3 | 22% / 45% | 0.1 | 9/22/27/33/50 | 5 | 3 | 10 | 3.5% | loses | yes | 2 cloches (6 riddles) |
+| 37 | 107 | normal | three plates and a lid | Su5 Bu5 Pk5 Bu5 Su5, double patty | 25 | 6×5 + lid (after 1) | 3 | 3 | 56% / 91% | 3.1 | 0/11/33/64/88 | 4 | 5 | 7 | 0.69% | loses | yes | 1 ice (cuts 70%), grill 2 |
+| 38 | 108 | normal | three plates, a late lid | Hd4 Su5 Sw6 Hd4 Sw5 | 24 | 6×5 + lid (after 2) | 3 | 3 | 39% / 89% | 0.8 | 14/8/19/56/61 | 4 | 6 | 5 | 0.71% | loses | yes | 3 cloches (15 riddles) |
+| 39 | 109 | normal | three plates, a late lid | Pk5 Sw5 Bu5 Sw5 Pk5 Bu5 | 30 | 6×5 + lid (after 2) | 3 | 3 | 39% / 95% | 1.8 | 3/13/16/73/80 | 4 | 4 | 10 | 9.2% | loses | yes | 2 cloches (6 riddles), 1 ice (cuts 85%), grill 3 |
+| 40 | 110 | superhard | grand banquet: three plates | Hd4 Sw5 Pk5 Bu5 Pk5 Su5 | 29 | 6×5 | 3 | 3 | 9% / 9% | 9.8 | 0/0/5/17/25 | 6 | 6 | 11 | 0.01% | loses | yes | 3 cloches (2 riddles), 1 ice (cuts 98%), grill 2 |
 
 ### What moves difficulty
 
@@ -354,15 +383,32 @@ number of served dishes.
 
 ## Endless mode
 
-Levels after the campaign come from `generateEndlessLevel(n)` (`src/core/generator.ts`) in a Web
-Worker, with `endlessSpec(n)` (`src/core/progression.ts`) and `taqueriaEndlessSpec`. They keep
-the 5-level shifts, taking the three kitchens in turn; each shift plays its kitchen's late shapes
-(at most five columns, two seats and six guests) with the late planning bands up to depth 3, cloches
-and ice included. The guided generator runs with a small budget (`ENDLESS_OPTIONS`: two drafts,
-ten climbing steps, a few planner games); deterministic for the level number.
+Levels 121–240 come from the **endless pool** (`src/data/levels-endless.json`, built offline by
+`bun scripts/build-endless.ts` and loaded lazily): campaign quality, the full guided search with
+the full late targets. The 5-level shifts take the three kitchens in turn; each level plays a late
+row of its kitchen at full size (stove, chain, cloches, ice and lids included), and every shift ends
+on a hard level or a banquet. Neighbouring levels of a kitchen serve different dish sets. The daily
+special is a normal pool level picked by the date. Past the pool, `generateEndlessLevel(n)`
+(`src/core/generator.ts`) builds levels in a Web Worker with a 1.5 s budget (`ENDLESS_OPTIONS`:
+three drafts, forty climbing steps, the strong player and the planners up to depth 3); the next
+level is prefetched while the current one is played.
+
+120 levels (121–240), 103 KB. Every stored solution replays to a win and neighbouring levels of a kitchen serve different dish sets.
+
+| Kitchen, tier | Levels | Strong player | Careful player | Bottlenecks | Planner d2 / d3 / d5 | Items | Guests | Stove / cloches / ice |
+|---|---:|---:|---:|---:|---|---:|---:|---:|
+| T normal | 32 | 39% | 84% | 5.4 | 13 / 33 / 70 | 19.0 | 6.0 | 0 / 16 / 16 |
+| T hard | 4 | 2% | 50% | 7.1 | 9 / 12 / 33 | 20.0 | 6.0 | 4 / 4 / 0 |
+| T superhard | 4 | 14% | 39% | 9.4 | 6 / 9 / 52 | 29.0 | 7.0 | 4 / 4 / 4 |
+| B normal | 32 | 45% | 86% | 1.8 | 17 / 30 / 68 | 25.6 | 5.2 | 9 / 26 / 14 |
+| B hard | 4 | 12% | 46% | 6.9 | 1 / 8 / 37 | 26.3 | 5.0 | 4 / 4 / 0 |
+| B superhard | 4 | 19% | 46% | 2.2 | 9 / 13 / 38 | 28.8 | 6.0 | 4 / 4 / 4 |
+| Q normal | 32 | 43% | 76% | 4.5 | 15 / 30 / 71 | 25.3 | 5.1 | 0 / 23 / 15 |
+| Q hard | 4 | 9% | 33% | 6.8 | 9 / 17 / 41 | 26.8 | 5.0 | 0 / 4 / 0 |
+| Q superhard | 4 | 10% | 46% | 6.3 | 11 / 15 / 43 | 29.0 | 6.0 | 0 / 4 / 4 |
 
 ## Audit
 
 All 80 stored solutions replay to a win in the play simulation, every pantry is zero-waste, neighbouring levels serve different dish sets, no cloche or ice comes before its intro, the careful deducer wins every cloche level without guessing (banquets: at most once), and the stored solver numbers match a fresh measurement.
 
-Audit time (all three kitchens): 6.9 s.
+Audit time (all three kitchens): 49.9 s.

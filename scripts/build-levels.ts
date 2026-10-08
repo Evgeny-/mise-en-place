@@ -30,11 +30,11 @@ const ONLY = process.env.LEVELS ? new Set(process.env.LEVELS.split(',').map(Numb
 const KITCHENS = process.env.KITCHEN ? [Number(process.env.KITCHEN)] : BUILDER_WORLDS;
 const RESUME = process.env.RESUME === '1';
 const SALT = process.env.SALT ?? '';
-const ATTEMPTS = Number(process.env.ATTEMPTS ?? 8);
-const ITERS = Number(process.env.ITERS ?? 140);
+const ATTEMPTS = Number(process.env.ATTEMPTS ?? 6);
+const ITERS = Number(process.env.ITERS ?? 100);
 /** planner games per depth: while searching, and for the stored numbers (fresh seeds) */
-const RUNS = 16;
-const HOLDOUT = 64;
+const RUNS = 10;
+const HOLDOUT = 48;
 /** seeds tried per level when the first one misses the target */
 const SEEDS = 3;
 

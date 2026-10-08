@@ -40,11 +40,16 @@ export interface BState {
   /** layers already on each plate */
   done: number[];
   next: number;
+  /** parked items per layer (grilled patties included once done) */
   counts: number[];
   served: number;
+  /** the grill: takes left for each patty on it, ascending; absent without a grill */
+  grill?: number[];
 }
 
-type BurgerLevel = Pick<LevelDef, 'columns' | 'slots' | 'seats' | 'lids' | 'tickets' | 'frozen'>;
+type BurgerLevel = Pick<LevelDef, 'columns' | 'slots' | 'seats' | 'lids' | 'tickets' | 'frozen' | 'stove'>;
+
+const PATTY = BURGER_ITEMS.indexOf('patty');
 
 export class BurgerRules implements Rules<BState> {
   readonly cols: number[][];
@@ -54,6 +59,8 @@ export class BurgerRules implements Rules<BState> {
   readonly lids: number[] | null;
   /** frozen tiles: per column and row, the take count they thaw at (see pantry.ts) */
   readonly thaw: number[][] | null;
+  /** the grill: takes a patty grills before it can go on a plate (0 = no grill) */
+  readonly grillTime: number;
   readonly length: number;
 
   constructor(level: BurgerLevel, slots?: number) {
@@ -64,13 +71,14 @@ export class BurgerRules implements Rules<BState> {
     this.nseats = level.seats;
     this.lids = level.lids && level.lids.some((x) => x > 0) ? level.lids.slice() : null;
     this.thaw = thawTable(level);
+    this.grillTime = level.stove?.patty ?? 0;
     this.length = this.cols.reduce((a, c) => a + c.length, 0);
   }
 
   start(): BState {
     const plate: number[] = [];
     for (let i = 0; i < this.nseats; i++) plate.push(i < this.tickets.length ? i : -1);
-    return {
+    const s: BState = {
       ptr: this.cols.map(() => 0),
       plate,
       done: plate.map(() => 0),
@@ -78,6 +86,15 @@ export class BurgerRules implements Rules<BState> {
       counts: new Array<number>(BURGER_ITEMS.length).fill(0),
       served: 0,
     };
+    if (this.grillTime) s.grill = [];
+    return s;
+  }
+
+  /** Counter spots in use: parked items and patties on the grill. */
+  occupancy(s: BState): number {
+    let occ = s.grill ? s.grill.length : 0;
+    for (const x of s.counts) occ += x;
+    return occ;
   }
 
   /** The layer plate `p` needs next, or -1. */
@@ -126,18 +143,37 @@ export class BurgerRules implements Rules<BState> {
     if (this.lids && this.lids[col] > s.served) return null;
     if (this.thaw && this.thaw[col][pos] > takesOf(s.ptr)) return null;
     const it = c[pos];
-    const p = this.target(s, it);
-    if (p < 0) {
-      let occ = 0;
-      for (const x of s.counts) occ += x;
-      if (occ >= this.slots) return null;
-    }
+    // a raw patty always goes on the grill (a spot), never straight onto a plate
+    const grilled = !!s.grill && it === PATTY;
+    const p = grilled ? -1 : this.target(s, it);
+    if (p < 0 && this.occupancy(s) >= this.slots) return null;
     const st: BState = { ptr: s.ptr.slice(), plate: s.plate.slice(), done: s.done.slice(), next: s.next, counts: s.counts.slice(), served: s.served };
     st.ptr[col] = pos + 1;
     if (p >= 0) {
       this.stack(st, p);
       this.cascade(st);
-    } else st.counts[it]++;
+    } else if (!grilled) st.counts[it]++;
+    if (s.grill) {
+      // patties already on the grill cook one take more; done ones become parked patties and may
+      // slide onto a plate; with the pantry empty, the grill finishes
+      const empty = takesOf(st.ptr) === this.length;
+      let done = 0;
+      const grill: number[] = [];
+      for (const t of s.grill) {
+        if (t <= 1 || empty) done++;
+        else grill.push(t - 1);
+      }
+      if (grilled) {
+        if (empty) done++;
+        else grill.push(this.grillTime);
+      }
+      grill.sort((a, b) => a - b);
+      st.grill = grill;
+      if (done) {
+        st.counts[PATTY] += done;
+        this.cascade(st);
+      }
+    }
     return st;
   }
 
@@ -173,6 +209,7 @@ export class BurgerRules implements Rules<BState> {
     for (let i = 0; i < s.plate.length; i++) out += String.fromCharCode(49 + s.plate[i]) + String.fromCharCode(48 + s.done[i]);
     out += '|';
     for (const c of s.counts) out += String.fromCharCode(48 + c);
+    if (s.grill) out += '|' + s.grill.join('');
     return out + '|' + s.next;
   }
 }
@@ -180,6 +217,7 @@ export class BurgerRules implements Rules<BState> {
 export interface BurgerSnapshot {
   ptr: number[];
   counter: (FoodId | null)[];
+  grill: (number | null)[];
   plate: number[];
   done: number[];
   next: number;
@@ -201,6 +239,8 @@ export class BurgerSim {
   served = 0;
   status: Status = 'playing';
   history: number[] = [];
+  /** the grill: takes left for the patty grilling at each counter slot (null: nothing grills there) */
+  grill: (number | null)[];
   private extra = 0;
   private rules: BurgerRules;
   /** what the player knows: lifted cloches stay lifted (not part of snapshots) */
@@ -216,10 +256,22 @@ export class BurgerSim {
     this.done = s.done;
     this.next = s.next;
     this.counter = new Array<FoodId | null>(level.slots).fill(null);
+    this.grill = new Array<number | null>(level.slots).fill(null);
   }
 
   get slots(): number {
     return this.level.slots + this.extra;
+  }
+
+  cooking(i: number): { left: number; dish: DishId | null } | null {
+    const left = this.grill[i];
+    return left !== null && left !== undefined ? { left, dish: null } : null;
+  }
+
+  /** A slot holding a parked (not grilling) `item`, or -1. */
+  private parkedSlot(item: FoodId): number {
+    for (let i = 0; i < this.counter.length; i++) if (this.counter[i] === item && this.grill[i] === null) return i;
+    return -1;
   }
 
   get columns(): FoodId[][] {
@@ -271,8 +323,12 @@ export class BurgerSim {
 
   state(): BState {
     const counts = new Array<number>(BURGER_ITEMS.length).fill(0);
-    for (const it of this.counter) if (it) counts[ix(it)]++;
-    return { ptr: this.ptr.slice(), plate: this.plate.slice(), done: this.done.slice(), next: this.next, counts, served: this.served };
+    this.counter.forEach((it, i) => {
+      if (it && this.grill[i] === null) counts[ix(it)]++;
+    });
+    const st: BState = { ptr: this.ptr.slice(), plate: this.plate.slice(), done: this.done.slice(), next: this.next, counts, served: this.served };
+    if (this.rules.grillTime) st.grill = this.grill.filter((x): x is number => x !== null).sort((a, b) => a - b);
+    return st;
   }
 
   currentRules(): BurgerRules {
@@ -308,32 +364,41 @@ export class BurgerSim {
     this.history.push(col);
     const lidsBefore = this.openLids();
     const revealed = this.cloches.reveal(this.ptr);
-    const p = r.target(this, ix(item));
+    const grilling = this.grill.map((g) => g !== null);
+    const grilled = r.grillTime > 0 && item === 'patty';
+    const p = grilled ? -1 : r.target(this, ix(item));
     if (p >= 0) {
       events.push({ t: 'stack', col, item, seat: p, layer: this.done[p] });
       this.done[p]++;
       this.finish(p, events);
-      // cascade: parked items slide onto the plates, left plate first
-      for (;;) {
-        let moved = false;
-        for (let q = 0; q < this.plate.length; q++) {
-          const n = r.need(this, q);
-          if (n < 0) continue;
-          const slot = this.counter.indexOf(BURGER_ITEMS[n]);
-          if (slot < 0) continue;
-          this.counter[slot] = null;
-          events.push({ t: 'slide', slot, seat: q, layer: this.done[q], item: BURGER_ITEMS[n] });
-          this.done[q]++;
-          this.finish(q, events);
-          moved = true;
-          break;
-        }
-        if (!moved) break;
-      }
+      this.cascade(events);
     } else {
-      const slot = this.counter.indexOf(null);
+      const slot = this.counter.findIndex((x) => x === null);
       this.counter[slot] = item;
       events.push({ t: 'take', col, item, slot });
+      if (grilled) {
+        this.grill[slot] = r.grillTime;
+        events.push({ t: 'grill', slot, left: r.grillTime });
+      }
+    }
+    if (r.grillTime) {
+      // patties already on the grill cook one take more; done ones are parked patties that may
+      // slide onto a plate; with the pantry empty the grill finishes
+      const empty = this.ptr.every((q, c) => q >= this.level.columns[c].length);
+      let doneAny = false;
+      this.grill.forEach((g, i) => {
+        if (g === null || (!grilling[i] && !empty)) return;
+        const left = empty ? 0 : g - 1;
+        if (left > 0) {
+          this.grill[i] = left;
+          events.push({ t: 'tick', slot: i, left });
+        } else {
+          this.grill[i] = null;
+          events.push({ t: 'done', slot: i });
+          doneAny = true;
+        }
+      });
+      if (doneAny) this.cascade(events);
     }
     for (const c of revealed) events.push({ t: 'reveal', col: c, item: this.top(c)! });
     for (const c of this.openLids()) if (!lidsBefore.includes(c)) events.push({ t: 'lid', col: c });
@@ -347,6 +412,27 @@ export class BurgerSim {
     return events;
   }
 
+  /** Parked items slide onto the plates that need them next, left plate first, again and again. */
+  private cascade(events: SimEvent[]): void {
+    const r = this.rules;
+    for (;;) {
+      let moved = false;
+      for (let q = 0; q < this.plate.length; q++) {
+        const n = r.need(this, q);
+        if (n < 0) continue;
+        const slot = this.parkedSlot(BURGER_ITEMS[n]);
+        if (slot < 0) continue;
+        this.counter[slot] = null;
+        events.push({ t: 'slide', slot, seat: q, layer: this.done[q], item: BURGER_ITEMS[n] });
+        this.done[q]++;
+        this.finish(q, events);
+        moved = true;
+        break;
+      }
+      if (!moved) return;
+    }
+  }
+
   private openLids(): number[] {
     const out: number[] = [];
     this.level.lids?.forEach((k, c) => {
@@ -358,12 +444,13 @@ export class BurgerSim {
   addSlot(): void {
     this.extra++;
     this.counter.push(null);
+    this.grill.push(null);
     if (this.status === 'stuck') this.status = 'playing';
   }
 
   snapshot(): BurgerSnapshot {
     return {
-      ptr: this.ptr.slice(), counter: this.counter.slice(), plate: this.plate.slice(), done: this.done.slice(),
+      ptr: this.ptr.slice(), counter: this.counter.slice(), grill: this.grill.slice(), plate: this.plate.slice(), done: this.done.slice(),
       next: this.next, served: this.served, extra: this.extra, status: this.status, history: this.history.slice(),
     };
   }
@@ -371,6 +458,7 @@ export class BurgerSim {
   restore(s: BurgerSnapshot): void {
     this.ptr = s.ptr.slice();
     this.counter = s.counter.slice();
+    this.grill = s.grill.slice();
     this.plate = s.plate.slice();
     this.done = s.done.slice();
     this.next = s.next;

@@ -28,7 +28,7 @@ const SALT = process.env.SALT ?? '';
 const ATTEMPTS = Number(process.env.ATTEMPTS ?? 6);
 const ITERS = Number(process.env.ITERS ?? 80);
 /** planner games per depth: while searching, and for the stored numbers (fresh seeds) */
-const RUNS = 12;
+const RUNS = 10;
 const HOLDOUT = 48;
 /** solver state budget per candidate (bigger drafts are skipped: the hint must stay quick) */
 const BUDGET = 300_000;

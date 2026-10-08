@@ -22,7 +22,8 @@ import { DISHES, type DishId } from '../src/core/content';
 import type { Target } from '../src/core/generator';
 import { reachOf } from '../src/core/guided';
 import { kitchenFor } from '../src/core/kitchen';
-import { deduce, measureDepth, planningDepth } from '../src/core/measure';
+import { bottlenecks, CAREFUL, deduce, goalRate, measureDepth, planningDepth, STRONG, withAnyRules } from '../src/core/measure';
+import { Solver } from '../src/core/solver';
 import { isTight } from '../src/core/metrics';
 import { introAt, kitchenSpec, SHIFT_ORDER, targetFor, themeOf } from '../src/core/progression';
 import { createSim } from '../src/core/sim';
@@ -42,6 +43,10 @@ interface Row {
   st: LevelStats;
   /** planner profile re-sampled with fresh seeds */
   plan: number[];
+  /** the goal-directed players (strong: a first try; careful: the fairness check) and the bottleneck score, re-measured */
+  goal: number;
+  careful: number;
+  bn: number;
   theme: string;
   problems: string[];
 }
@@ -86,7 +91,7 @@ for (const lv of levels) {
   const theme = lv.world === 2 ? taqueriaTheme(local) : themeOf(lv.world, local);
   if (!m) {
     problems.push('unwinnable');
-    rows.push({ lv, st: lv.stats!, plan: [0, 0, 0, 0, 0], theme, problems });
+    rows.push({ lv, st: lv.stats!, plan: [0, 0, 0, 0, 0], goal: 0, careful: 0, bn: 0, theme, problems });
     continue;
   }
   const st = lv.stats!;
@@ -102,7 +107,10 @@ for (const lv of levels) {
     if (!d.win) problems.push('the careful deducer loses');
     if (d.guesses > (lv.tier === 'superhard' ? 1 : 0)) problems.push(`the deducer must guess ${d.guesses} times`);
   }
-  rows.push({ lv, st, plan: m.stats.plan!, theme, problems });
+  const goal = goalRate(lv, STRONG, HOLDOUT_RUNS, seed ^ 0x6a09);
+  const careful = goalRate(lv, CAREFUL, HOLDOUT_RUNS, seed ^ 0xbb67);
+  const bn = withAnyRules(lv, undefined, (r) => bottlenecks(new Solver(r), 16, seed ^ 0x3c6e)).score;
+  rows.push({ lv, st, plan: m.stats.plan!, goal, careful, bn, theme, problems });
 }
 const secs = (performance.now() - t0) / 1000;
 
@@ -135,20 +143,21 @@ const profile = (plans: number[][]) => [0, 1, 2, 3, 4].map((i) => p0(mean(plans.
 
 function tierTable(world: number): string {
   const out = [
-    '| Tier | Levels | Planner d1 / d2 / d3 / d4 / d5 | Planning depth | Forced | Deep | Random win (mean / median) | Critical | Items | Board | Guests | Seats | Tight | Cloches / ice |',
-    '|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
+    '| Tier | Levels | Strong player | Careful player | Bottlenecks | Planner d1 / d2 / d3 / d4 / d5 | Planning depth | Forced | Deep | Random win (mean / median) | Items | Board | Guests | Seats | Tight | Cloches / ice / stove |',
+    '|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
   ];
   for (const [name, f] of GROUPS[world]) {
     const g = rows.filter((r) => inWorld(world)(r) && f(r));
     if (!g.length) continue;
     const seats = [...new Set(g.map((r) => r.lv.seats))].sort().join('–');
     out.push(
-      `| ${name} | ${g.length} | ${profile(g.map((r) => r.plan))} | ${mean(g.map((r) => planningDepth(r.plan))).toFixed(1)} | ` +
+      `| ${name} | ${g.length} | ${pct(mean(g.map((r) => r.goal)), 0)} | ${pct(mean(g.map((r) => r.careful)), 0)} | ${mean(g.map((r) => r.bn)).toFixed(1)} | ` +
+        `${profile(g.map((r) => r.plan))} | ${mean(g.map((r) => planningDepth(r.plan))).toFixed(1)} | ` +
         `${mean(g.map((r) => r.st.forced ?? 0)).toFixed(1)} | ${mean(g.map((r) => r.st.deep ?? 0)).toFixed(1)} | ` +
-        `${pct(mean(g.map((r) => r.st.random)))} / ${pct(median(g.map((r) => r.st.random)))} | ${mean(g.map((r) => r.st.critical)).toFixed(1)} | ` +
+        `${pct(mean(g.map((r) => r.st.random)))} / ${pct(median(g.map((r) => r.st.random)))} | ` +
         `${mean(g.map((r) => r.st.items ?? 0)).toFixed(1)} | ${mean(g.map((r) => r.lv.columns.length)).toFixed(1)} cols | ` +
         `${mean(g.map((r) => r.lv.orders.length)).toFixed(1)} | ${seats} | ${g.filter((r) => r.st.tight).length}/${g.length} | ` +
-        `${g.filter((r) => r.lv.cloches?.length).length} / ${g.filter((r) => r.lv.frozen?.length).length} |`,
+        `${g.filter((r) => r.lv.cloches?.length).length} / ${g.filter((r) => r.lv.frozen?.length).length} / ${g.filter((r) => r.lv.stove).length} |`,
     );
   }
   return out.join('\n');
@@ -163,12 +172,12 @@ const DISH_SHORT: Partial<Record<DishId, string>> = {
   quesadilla: 'Qu', tostada: 'To', enchiladas: 'En',
 };
 const dishShort = (d: DishId) => DISH_SHORT[d] ?? d.slice(0, 2);
-const INTRO_NAME: Record<string, string> = { slots: 'small counter', lid: 'lids', cloche: 'cloches', frozen: 'frozen tiles' };
+const INTRO_NAME: Record<string, string> = { slots: 'small counter', lid: 'lids', cloche: 'cloches', frozen: 'frozen tiles', oven: 'the oven', grill: 'the grill' };
 
 function levelTable(world: number): string {
   const out = [
-    '| Local | # | Tier | Teaches | Guests | Items | Board | Slots | Seats | Planner d1–d5 | Depth | Forced | Deep | Random | Greedy | Tight | Cloches / ice |',
-    '|---:|---:|---|---|---|---:|---|---:|---:|---|---:|---:|---:|---:|---|---|---|',
+    '| Local | # | Tier | Teaches | Guests | Items | Board | Slots | Seats | Strong / careful | Bottlenecks | Planner d1–d5 | Depth | Forced | Deep | Random | Greedy | Tight | Mechanics |',
+    '|---:|---:|---|---|---|---:|---|---:|---:|---|---:|---|---:|---:|---:|---:|---|---|---|',
   ];
   for (const r of rows.filter(inWorld(world))) {
     const { lv, st } = r;
@@ -184,10 +193,12 @@ function levelTable(world: number): string {
     const mech = [
       lv.cloches?.length ? `${lv.cloches.length} cloche${lv.cloches.length > 1 ? 's' : ''} (${st.riddles ?? 0} riddle${st.riddles === 1 ? '' : 's'}${st.guesses ? `, ${st.guesses} guess` : ''})` : '',
       lv.frozen?.length ? `${lv.frozen.length} ice (cuts ${p0(st.iceCut ?? 0)}%)` : '',
+      lv.stove ? (lv.rules === 'burger' ? `grill ${lv.stove.patty}` : `oven (${Object.entries(lv.stove).map(([d, t]) => `${dishShort(d as DishId)} ${t}`).join(', ')})`) : '',
     ].filter(Boolean).join(', ') || '–';
     out.push(
       `| ${lv.local} | ${lv.n} | ${lv.tier} | ${intro}${theme}${tops} | ${guests} | ${st.items} | ` +
-        `${lv.columns.length}×${depth}${lids} | ${lv.slots} | ${lv.seats} | ${r.plan.map(p0).join('/')} | ${planningDepth(r.plan)} | ` +
+        `${lv.columns.length}×${depth}${lids} | ${lv.slots} | ${lv.seats} | ${p0(r.goal)}% / ${p0(r.careful)}% | ${r.bn.toFixed(1)} | ` +
+        `${r.plan.map(p0).join('/')} | ${planningDepth(r.plan)} | ` +
         `${st.forced ?? '–'} | ${st.deep ?? '–'} | ${pct(st.random, st.random < 0.01 ? 2 : 1)} | ${st.greedy ? 'wins' : 'loses'} | ` +
         `${st.tight ? 'yes' : '–'} | ${mech} |`,
     );
@@ -200,7 +211,8 @@ function band(t: Target): string[] {
   const reach = Object.entries(t.reach ?? {})
     .map(([d, b]) => (b![0] <= 0 ? `d${d} ≤ ${p(b![1])}` : b![1] >= 1 ? `d${d} ≥ ${p(b![0])}` : `d${d} ${p(b![0])}–${p(b![1])}`))
     .join(', ');
-  const fd = [t.minForced ? `forced ≥ ${t.minForced}` : '', t.minDeep ? `deep ≥ ${t.minDeep}` : ''].filter(Boolean).join(', ');
+  const fd = [t.minForced ? `forced ≥ ${t.minForced}` : '', t.minDeep ? `deep ≥ ${t.minDeep}` : '', t.minBottleneck ? `bottlenecks ≥ ${t.minBottleneck}` : ''].filter(Boolean).join(', ');
+  const players = [t.goal ? `strong ${p(t.goal[0])}–${p(t.goal[1])}` : '', t.careful ? `careful ${p(t.careful[0])}–${p(t.careful[1])}` : ''].filter(Boolean).join(', ');
   const r = t.random ? (t.random[0] > 0 ? `${p(t.random[0])}–${p(t.random[1])}` : `≤ ${p(t.random[1])}`) : t.maxRandom !== undefined ? `≤ ${p(t.maxRandom)}` : '–';
   const other = [
     t.greedyLoses ? 'greedy loses' : '',
@@ -211,11 +223,11 @@ function band(t: Target): string[] {
     t.minIceCut !== undefined ? `ice cuts ≥ ${p(t.minIceCut)}` : '',
     t.minRiddles ? `≥ ${t.minRiddles} cloche riddle` : '',
   ].filter(Boolean).join(', ');
-  return [reach || '–', fd || '–', r, other || '–'];
+  return [players || '–', reach || '–', fd || '–', r, other || '–'];
 }
 
 function targetTable(reps: [string, Target][], note = ''): string {
-  const out = ['| Levels (local) | Planner reach | Forced / deep decisions | Random win | Also |', '|---|---|---|---|---|'];
+  const out = ['| Levels (local) | Goal-directed players | Planner reach | Forced / deep / bottlenecks | Random win | Also |', '|---|---|---|---|---|---|'];
   for (const [name, t] of reps) out.push(`| ${name} | ${band(t).join(' | ')} |`);
   return out.join('\n') + (note ? '\n\n' + note : '');
 }
@@ -233,7 +245,7 @@ const TARGETS_W1 = targetTable([
   ['Normal, L11', targetFor(0, 11, 'normal')],
   ['Normal, L25 (bands slide linearly)', targetFor(0, 25, 'normal')],
   ['Normal, L39', targetFor(0, 39, 'normal')],
-  ['Intro levels (11, 12, 13, 16, 18, 19, 21, 36)', T(13)],
+  ['Intro levels (11, 12, 13, 16, 18, 19, 21, 23, 27, 32, 36)', T(13)],
   ['Hard L15', T(15)],
   ['Hard L35', T(35)],
   ['Banquets L20, 30, 40', T(20)],
@@ -275,26 +287,26 @@ const TARGETS_W3 = targetTable([
 const shiftLine = SHIFT_ORDER.map((w) => 'TBQ'[w]).join(' ');
 
 /**
- * The campaign before the rework (commit 77e16eb), measured with today's players (measureDepth, 48
- * games per depth): the reference the new ladders are compared with.
+ * The campaign before round 3 (commit 7919e84: planner targets, no stove or chains), measured with
+ * today's players (32 games each): the reference the new ladders are compared with.
  */
-const BEFORE = `| Kitchen, tier | Levels | Random (mean / median) | Planner d1 / d2 / d3 / d4 / d5 | Depth | Forced | Deep | Items | Columns | Guests |
-|---|---:|---:|---|---:|---:|---:|---:|---:|---:|
-| T teaching, L1–8 | 8 | 56.3% / 62.5% | 86 / 100 / 100 / 100 / 100 | 1.1 | 0.5 | 0.0 | 8.9 | 2.9 | 3.0 |
-| T normal, L9–20 | 9 | 13.6% / 16.0% | 57 / 83 / 94 / 97 / 98 | 1.4 | 2.3 | 1.1 | 14.9 | 4.2 | 4.1 |
-| T normal, L21–39 | 16 | 6.5% / 4.9% | 42 / 78 / 92 / 99 / 100 | 1.9 | 3.3 | 0.6 | 16.2 | 4.5 | 4.6 |
-| T hard | 3 | 1.1% / 1.2% | 19 / 45 / 59 / 70 / 82 | 2.7 | 6.0 | 5.7 | 21.3 | 5.0 | 6.0 |
-| T superhard | 4 | 0.5% / 0.4% | 22 / 41 / 79 / 84 / 95 | 2.8 | 6.3 | 3.3 | 21.5 | 5.5 | 7.0 |
-| B teaching, L1–8 | 8 | 61.0% / 69.9% | 84 / 87 / 97 / 99 / 100 | 1.4 | 1.0 | 0.3 | 12.3 | 3.3 | 3.1 |
-| B normal, L9–20 | 9 | 8.7% / 6.8% | 42 / 70 / 90 / 93 / 93 | 1.7 | 2.4 | 1.9 | 18.7 | 4.3 | 3.9 |
-| B normal, L21–39 | 16 | 6.6% / 6.1% | 49 / 76 / 90 / 97 / 97 | 1.5 | 2.4 | 2.1 | 21.6 | 4.9 | 4.3 |
-| B hard | 3 | 1.0% / 1.0% | 9 / 31 / 69 / 75 / 73 | 3.0 | 3.7 | 6.0 | 23.7 | 4.7 | 4.7 |
-| B superhard | 4 | 0.6% / 0.8% | 20 / 50 / 49 / 70 / 96 | 2.8 | 5.5 | 5.3 | 27.0 | 5.0 | 5.8 |
-| Q teaching, L1–5 | 5 | 50.7% / 49.1% | 85 / 94 / 98 / 100 / 100 | 1.0 | 0.6 | 0.8 | 14.2 | 3.0 | 3.0 |
-| Q normal, L6–20 | 12 | 24.3% / 23.1% | 70 / 80 / 94 / 99 / 99 | 1.1 | 2.3 | 2.0 | 20.6 | 4.3 | 4.2 |
-| Q normal, L21–39 | 16 | 15.2% / 14.9% | 41 / 77 / 96 / 99 / 99 | 1.6 | 3.1 | 3.1 | 24.4 | 4.9 | 4.9 |
-| Q hard | 3 | 3.7% / 4.1% | 11 / 38 / 83 / 61 / 60 | 2.7 | 5.7 | 5.3 | 25.3 | 5.0 | 5.0 |
-| Q superhard | 4 | 2.1% / 1.6% | 12 / 31 / 58 / 51 / 67 | 3.3 | 7.0 | 10.0 | 28.0 | 5.8 | 5.8 |`;
+const BEFORE = `| Kitchen, tier | Levels | Planner d2 / d3 / d5 | Strong player | Careful player | Bottlenecks | Items | Guests |
+|---|---:|---|---:|---:|---:|---:|---:|
+| T opening, L1–8 | 8 | 66 / 88 / 100 | 73% | 95% | 1.4 | 9.1 | 3.1 |
+| T normal, L9–20 | 9 | 34 / 69 / 85 | 64% | 88% | 3.2 | 14.2 | 4.0 |
+| T normal, L21–39 | 16 | 20 / 43 / 70 | 38% | 77% | 3.6 | 18.9 | 5.5 |
+| T hard | 3 | 5 / 17 / 55 | 18% | 46% | 4.1 | 21.0 | 6.0 |
+| T superhard | 4 | 17 / 25 / 54 | 22% | 64% | 3.5 | 21.3 | 6.8 |
+| B opening, L1–8 | 8 | 55 / 86 / 100 | 87% | 99% | 1.4 | 12.3 | 3.1 |
+| B normal, L9–20 | 9 | 31 / 55 / 81 | 55% | 94% | 1.3 | 19.9 | 4.2 |
+| B normal, L21–39 | 16 | 21 / 38 / 75 | 43% | 79% | 1.7 | 24.9 | 5.0 |
+| B hard | 3 | 9 / 22 / 71 | 29% | 61% | 1.2 | 26.3 | 5.3 |
+| B superhard | 4 | 19 / 22 / 59 | 17% | 66% | 3.4 | 27.0 | 5.8 |
+| Q opening, L1–5 | 5 | 75 / 89 / 97 | 86% | 96% | 1.1 | 14.2 | 3.0 |
+| Q normal, L6–20 | 12 | 23 / 68 / 83 | 42% | 75% | 2.2 | 20.5 | 4.2 |
+| Q normal, L21–39 | 16 | 17 / 47 / 72 | 54% | 82% | 3.4 | 24.9 | 4.9 |
+| Q hard | 3 | 17 / 22 / 57 | 8% | 76% | 4.1 | 25.7 | 5.0 |
+| Q superhard | 4 | 16 / 30 / 45 | 30% | 62% | 4.1 | 28.0 | 5.8 |`;
 
 /** The same table for the current campaign. */
 function summary(): string {
@@ -302,7 +314,7 @@ function summary(): string {
   for (const w of [0, 1, 2]) {
     const first = w === 2 ? 6 : 9;
     const groups: [string, (r: Row) => boolean][] = [
-      [`teaching, L1–${first - 1}`, (r) => local(r) < first],
+      [`opening, L1–${first - 1}`, (r) => local(r) < first],
       [`normal, L${first}–20`, (r) => r.lv.tier === 'normal' && local(r) >= first && local(r) <= 20],
       ['normal, L21–39', (r) => r.lv.tier === 'normal' && local(r) > 20],
       ['hard', (r) => r.lv.tier === 'hard' && local(r) >= first],
@@ -312,10 +324,47 @@ function summary(): string {
       const g = rows.filter((r) => r.lv.world === w && f(r));
       if (!g.length) continue;
       out.push(
-        `| ${'TBQ'[w]} ${name} | ${g.length} | ${pct(mean(g.map((r) => r.st.random)))} / ${pct(median(g.map((r) => r.st.random)))} | ` +
-          `${profile(g.map((r) => r.plan))} | ${mean(g.map((r) => planningDepth(r.plan))).toFixed(1)} | ${mean(g.map((r) => r.st.forced ?? 0)).toFixed(1)} | ` +
-          `${mean(g.map((r) => r.st.deep ?? 0)).toFixed(1)} | ${mean(g.map((r) => r.st.items ?? 0)).toFixed(1)} | ` +
-          `${mean(g.map((r) => r.lv.columns.length)).toFixed(1)} | ${mean(g.map((r) => r.lv.orders.length)).toFixed(1)} |`,
+        `| ${'TBQ'[w]} ${name} | ${g.length} | ${p0(mean(g.map((r) => r.plan[1])))} / ${p0(mean(g.map((r) => r.plan[2])))} / ${p0(mean(g.map((r) => r.plan[4])))} | ` +
+          `${p0(mean(g.map((r) => r.goal)))}% | ${p0(mean(g.map((r) => r.careful)))}% | ${mean(g.map((r) => r.bn)).toFixed(1)} | ` +
+          `${mean(g.map((r) => r.st.items ?? 0)).toFixed(1)} | ${mean(g.map((r) => r.lv.orders.length)).toFixed(1)} |`,
+      );
+    }
+  }
+  return out.join('\n');
+}
+
+/** The endless pool: stored numbers per kitchen and tier, and a replay of every stored solution. */
+function poolTable(): string {
+  const file = 'src/data/levels-endless.json';
+  if (!existsSync(file)) return 'The pool is not built yet.';
+  const pool: LevelDef[] = JSON.parse(readFileSync(file, 'utf8'));
+  const issues: string[] = [];
+  const last = new Map<number, string>();
+  for (const lv of pool) {
+    const sim = createSim(lv);
+    for (const m of lv.solution ?? []) if (!sim.take(m)) issues.push(`#${lv.n}: solution move ${m} is illegal`);
+    if (sim.status !== 'won') issues.push(`#${lv.n}: solution ends ${sim.status}`);
+    const set = [...new Set(lv.orders)].sort().join(',');
+    if (last.get(lv.world) === set) issues.push(`#${lv.n}: repeats the dish set of the kitchen's previous level`);
+    last.set(lv.world, set);
+  }
+  problems.push(...issues.map((i) => `pool ${i}`));
+  const out = [
+    `${pool.length} levels (${pool[0].n}–${pool[pool.length - 1].n}), ${(readFileSync(file).length / 1024).toFixed(0)} KB. ` +
+      (issues.length ? `Problems: ${issues.join('; ')}.` : 'Every stored solution replays to a win and neighbouring levels of a kitchen serve different dish sets.'),
+    '',
+    '| Kitchen, tier | Levels | Strong player | Careful player | Bottlenecks | Planner d2 / d3 / d5 | Items | Guests | Stove / cloches / ice |',
+    '|---|---:|---:|---:|---:|---|---:|---:|---:|',
+  ];
+  for (const w of [0, 1, 2]) {
+    for (const tier of ['normal', 'hard', 'superhard'] as const) {
+      const g = pool.filter((l) => l.world === w && l.tier === tier);
+      if (!g.length) continue;
+      const m = (f: (st: LevelStats) => number) => mean(g.map((l) => f(l.stats!)));
+      out.push(
+        `| ${'TBQ'[w]} ${tier} | ${g.length} | ${pct(m((st) => st.goal ?? 0), 0)} | ${pct(m((st) => st.careful ?? 0), 0)} | ${m((st) => st.bottleneck ?? 0).toFixed(1)} | ` +
+          `${p0(m((st) => st.plan![1]))} / ${p0(m((st) => st.plan![2]))} / ${p0(m((st) => st.plan![4]))} | ${m((st) => st.items ?? 0).toFixed(1)} | ` +
+          `${mean(g.map((l) => l.orders.length)).toFixed(1)} | ${g.filter((l) => l.stove).length} / ${g.filter((l) => l.cloches).length} / ${g.filter((l) => l.frozen).length} |`,
       );
     }
   }
@@ -360,6 +409,21 @@ makes. The boards were small too (4–5 columns, 4–5 guests).
 
 ## The players and numbers
 
+- **Strong player / careful player** (\`GoalPlayer\` in \`src/core/measure.ts\`) — goal-directed
+  players that reason backwards from the orders, as people do. They only consider purposeful moves:
+  taking an item a seated guest (or the next one in the queue) still needs — preps and chains
+  expanded to their raw parts — or digging toward one at most two rows down; moves outside the
+  orders only when nothing purposeful is left or every purposeful plan jams the kitchen. Along those
+  moves they plan ahead, past the next serve, comparing plans by the kitchen's position value (a free
+  spot, no extra sauce, nothing nobody needs). The **strong player** plans 4 moves ahead and slips
+  5% of the time (takes a plausible move unchecked): a strong human's first try. The **careful
+  player** plans 6 moves ahead and never slips: the fairness check. Their win rates are the main
+  targets now. Calibration on the campaign before this round: the strong player sits between the
+  depth-3 and depth-4 planners, the careful one above the depth-5 planner.
+- **Bottlenecks** — winning lines are drawn uniformly (every winning line as likely as any other);
+  a position where exactly one of several legal moves keeps the level winnable scores 1 plus the
+  moves a wrong choice stays hidden (playable before the kitchen jams, at most 9). The score is the
+  mean per line: narrow passages whose mistakes show late make a level hard for anybody.
 - **Planner at depth d** (\`src/core/measure.ts\`) — looks exactly d moves ahead and takes the move
   with the best reachable position; ties are broken at random. Two planner families play and the
   better one counts: the kitchen planner values positions with its kitchen's knowledge (served
@@ -405,6 +469,17 @@ makes. The boards were small too (4–5 columns, 4–5 guests).
   an ice block can't be taken until a number of takes were made, from any column; the number on the
   ice counts down, and its column waits behind it. You need that many moves that don't clog the
   counter. Free for the solver: the take count is the sum of the column pointers.
+- **The stove** (\`level.stove\`). **The oven** (the Trattoria from L23, campaign level 48): once a
+  pizza, a calzone or a lasagne has all its parts on the counter it bakes there for 2–3 takes; the
+  dish takes a counter slot and its guest waits (the ticket shows ♨ and the takes left). **The
+  grill** (the Burger Joint from L16, campaign level 51): a patty grills in a counter spot for 2–3
+  takes before it can slide onto a plate. Every take, from any column, cooks one take more; when the
+  pantry is empty the stove finishes by itself. A full counter while something cooks can jam the
+  kitchen: that is the timing puzzle. The Taquería has no stove yet.
+- **The ragù chain** (from the Trattoria's L27, campaign level 62). Tomato + tomato make sauce, and
+  sauce next to minced beef turns into ragù at once — before any dish can take the sauce. Beef
+  waiting on the counter steals the sauce a spaghetti, a pizza or gnocchi needed, several moves
+  later: a long-range trap. Ragù is for tagliatelle al ragù (L27) and lasagne (L32, an oven dish).
 - **Bigger kitchens late.** Six columns, a third seat and longer queues (up to 8 guests) from the
   middle of each ladder.
 
@@ -416,19 +491,21 @@ because the items are dealt in its order; lidded columns only receive items the 
 after their lid opens, and ice always thaws by the time the golden line needs the tile. So every
 level is solvable by construction. A **hill climb** then changes the draft — swap two tiles between
 columns, move a tile to another column, move the ice — and keeps a change when the level gets no
-further from its target (planner bands, forced and deep decisions, greedy loses, the random cap and,
-for tight targets, a counter one slot smaller that gets ever harder to win). Cloches go on last: a
+further from its target (the goal-directed players' bands, bottlenecks, planner bands, forced and
+deep decisions, greedy loses, the random cap and, for tight targets, a counter one slot smaller that
+gets ever harder to win). Cloches go on last: a
 few placements are tried, and the one closest to the target that the deducer solves without
-guessing is kept. A level is measured again with fresh planner games before it is stored. About
-2–30 seconds per level on a laptop; every level of the campaign landed on its target.
+guessing is kept. A level is measured again with fresh games before it is stored. About 10 seconds to
+10 minutes per level on a laptop.
 
 ## Before and after
 
-The old campaign (commit 77e16eb), measured with today's players:
+The campaign before round 3 (commit 7919e84: planner targets only, no stove or chain), measured
+with today's players (32 games each):
 
 ${BEFORE}
 
-The campaign now (holdout planner games with fresh seeds):
+The campaign now (holdout games with fresh seeds):
 
 ${summary()}
 
@@ -463,10 +540,11 @@ The opening engages from the start: L1 is the authored tutorial, and from L2 eve
 forced decision (the obvious move loses) whose trap a player looking two moves ahead sees; by L5–8
 a player needs to look about three moves ahead, L9 hides a deeper trap and the first banquet asks
 for three to four. Each intro level keeps its new dish or rule as its hook. From L11 the normal
-bands slide: by the end a player who looks two moves ahead wins at most
-one level in five and one who looks three ahead at most 40%, while one who looks five ahead still
-wins most of them. Hard levels and banquets go further but stay fair (a five-move planner wins at
-least 40% / 25%).
+bands slide: the strong player (a strong human's first try) wins 45–85% of the early normal
+levels and 25–55% of the last ones, while the careful player wins most of them. Hard levels and
+banquets are meant to be lost on the first try (the strong player wins at most 30% / 20%) but stay
+fair: the careful player wins 20–70% / 15–60%, and their bottlenecks are narrow (a score of at least
+4–6).
 
 ### Measured
 
@@ -528,12 +606,17 @@ ${levelTable(1)}
 
 ## Endless mode
 
-Levels after the campaign come from \`generateEndlessLevel(n)\` (\`src/core/generator.ts\`) in a Web
-Worker, with \`endlessSpec(n)\` (\`src/core/progression.ts\`) and \`taqueriaEndlessSpec\`. They keep
-the 5-level shifts, taking the three kitchens in turn; each shift plays its kitchen's late shapes
-(at most five columns, two seats and six guests) with the late planning bands up to depth 3, cloches
-and ice included. The guided generator runs with a small budget (\`ENDLESS_OPTIONS\`: two drafts,
-ten climbing steps, a few planner games); deterministic for the level number.
+Levels 121–240 come from the **endless pool** (\`src/data/levels-endless.json\`, built offline by
+\`bun scripts/build-endless.ts\` and loaded lazily): campaign quality, the full guided search with
+the full late targets. The 5-level shifts take the three kitchens in turn; each level plays a late
+row of its kitchen at full size (stove, chain, cloches, ice and lids included), and every shift ends
+on a hard level or a banquet. Neighbouring levels of a kitchen serve different dish sets. The daily
+special is a normal pool level picked by the date. Past the pool, \`generateEndlessLevel(n)\`
+(\`src/core/generator.ts\`) builds levels in a Web Worker with a 1.5 s budget (\`ENDLESS_OPTIONS\`:
+three drafts, forty climbing steps, the strong player and the planners up to depth 3); the next
+level is prefetched while the current one is played.
+
+${poolTable()}
 
 ## Audit
 

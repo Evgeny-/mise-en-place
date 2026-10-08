@@ -60,6 +60,7 @@ column, Ctrl/Cmd+Z undoes.
 ```bash
 npm run build                        # typecheck + production build into dist/
 bun scripts/build-levels.ts          # generate the campaign → src/data/levels.json
+bun scripts/build-endless.ts         # the endless pool (levels 121–240) → src/data/levels-endless.json
 bun scripts/audit-levels.ts          # difficulty tables → docs/difficulty*.md
 bun scripts/build-app-icons.ts       # app icons from public/icon.svg
 node scripts/shot.mjs <url> <png> [w,h] [ms] [dpr]   # headless screenshot on the GPU

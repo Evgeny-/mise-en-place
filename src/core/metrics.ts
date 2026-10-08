@@ -16,7 +16,7 @@
  * - thinking player: plans 2–3 moves ahead with a position value (served dishes, progress on the
  *   seated guests, free slots, never an extra sauce); ties are broken at random, so it is sampled.
  */
-import { BurgerRules, type BState } from './burger';
+import { BURGER_ITEMS, BurgerRules, type BState } from './burger';
 import { KitchenRules, type KState, type Rules } from './kitchen';
 import { Rng } from './rng';
 import { Solver, WIN } from './solver';
@@ -38,6 +38,11 @@ export interface Heuristic<S> {
   priorities(s: S, steps: Step<S>[]): number[];
   /** How promising a position looks without searching further (higher is better). */
   value(s: S): number;
+  /**
+   * What the seated guests still need, per item index of the pantry (> 0 = wanted): what a
+   * goal-directed player looks for in the columns (measure.ts).
+   */
+  wanted?(s: S): number[];
 }
 
 /** The greedy choice among `steps` (non-empty). */
@@ -270,9 +275,13 @@ export function kitchenHeuristic(r: KitchenRules): Heuristic<KState> {
   const dem = new Array<number>(n).fill(0);
   const have = new Array<number>(n).fill(0);
 
+  /** seated guests still waiting for parts (a guest whose dish is in the oven needs nothing) */
+  const wanting = (s: KState, i: number): boolean => s.seats[i] >= 0 && !(s.cook && s.cook[i] > 0);
   const deficit = (s: KState): number[] => {
     dem.fill(0);
-    for (const d of s.seats) if (d >= 0) for (const x of dishRaw[d]) dem[x]++;
+    s.seats.forEach((d, i) => {
+      if (wanting(s, i)) for (const x of dishRaw[d]) dem[x]++;
+    });
     for (let i = 0; i < n; i++) {
       const c = s.counts[i];
       if (c) for (const x of k.rawOf[i]) dem[x] -= c;
@@ -281,6 +290,13 @@ export function kitchenHeuristic(r: KitchenRules): Heuristic<KState> {
   };
 
   return {
+    wanted(s) {
+      // the seated guests' missing parts, then the next guests' in the queue (parked for later)
+      const w = deficit(s).slice();
+      const upto = Math.min(r.orders.length, s.next + r.nseats);
+      for (let i = s.next; i < upto; i++) for (const x of dishRaw[r.orders[i]]) w[x]++;
+      return w;
+    },
     priorities(s, steps) {
       const occ = r.occupancy(s);
       let def: number[] | null = null;
@@ -295,7 +311,11 @@ export function kitchenHeuristic(r: KitchenRules): Heuristic<KState> {
       dem.fill(0);
       have.fill(0);
       let occ = 0;
-      for (const d of s.seats) if (d >= 0) for (const x of dishRaw[d]) dem[x]++;
+      s.seats.forEach((d, i) => {
+        if (wanting(s, i)) for (const x of dishRaw[d]) dem[x]++;
+      });
+      // a dish in the oven is nearly served, but it takes a counter slot until it is
+      if (s.cook) for (const c of s.cook) if (c > 0) v += 900 - 6 - 20 * c;
       for (let i = 0; i < n; i++) {
         const c = s.counts[i];
         if (!c) continue;
@@ -324,7 +344,9 @@ export function kitchenHeuristic(r: KitchenRules): Heuristic<KState> {
       for (const p of prepOuts) {
         if (!s.counts[p]) continue;
         let want = rest[p];
-        for (const d of s.seats) if (d >= 0) want += k.need[d][p];
+        s.seats.forEach((d, i) => {
+          if (wanting(s, i)) want += k.need[d][p];
+        });
         if (s.counts[p] > want) v -= 50000;
       }
       return v;
@@ -369,15 +391,31 @@ export function burgerHeuristic(r: BurgerRules): Heuristic<BState> {
   };
 
   return {
+    wanted(s) {
+      const w = new Array<number>(BURGER_ITEMS.length).fill(0);
+      for (let p = 0; p < s.plate.length; p++) {
+        const t = s.plate[p];
+        if (t < 0) continue;
+        for (let j = s.done[p]; j < T[t].length; j++) w[T[t][j]]++;
+      }
+      // the next ticket in the queue: its first layers can be parked already
+      if (s.next < T.length) for (const it of T[s.next].slice(0, 2)) w[it]++;
+      for (let it = 0; it < w.length; it++) w[it] -= s.counts[it];
+      if (s.grill) w[BURGER_ITEMS.indexOf('patty')] -= s.grill.length;
+      return w;
+    },
     priorities(s, steps) {
       return steps.map(([m]) => {
         const it = r.cols[m][s.ptr[m]];
-        return r.target(s, it) >= 0 ? 1000 : 100 - Math.min(99, needDistance(s, it));
+        const grills = r.grillTime > 0 && BURGER_ITEMS[it] === 'patty';
+        return r.target(s, it) >= 0 && !grills ? 1000 : 100 - Math.min(99, needDistance(s, it));
       });
     },
     value(s) {
       let v = 1000 * s.served;
       for (let p = 0; p < s.plate.length; p++) if (s.plate[p] >= 0) v += 30 * s.done[p];
+      // a patty on the grill takes a spot; it is worth as much as a parked patty, less the wait
+      if (s.grill) for (const t of s.grill) v -= 10 + 2 * Math.min(12, needDistance(s, BURGER_ITEMS.indexOf('patty'))) + 3 * t;
       for (let it = 0; it < s.counts.length; it++) {
         const c = s.counts[it];
         if (c) v -= c * (10 + 2 * Math.min(12, needDistance(s, it)));
@@ -486,5 +524,9 @@ export function roundStats(s: LevelStats): LevelStats {
   if (s.plan) out.plan = s.plan.map((x) => r(x, 3));
   if (s.sighted !== undefined) out.sighted = r(s.sighted, 3);
   if (s.iceCut !== undefined) out.iceCut = r(s.iceCut, 3);
+  if (s.goal !== undefined) out.goal = r(s.goal, 3);
+  if (s.careful !== undefined) out.careful = r(s.careful, 3);
+  if (s.bottleneck !== undefined) out.bottleneck = r(s.bottleneck, 2);
+  if (s.narrow !== undefined) out.narrow = r(s.narrow, 2);
   return out;
 }

@@ -16,6 +16,9 @@ import type { LevelDef } from './types';
  * - Landing-slot rule: a take is legal only if, after resolving, the counter holds at most
  *   `slots` items. A full counter therefore still accepts an item that combines immediately.
  * - Lids and frozen tiles (pantry.ts) block a column until enough dishes were served / takes made.
+ * - The oven (level.stove): an oven dish whose parts are together bakes for N takes in one counter
+ *   slot while its guest waits; every take bakes the dishes already in the oven one take more, and
+ *   a done dish is served. When the pantry is empty, the oven finishes on its own.
  * - Win: every guest is served (levels are zero-waste, so the pantry and counter are empty).
  *   Stuck: not won and no legal take.
  */
@@ -118,6 +121,8 @@ export interface KState {
   /** next order to seat */
   next: number;
   served: number;
+  /** per seat: takes its dish still bakes in the oven (0 = not baking); absent without a stove */
+  cook?: number[];
 }
 
 /** Generic rules interface: the solver and the difficulty metrics work on any world. */
@@ -141,16 +146,20 @@ export class KitchenRules implements Rules<KState> {
   readonly lids: number[] | null;
   /** frozen tiles: per column and row, the take count they thaw at (see pantry.ts) */
   readonly thaw: number[][] | null;
+  /** the oven: per dish index, the takes it bakes once its parts are together (0 = served at once); null without a stove */
+  readonly bake: number[] | null;
   readonly nseats: number;
   readonly length: number;
 
-  constructor(level: Pick<LevelDef, 'menu' | 'columns' | 'slots' | 'seats' | 'orders' | 'lids' | 'frozen'>, slots?: number) {
+  constructor(level: Pick<LevelDef, 'menu' | 'columns' | 'slots' | 'seats' | 'orders' | 'lids' | 'frozen' | 'stove'>, slots?: number) {
     this.k = kitchenFor(level.menu);
     this.cols = level.columns.map((c) => c.map((id) => this.k.item(id)));
     this.slots = slots ?? level.slots;
     this.orders = level.orders.map((d) => this.k.dish(d));
     this.lids = level.lids && level.lids.some((x) => x > 0) ? level.lids.slice() : null;
     this.thaw = thawTable(level);
+    const bake = this.k.dishes.map((d) => (level.stove?.[d] ?? 0));
+    this.bake = bake.some((x) => x > 0) ? bake : null;
     this.nseats = level.seats;
     this.length = this.cols.reduce((a, c) => a + c.length, 0);
   }
@@ -158,17 +167,23 @@ export class KitchenRules implements Rules<KState> {
   start(): KState {
     const seats: number[] = [];
     for (let i = 0; i < this.nseats; i++) seats.push(i < this.orders.length ? this.orders[i] : -1);
-    return {
+    const s: KState = {
       ptr: this.cols.map(() => 0),
       counts: new Array<number>(this.k.items.length).fill(0),
       seats,
       next: Math.min(this.nseats, this.orders.length),
       served: 0,
     };
+    if (this.bake) s.cook = seats.map(() => 0);
+    return s;
   }
 
-  /** Counter after dropping item `it`: resolves preps and dishes. Mutates the given arrays. */
-  resolve(counts: number[], seats: number[], st: { next: number; served: number }): void {
+  /**
+   * Resolves the counter (mutates the given arrays): preps first, one at a time in menu priority;
+   * when none fires, the leftmost seated guest (not waiting for the oven) whose dish parts are all
+   * there gets them: served at once, or (an oven dish) the dish starts baking and the guest waits.
+   */
+  resolve(counts: number[], seats: number[], st: { next: number; served: number }, cook?: number[]): void {
     const k = this.k;
     for (;;) {
       const pk = k.firePrep(counts);
@@ -179,18 +194,44 @@ export class KitchenRules implements Rules<KState> {
         counts[p.out]++;
         continue;
       }
-      let served = false;
+      let acted = false;
       for (let i = 0; i < seats.length; i++) {
         const d = seats[i];
-        if (d < 0 || !k.fits(counts, d)) continue;
+        if (d < 0 || (cook && cook[i] > 0) || !k.fits(counts, d)) continue;
         const need = k.need[d];
         for (let j = 0; j < need.length; j++) counts[j] -= need[j];
-        st.served++;
-        seats[i] = st.next < this.orders.length ? this.orders[st.next++] : -1;
-        served = true;
+        if (cook && this.bake![d] > 0) cook[i] = this.bake![d];
+        else this.serveSeat(seats, st, i);
+        acted = true;
         break;
       }
-      if (!served) return;
+      if (!acted) return;
+    }
+  }
+
+  /** The guest at seat i is served; the next guest in the queue takes the seat. */
+  private serveSeat(seats: number[], st: { next: number; served: number }, i: number): void {
+    st.served++;
+    seats[i] = st.next < this.orders.length ? this.orders[st.next++] : -1;
+  }
+
+  /**
+   * The oven after a take: every dish that was baking before it bakes one take more; a done dish
+   * is served (its guest leaves, the next one sits down, the counter resolves again). When the
+   * pantry is empty, whatever is still in the oven finishes. Seats in order, as everywhere.
+   */
+  private tick(before: number[], counts: number[], seats: number[], st: { next: number; served: number }, cook: number[], empty: boolean): void {
+    for (let i = 0; i < seats.length; i++) {
+      if (before[i] > 0 && cook[i] > 0 && --cook[i] === 0) {
+        this.serveSeat(seats, st, i);
+        this.resolve(counts, seats, st, cook);
+      }
+    }
+    while (empty && cook.some((c) => c > 0)) {
+      const i = cook.findIndex((c) => c > 0);
+      cook[i] = 0;
+      this.serveSeat(seats, st, i);
+      this.resolve(counts, seats, st, cook);
     }
   }
 
@@ -204,13 +245,18 @@ export class KitchenRules implements Rules<KState> {
     counts[c[p]]++;
     const seats = s.seats.slice();
     const st = { next: s.next, served: s.served };
-    this.resolve(counts, seats, st);
-    let occ = 0;
-    for (const x of counts) occ += x;
-    if (occ > this.slots) return null;
+    const cook = s.cook ? s.cook.slice() : undefined;
+    this.resolve(counts, seats, st, cook);
     const ptr = s.ptr.slice();
     ptr[col] = p + 1;
-    return { ptr, counts, seats, next: st.next, served: st.served };
+    if (cook) this.tick(s.cook!, counts, seats, st, cook, takesOf(ptr) === this.length);
+    let occ = 0;
+    for (const x of counts) occ += x;
+    if (cook) for (const x of cook) if (x > 0) occ++;
+    if (occ > this.slots) return null;
+    const n: KState = { ptr, counts, seats, next: st.next, served: st.served };
+    if (cook) n.cook = cook;
+    return n;
   }
 
   moves(s: KState): number[] {
@@ -246,6 +292,10 @@ export class KitchenRules implements Rules<KState> {
     for (const c of s.counts) out += String.fromCharCode(48 + c);
     out += '|';
     for (const d of s.seats) out += String.fromCharCode(49 + d);
+    if (s.cook) {
+      out += '|';
+      for (const c of s.cook) out += String.fromCharCode(48 + c);
+    }
     return out + '|' + s.next;
   }
 
@@ -255,9 +305,11 @@ export class KitchenRules implements Rules<KState> {
     return s.ptr[col] < c.length ? c[s.ptr[col]] : -1;
   }
 
+  /** Counter slots in use (dishes in the oven included). */
   occupancy(s: KState): number {
     let occ = 0;
     for (const x of s.counts) occ += x;
+    if (s.cook) for (const x of s.cook) if (x > 0) occ++;
     return occ;
   }
 }

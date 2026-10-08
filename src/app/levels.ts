@@ -105,9 +105,36 @@ function generate(id: string, n: number, seed?: number): Promise<LevelDef | null
   return p;
 }
 
-/** A campaign level, or a freshly generated endless level past the campaign (same n = same level). */
-export function getLevel(levels: LevelDef[], n: number): Promise<LevelDef | null> {
-  if (n <= levels.length) return Promise.resolve(levels[n - 1] ?? null);
+let pool: LevelDef[] | null = null;
+
+/**
+ * The endless pool (src/data/levels-endless.json, built offline by scripts/build-endless.ts at
+ * campaign quality), loaded on first use; empty if missing.
+ */
+export async function loadPool(): Promise<LevelDef[]> {
+  if (pool) return pool;
+  const files = import.meta.glob<{ default: LevelDef[] }>('../data/levels-endless.json');
+  const loader = files['../data/levels-endless.json'];
+  if (loader) {
+    try {
+      const mod = await loader();
+      if (Array.isArray(mod.default)) return (pool = mod.default);
+    } catch {
+      /* the worker generates every endless level then */
+    }
+  }
+  return (pool = []);
+}
+
+/**
+ * A campaign level; past the campaign a level of the endless pool, and past the pool a freshly
+ * generated one (the Web Worker; same n = same level).
+ */
+export async function getLevel(levels: LevelDef[], n: number): Promise<LevelDef | null> {
+  if (n <= levels.length) return levels[n - 1] ?? null;
+  const p = await loadPool();
+  const lv = p.length && n >= p[0].n ? p[n - p[0].n] : undefined;
+  if (lv && lv.n === n) return lv;
   return generate('n' + n, n);
 }
 
@@ -116,12 +143,17 @@ export function dayKey(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** The daily special: one generated level per calendar day, the same for every player. */
-export function getDaily(levels: LevelDef[], key = dayKey()): Promise<LevelDef | null> {
+/**
+ * The daily special: one level per calendar day, the same for every player: a normal level of the
+ * endless pool (campaign quality), so the kitchen changes from day to day; generated only without
+ * a pool.
+ */
+export async function getDaily(levels: LevelDef[], key = dayKey()): Promise<LevelDef | null> {
   let h = 2166136261;
   for (const ch of key) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   h >>>= 0;
-  // a normal-tier endless slot, so the kitchen changes from day to day
+  const normals = (await loadPool()).filter((l) => l.tier === 'normal');
+  if (normals.length) return normals[h % normals.length];
   let n = levels.length + 1 + (h % 40);
   if (n % 5 === 0) n++;
   return generate('daily' + key, n, h);

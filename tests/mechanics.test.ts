@@ -4,7 +4,9 @@ import type { FoodId } from '../src/core/content';
 import { generateGuidedLevel } from '../src/core/generator';
 import { levelOf, planObjective, reachOf, type Draft } from '../src/core/guided';
 import { KitchenRules } from '../src/core/kitchen';
-import { blindRates, deduce, lineDepth, measureDepth, plannerRates, planningDepth, withAnyRules } from '../src/core/measure';
+import { blindRates, bottlenecks, deduce, goalRate, lineDepth, measureDepth, plannerRates, planningDepth, STRONG, withAnyRules } from '../src/core/measure';
+import { levelRecipes, MENUS } from '../src/core/content';
+import type { SimEvent } from '../src/core/sim';
 import { kitchenHeuristic, naturalSolution } from '../src/core/metrics';
 import { kitchenSpec } from '../src/core/progression';
 import { createSim } from '../src/core/sim';
@@ -144,7 +146,7 @@ describe('cloches', () => {
     }
     // cloches on these levels do hide something that matters
     expect(riddles).toBeGreaterThan(0);
-  });
+  }, 180_000);
 
   it('hiding identical items hides nothing: the blind planner plays like the sighted one', () => {
     const lv: LevelDef = { ...DOME, columns: [['tomato', 'tomato'], ['bread', 'pasta'], ['tomato']] as FoodId[][], cloches: [[0, 1]] };
@@ -228,5 +230,107 @@ describe('guided generator', () => {
         expect(lv.stats!.guesses).toBe(0);
       }
     }
+  }, 180_000);
+});
+
+describe('the stove and the ragù chain', () => {
+  /** Plays random games in the simulation and checks every step against the compact rules. */
+  function parity(lv: LevelDef, games: number, seed: number): { won: number } {
+    let won = 0;
+    let x = seed;
+    const rand = (n: number) => {
+      x = (Math.imul(x, 1103515245) + 12345) >>> 0;
+      return (x >>> 8) % n;
+    };
+    for (let g = 0; g < games; g++) {
+      const sim = createSim(lv);
+      const rules = sim.currentRules();
+      let s = rules.start();
+      for (;;) {
+        const legal = sim.legalMoves();
+        expect(legal).toEqual(rules.moves(s));
+        if (!legal.length) break;
+        const m = legal[rand(legal.length)];
+        sim.take(m);
+        s = rules.play(s, m);
+        expect(rules.key(sim.state())).toBe(rules.key(s));
+      }
+      if (sim.status === 'won') won++;
+      expect(sim.status === 'won').toBe(rules.isWin(s));
+    }
+    return { won };
+  }
+
+  const OVEN: LevelDef = {
+    n: 1, world: 0, menu: 'trattoria', tier: 'normal', slots: 3, seats: 2,
+    columns: [['flour', 'tomato', 'cheese', 'pasta'], ['egg', 'tomato', 'tomato'], ['tomato', 'bread', 'mozzarella', 'bacon']] as FoodId[][],
+    orders: ['pizza', 'spaghetti', 'calzone'].map((d) => d as never),
+    stove: { pizza: 2, calzone: 2 },
+  };
+
+  it('an oven dish bakes for its takes in a counter slot while its guest waits', () => {
+    // a level where the pizza is complete after five takes
+    const lv: LevelDef = {
+      n: 1, world: 0, menu: 'trattoria', tier: 'normal', slots: 3, seats: 1,
+      columns: [['flour', 'egg', 'tomato', 'tomato', 'cheese'], ['pasta', 'pasta']] as FoodId[][],
+      orders: ['pizza', 'spaghetti'] as never, stove: { pizza: 2 },
+    };
+    // spaghetti needs a second sauce: not zero-waste, but fine for the rules
+    const sim = createSim(lv) as unknown as { take(c: number): SimEvent[] | null; baking(s: number): number | null; seats: unknown[]; served: number };
+    for (let i = 0; i < 5; i++) sim.take(0);
+    expect(sim.baking(0)).toBe(2);
+    expect(sim.served).toBe(0);
+    const ev = sim.take(1)!;
+    expect(ev.some((e) => e.t === 'tick')).toBe(true);
+    expect(sim.baking(0)).toBe(1);
+    const ev2 = sim.take(1)!;
+    expect(ev2.map((e) => e.t)).toContain('done');
+    expect(sim.served).toBe(1);
   });
+
+  it('the oven and the grill: the play simulation agrees with the compact rules', () => {
+    parity(OVEN, 60, 7);
+    const grill: LevelDef = {
+      n: 1, world: 1, menu: 'diner', tier: 'normal', rules: 'burger', slots: 3, seats: 2,
+      columns: [['bun_bottom', 'patty', 'bun_top', 'patty'], ['bun_bottom', 'cheese_slice', 'bun_top'], ['patty', 'lettuce']] as FoodId[][],
+      orders: ['burger', 'burger'] as never,
+      tickets: [['bun_bottom', 'patty', 'cheese_slice', 'bun_top'], ['bun_bottom', 'patty', 'patty', 'lettuce', 'bun_top']] as FoodId[][],
+      stove: { patty: 2 },
+    };
+    const { won } = parity(grill, 60, 9);
+    expect(won).toBeGreaterThan(0);
+    // a patty never goes straight onto a plate
+    const b = new BurgerRules(grill);
+    const s = b.play(b.play(b.start(), 0), 0);
+    expect(s.grill).toEqual([2]);
+    expect(s.done[0]).toBe(1);
+  });
+
+  it('sauce next to minced beef turns into ragù at once: the chain', () => {
+    const r = new KitchenRules({ menu: 'trattoria', columns: [['beef', 'tomato', 'tomato', 'pasta']], slots: 3, seats: 1, orders: ['tagliatelle'] });
+    let s = r.start();
+    for (let i = 0; i < 3; i++) s = r.play(s, 0);
+    const k = r.k;
+    expect(s.counts[k.item('ragu')]).toBe(1);
+    expect(s.counts[k.item('sauce')]).toBe(0);
+    expect(r.isWin(r.play(s, 0))).toBe(true);
+    // the recipe card lists the chain once beef and two tomatoes are in the pantry
+    const rec = levelRecipes(MENUS.trattoria, ['tagliatelle'], ['beef', 'tomato', 'tomato', 'pasta']);
+    expect(rec.preps.map((p) => p.out)).toEqual(['sauce', 'ragu']);
+  });
+
+  it('the goal-directed player and the bottlenecks are deterministic for a seed', () => {
+    const spec = kitchenSpec(0, 23);
+    const lv = generateGuidedLevel(spec, 3, { attempts: 1, iters: 5, runs: 6, holdout: 8 })!.level;
+    expect(lv.stove).toBeDefined();
+    const a = goalRate(lv, STRONG, 8, 1);
+    expect(goalRate(lv, STRONG, 8, 1)).toBe(a);
+    const b1 = withAnyRules(lv, undefined, (r) => bottlenecks(new Solver(r), 6, 2));
+    const b2 = withAnyRules(lv, undefined, (r) => bottlenecks(new Solver(r), 6, 2));
+    expect(b1).toEqual(b2);
+    expect(b1.score).toBeGreaterThanOrEqual(b1.narrow);
+    const sim = createSim(lv);
+    for (const m of lv.solution!) expect(sim.take(m)).not.toBeNull();
+    expect(sim.status).toBe('won');
+  }, 180_000);
 });

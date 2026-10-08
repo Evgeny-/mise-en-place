@@ -392,6 +392,21 @@ export class GameView {
             audio.play('lid');
           });
           break;
+        // the stove: a dish goes into the oven, a patty onto the grill, a countdown ticks, it's done
+        case 'bake':
+          this.counter.bake(e.from, e.slot, e.dish, e.left, cursor);
+          cursor += MERGE + 0.2;
+          break;
+        case 'grill':
+          this.counter.grill(e.slot, e.left, cursor - FLIGHT);
+          break;
+        case 'tick':
+          this.counter.setCook(e.slot, e.left, cursor);
+          break;
+        case 'done':
+          this.counter.done(e.slot, cursor);
+          cursor += 0.35;
+          break;
         default:
           break;
       }

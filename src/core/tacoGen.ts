@@ -588,6 +588,27 @@ export function taqueriaEndlessSpec(n: number, like: number): TacoSpec {
   for (const [d, band] of Object.entries(full.reach ?? {})) if (Number(d) <= 3 && band) reach[Number(d)] = band;
   return {
     ...spec, n, local: undefined, tier, intro: undefined, essential: undefined, theme: 'endless', seats: 2,
-    target: { reach, minForced: full.minForced, minDeep: full.minDeep, greedyLoses: full.greedyLoses, maxRandom: full.maxRandom, maxGuesses: full.maxGuesses },
+    target: {
+      reach, goal: full.goal, minForced: full.minForced, minDeep: full.minDeep, greedyLoses: full.greedyLoses, maxRandom: full.maxRandom,
+      maxGuesses: full.maxGuesses,
+    },
+  };
+}
+
+/** Late Taquería rows the endless pool cycles through (normal tier). */
+const POOL_ROWS = [22, 24, 26, 27, 28, 29, 32, 33, 34, 36, 37, 38, 39];
+
+/**
+ * A Taquería level of the pre-built endless pool (scripts/build-endless.ts): a late row at full size
+ * with the full late targets of the local level `like` it plays like; `visit` alternates the hard
+ * and banquet shapes, `step` picks another row (neighbouring dish sets stay apart).
+ */
+export function taqueriaPoolSpec(n: number, like: number, visit: number, step = 0): TacoSpec {
+  const tier = taqueriaTier(like);
+  const local = tier === 'superhard' ? (visit % 2 ? 30 : 40) : tier === 'hard' ? (visit % 2 ? 25 : 35) : POOL_ROWS[(n * 5 + step) % POOL_ROWS.length];
+  const spec = taqueriaSpec(local);
+  return {
+    ...spec, n, local: undefined, tier, intro: undefined, essential: undefined, theme: 'endless pool',
+    target: { ...taqueriaTarget(like, tier, undefined, spec) },
   };
 }

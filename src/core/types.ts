@@ -55,6 +55,20 @@ export interface LevelStats {
    * whether some move is safe: reasoning about the hidden tiles matters there
    */
   riddles?: number;
+  /**
+   * The goal-directed players (measure.ts): win rate of the strong one (plans 4 moves along the
+   * orders, slips 5% of the time: a strong human's first try) and of the careful one (6 moves, no
+   * slips: the fairness check).
+   */
+  goal?: number;
+  careful?: number;
+  /**
+   * Bottlenecks along uniformly sampled winning lines: per line, the positions where exactly one
+   * move keeps the level winnable, each scoring 1 + the moves a wrong choice stays hidden (`narrow`
+   * counts the positions alone).
+   */
+  bottleneck?: number;
+  narrow?: number;
 }
 
 /**
@@ -62,7 +76,7 @@ export interface LevelStats {
  * (a tortilla catches the next fillings), 'park' (lay a new tortilla over a half-made taco),
  * 'topping' (a ticket's marked filling must go in last).
  */
-export type Intro = DishId | 'lid' | 'slots' | 'tortilla' | 'park' | 'topping' | 'cloche' | 'frozen';
+export type Intro = DishId | 'lid' | 'slots' | 'tortilla' | 'park' | 'topping' | 'cloche' | 'frozen' | 'oven' | 'grill';
 
 export interface LevelDef {
   /** campaign level number, 1-based (the global position; see shifts.ts) */
@@ -99,6 +113,12 @@ export interface LevelDef {
    * column is blocked behind it until then. The ice shows the takes still to go.
    */
   frozen?: [number, number, number][];
+  /**
+   * The stove (rules: kitchen.ts, burger.ts). Trattoria: per dish, the takes it bakes in the oven
+   * once its parts are together (its guest waits; the dish takes a counter slot meanwhile). Burger
+   * Joint: `patty`, the takes a patty grills before it can go on a plate.
+   */
+  stove?: Partial<Record<DishId | FoodId, number>>;
   /** taco kitchens, twist "topping last": per dish, the filling that must go into it last */
   toppings?: Partial<Record<DishId, FoodId>>;
   /** a winning sequence of column indices */

@@ -19,7 +19,7 @@ export interface Settings {
  * longer fit them: every save then restarts the campaign once (coins, boosters, decor, the
  * cookbook and settings stay).
  */
-export const CAMPAIGN_VERSION = 2;
+export const CAMPAIGN_VERSION = 3;
 
 export interface SaveData {
   v: 1;

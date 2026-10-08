@@ -4,7 +4,7 @@ import { DISHES, type DishId } from '../src/core/content';
 import { stackDishOf } from '../src/core/burger';
 import { kitchenFor } from '../src/core/kitchen';
 import {
-  BURGER_TUTORIAL, CAMPAIGN_LEVELS, introAt, introAtLocal, localOf, SHIFT_ORDER, TUTORIAL, tierForLevel, WORLD_MENUS, WORLD_RULES, worldOf,
+  BURGER_TUTORIAL, CAMPAIGN_LEVELS, endlessWorld, introAt, introAtLocal, localOf, SHIFT_ORDER, TUTORIAL, tierForLevel, WORLD_MENUS, WORLD_RULES, worldOf,
 } from '../src/core/progression';
 import { createSim } from '../src/core/sim';
 import type { LevelDef } from '../src/core/types';
@@ -193,6 +193,28 @@ describe('campaign levels', () => {
     }
   });
 
+  it('the stove and the ragù chain come after their intro levels, on the dishes that cook', () => {
+    const at = (intro: string) => levels.find((l) => l.intro === intro)!.n;
+    const oven = at('oven');
+    const grill = at('grill');
+    expect(levels[oven - 1].tier).toBe('normal');
+    expect(levels[grill - 1].tier).toBe('normal');
+    expect(levels[oven - 1].world).toBe(0);
+    expect(levels[grill - 1].world).toBe(1);
+    for (const lv of levels) {
+      if (!lv.stove) continue;
+      if (lv.rules === 'burger') {
+        expect(lv.n, `L${lv.n} grill`).toBeGreaterThanOrEqual(grill);
+        expect(lv.orders, `L${lv.n} grill without a burger`).toContain('burger');
+      } else {
+        expect(lv.n, `L${lv.n} oven`).toBeGreaterThanOrEqual(oven);
+        for (const d of Object.keys(lv.stove)) expect(lv.orders, `L${lv.n} oven dish ${d}`).toContain(d);
+      }
+    }
+    const ragu = at('tagliatelle');
+    for (const lv of levels) if (lv.columns.flat().includes('beef')) expect(lv.n, `L${lv.n} beef`).toBeGreaterThanOrEqual(ragu);
+  });
+
   it('carries the measured difficulty', () => {
     for (const lv of levels) {
       const st = lv.stats!;
@@ -205,10 +227,13 @@ describe('campaign levels', () => {
       if (lv.tier !== 'normal' && lv.rules !== 'taco') expect(st.tight, `L${lv.n} tight`).toBe(true);
       if (lv.rules !== 'taco' && (lv.local! >= 11 || (lv.world === 0 && lv.local! >= 9))) expect(st.greedy, `L${lv.n} greedy`).toBe(false);
     }
-    // every level carries its planning numbers
+    // every level carries its planning numbers and the goal-directed players' rates
     for (const lv of levels) {
       const st = lv.stats!;
       expect(st.plan, `L${lv.n} plan`).toHaveLength(5);
+      expect(st.goal, `L${lv.n} goal`).toBeDefined();
+      expect(st.careful, `L${lv.n} careful`).toBeGreaterThanOrEqual(st.goal! - 0.25);
+      expect(st.bottleneck, `L${lv.n} bottleneck`).toBeDefined();
       expect(st.depth, `L${lv.n} depth`).toBeGreaterThanOrEqual(1);
       expect(st.forced, `L${lv.n} forced`).toBeLessThanOrEqual(st.critical);
       expect(st.deep, `L${lv.n} deep`).toBeLessThanOrEqual(st.critical);
@@ -249,5 +274,43 @@ describe('campaign levels', () => {
       // from the 11th level of a world on, every level is tight (levels that introduce something may breathe)
       for (const l of world) if (local(l) >= 11 && !l.intro) expect(l.stats!.tight, `L${l.n} tight`).toBe(true);
     }
+  });
+});
+
+describe('the endless pool', () => {
+  const POOL = new URL('../src/data/levels-endless.json', import.meta.url);
+  const pool: LevelDef[] = existsSync(POOL) ? JSON.parse(readFileSync(POOL, 'utf8')) : [];
+
+  it('holds the levels right after the campaign, in 5-level shifts of the three kitchens', () => {
+    expect(pool.length).toBeGreaterThanOrEqual(120);
+    expect(readFileSync(POOL).length).toBeLessThan(300 * 1024);
+    pool.forEach((lv, i) => {
+      expect(lv.n).toBe(CAMPAIGN_LEVELS + 1 + i);
+      expect(lv.world).toBe(endlessWorld(lv.n));
+      expect(lv.tier).toBe(tierForLevel(lv.n));
+      expect(lv.menu).toBe(WORLD_MENUS[lv.world]);
+    });
+  });
+
+  it('every stored solution wins, and neighbouring levels of a kitchen serve different dish sets', () => {
+    const last = new Map<number, string>();
+    for (const lv of pool) {
+      const sim = createSim(lv);
+      for (const m of lv.solution!) expect(sim.take(m), `#${lv.n} move ${m}`).not.toBeNull();
+      expect(sim.status, `#${lv.n}`).toBe('won');
+      const set = [...new Set(lv.orders)].sort().join(',');
+      expect(last.get(lv.world), `#${lv.n} dish set`).not.toBe(set);
+      last.set(lv.world, set);
+    }
+  });
+
+  it('is at campaign quality: a strong player loses most hard levels and banquets on the first try', () => {
+    const rate = (t: string) => {
+      const g = pool.filter((l) => l.tier === t);
+      return g.reduce((a, l) => a + l.stats!.goal!, 0) / g.length;
+    };
+    expect(rate('hard')).toBeLessThan(0.4);
+    expect(rate('superhard')).toBeLessThan(0.35);
+    expect(rate('normal')).toBeLessThan(0.7);
   });
 });

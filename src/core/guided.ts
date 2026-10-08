@@ -19,7 +19,9 @@
  */
 import type { FoodId } from './content';
 import { isTight } from './metrics';
-import { deduce, lineDepth, measureDepth, plannerRates, PLAN_DEPTHS, planningDepth, withAnyRules } from './measure';
+import {
+  bottlenecks, CAREFUL, deduce, GoalPlayer, lineDepth, measureDepth, plannerRates, PLAN_DEPTHS, planningDepth, STRONG, withAnyRules,
+} from './measure';
 import { alongLine, naturalSolution, greedyPlayout } from './metrics';
 import { Rng } from './rng';
 import { Solver, SolverBudgetError } from './solver';
@@ -65,6 +67,11 @@ export interface PlanTarget {
    * because the planners misjudge it
    */
   maxRandom?: number;
+  /** win rate bands of the strong goal-directed player (a strong human's first try) and the careful one (fairness) */
+  goal?: [number, number];
+  careful?: [number, number];
+  /** bottleneck score along the winning lines, at least */
+  minBottleneck?: number;
 }
 
 /** Best win rate of the planners looking at most d moves ahead. */
@@ -89,13 +96,18 @@ export function planObjective(st: LevelStats, t: PlanTarget): number {
   if (t.minIceCut !== undefined) v += Math.max(0, t.minIceCut - (st.iceCut ?? 0));
   if (t.minRiddles && st.riddles !== undefined) v += 0.3 * Math.max(0, t.minRiddles - st.riddles);
   if (t.maxRandom !== undefined && st.random > t.maxRandom) v += 1.5 * Math.log10(st.random / t.maxRandom);
+  if (t.goal) v += 2 * linBand(st.goal ?? 0, t.goal);
+  if (t.careful) v += 2 * linBand(st.careful ?? 0, t.careful);
+  if (t.minBottleneck) v += 0.08 * Math.max(0, t.minBottleneck - (st.bottleneck ?? 0));
   return v;
 }
 
 /** How far the planner profile is from the middle of its bands (choosing among on-target levels). */
 export function planAim(st: LevelStats, t: PlanTarget): number {
   let d = 0;
-  if (t.reach) for (const [k, band] of Object.entries(t.reach)) if (band) d += Math.abs(reachOf(st.plan, Number(k)) - (band[0] + band[1]) / 2);
+  if (t.reach) for (const [k, band] of Object.entries(t.reach)) if (band) d += 0.5 * Math.abs(reachOf(st.plan, Number(k)) - (band[0] + band[1]) / 2);
+  if (t.goal && st.goal !== undefined) d += Math.abs(st.goal - (t.goal[0] + t.goal[1]) / 2);
+  if (t.careful && st.careful !== undefined) d += 0.5 * Math.abs(st.careful - (t.careful[0] + t.careful[1]) / 2);
   return d;
 }
 
@@ -210,7 +222,9 @@ export function quickStats(lv: LevelDef, t: Needs, o: ScoreOptions): LevelStats 
       if (!solver.winnable()) return null;
       const sol = naturalSolution(solver, h)!;
       const { forced, deep } = lineDepth(solver, h, sol);
-      const depths = o.depths ?? PLAN_DEPTHS;
+      // only the planner depths the target's bands ask about (the deep planners are the slow part)
+      const maxBand = Math.max(0, ...Object.keys(t.reach ?? {}).map(Number));
+      const depths = o.depths ?? (maxBand ? PLAN_DEPTHS.filter((d) => d <= maxBand) : PLAN_DEPTHS);
       const rates = plannerRates(rules, h, o.runs, o.seed, depths);
       const plan = PLAN_DEPTHS.map((dd) => {
         const k = depths.indexOf(dd);
@@ -227,6 +241,13 @@ export function quickStats(lv: LevelDef, t: Needs, o: ScoreOptions): LevelStats 
         residue.set(st, r);
       }
       if (t.minIceCut !== undefined) st.iceCut = cutOf(lv, { ...lv, frozen: undefined }, o.budget, solver.countWins());
+      if (t.goal) st.goal = new GoalPlayer(rules, h, STRONG).rate(o.runs, o.seed ^ 0x6a09);
+      if (t.careful) st.careful = new GoalPlayer(rules, h, CAREFUL).rate(o.runs, o.seed ^ 0xbb67);
+      if (t.minBottleneck) {
+        const b = bottlenecks(solver, 8, o.seed ^ 0x3c6e);
+        st.bottleneck = b.score;
+        st.narrow = b.narrow;
+      }
       return st;
     });
   } catch (e) {
@@ -399,6 +420,15 @@ export function finalStats(lv: LevelDef, o: { holdout: number; seed: number; bud
   if (m && depths !== PLAN_DEPTHS) m.stats.plan = PLAN_DEPTHS.map((d) => (depths.includes(d) ? m.stats.plan![depths.indexOf(d)] : 0));
   if (!m) return null;
   m.stats.tight = tightOf(lv, o.budget);
+  withAnyRules(lv, undefined, (rules, h) => {
+    m.stats.goal = new GoalPlayer(rules, h, STRONG).rate(o.holdout, o.seed ^ 0x6a09);
+    if (!o.fast) {
+      m.stats.careful = new GoalPlayer(rules, h, CAREFUL).rate(o.holdout, o.seed ^ 0xbb67);
+      const b = bottlenecks(new Solver(rules, o.budget), 16, o.seed ^ 0x3c6e);
+      m.stats.bottleneck = b.score;
+      m.stats.narrow = b.narrow;
+    }
+  });
   if (o.lidCut && lv.lids?.some((x) => x > 0)) m.stats.lidCut = cutOf(lv, { ...lv, lids: undefined }, o.budget);
   if (lv.frozen?.length) m.stats.iceCut = cutOf(lv, { ...lv, frozen: undefined }, o.budget);
   return m;

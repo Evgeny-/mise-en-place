@@ -18,7 +18,7 @@
  */
 import { BURGER_ITEMS, BurgerRules, makeStackTicket, stackDishOf } from './burger';
 import type { DishId, FoodId } from './content';
-import { KitchenRules, kitchenFor, type Kitchen } from './kitchen';
+import { KitchenRules, kitchenFor, type Kitchen, type KState } from './kitchen';
 import { generateGuided, planAim, planObjective, type Draft, type GuidedOptions, type PlanTarget } from './guided';
 import { isTight, measureLevel, roundStats, thinkingRate } from './metrics';
 import { endlessLocal, endlessSpec, endlessWorld } from './progression';
@@ -84,6 +84,8 @@ export interface LevelSpec {
   frozen?: number;
   /** cloches (a tile hidden until it reaches the front of its column) */
   cloches?: number;
+  /** the stove: oven dishes and their baking takes (Trattoria), or `patty` grill takes (Burger Joint) */
+  stove?: LevelDef['stove'];
   /** a lid opens after at most this many dishes */
   lidMax?: number;
   /** golden line: preference for holding an item over combining it (0 = none) */
@@ -173,9 +175,11 @@ export interface GoldenLine {
 }
 
 /**
- * Randomised DFS over item types that serves every order under the exact rules (the landing-slot
- * rule included). Moves that hold an item (nothing combines) get a random bonus scaled by
- * `holdBias`, so the line parks items and the dealt columns ask for planning.
+ * Randomised DFS that serves every order under the exact rules (the landing-slot rule, chains and
+ * the oven included): the pantry is one column per item type, so any remaining item can be taken
+ * next. Moves that hold an item (nothing combines) get a random bonus scaled by `holdBias`, so the
+ * line parks items and the dealt columns ask for planning. Dealing the line into columns in its
+ * order replays it exactly (the oven finishes when the pantry is empty in both).
  */
 export function goldenLine(
   menu: string,
@@ -185,47 +189,37 @@ export function goldenLine(
   rng: Rng,
   holdBias = 0.5,
   nodeCap = 20000,
+  stove?: LevelDef['stove'],
 ): GoldenLine | null {
-  const rules = new KitchenRules({ menu, columns: [], slots, seats, orders });
-  const k = rules.k;
+  const k = kitchenFor(menu);
   const rem = new Array<number>(k.items.length).fill(0);
   for (const d of orders) for (const x of k.rawParts(k.dish(d))) rem[x]++;
   const types = rem.map((c, i) => (c > 0 ? i : -1)).filter((i) => i >= 0);
-  const start = rules.start();
+  const columns = types.map((t) => new Array<FoodId>(rem[t]).fill(k.items[t]));
+  const rules = new KitchenRules({ menu, columns, slots, seats, orders, stove });
   const dead = new Set<string>();
   const path: number[] = [];
   const occs: number[] = [];
   const servedBefore: number[] = [];
   let nodes = 0;
-  const total = orders.length;
 
-  const dfs = (counts: number[], seatsNow: number[], next: number, served: number, occ: number): boolean => {
-    if (served === total) return true;
-    const key = rem.join(',') + '|' + counts.join(',') + '|' + seatsNow.join(',') + '|' + next;
+  const dfs = (s: KState): boolean => {
+    if (rules.isWin(s)) return true;
+    const key = rules.key(s);
     if (dead.has(key)) return false;
     if (++nodes > nodeCap) return false;
-    const cands: { w: number; t: number; counts: number[]; seats: number[]; next: number; served: number; occ: number }[] = [];
-    for (const t of types) {
-      if (!rem[t]) continue;
-      const c2 = counts.slice();
-      c2[t]++;
-      const s2 = seatsNow.slice();
-      const st = { next, served };
-      rules.resolve(c2, s2, st);
-      let occ2 = 0;
-      for (const x of c2) occ2 += x;
-      if (occ2 > slots) continue;
-      const holds = occ2 === occ + 1 && st.served === served;
-      cands.push({ w: rng.next() + (holds ? holdBias * rng.next() : 0), t, counts: c2, seats: s2, next: st.next, served: st.served, occ: occ2 });
-    }
+    const occ = rules.occupancy(s);
+    const cands = rules.successors(s).map(([m, n]) => {
+      const occ2 = rules.occupancy(n);
+      const holds = occ2 === occ + 1 && n.served === s.served;
+      return { w: rng.next() + (holds ? holdBias * rng.next() : 0), m, n, occ: occ2 };
+    });
     cands.sort((a, b) => b.w - a.w);
     for (const c of cands) {
-      rem[c.t]--;
-      path.push(c.t);
+      path.push(types[c.m]);
       occs.push(c.occ);
-      servedBefore.push(served);
-      if (dfs(c.counts, c.seats, c.next, c.served, c.occ)) return true;
-      rem[c.t]++;
+      servedBefore.push(s.served);
+      if (dfs(c.n)) return true;
       path.pop();
       occs.pop();
       servedBefore.pop();
@@ -235,8 +229,16 @@ export function goldenLine(
     return false;
   };
 
-  if (!dfs(start.counts, start.seats, start.next, start.served, 0)) return null;
+  if (!dfs(rules.start())) return null;
   return { items: path.slice(), servedBefore: servedBefore.slice(), peak: Math.max(0, ...occs) };
+}
+
+/** The oven times of a combo spec that apply to its orders (undefined: no oven dish ordered). */
+function stoveOf(spec: LevelSpec, orders: DishId[]): LevelDef['stove'] | undefined {
+  if (!spec.stove) return undefined;
+  const out: LevelDef['stove'] = {};
+  for (const [d, n] of Object.entries(spec.stove)) if (n && orders.includes(d as DishId)) out[d as DishId] = n;
+  return Object.keys(out).length ? out : undefined;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -408,19 +410,20 @@ export function draftCandidate(spec: LevelSpec, rng: Rng): Draft | null {
     const shape = spec.burger!;
     const tickets = pickTickets(spec, rng);
     if (!tickets) return null;
-    const g = burgerGolden(tickets, spec.seats, spec.slots, rng, shape.park ?? 0.9);
-    if (spec.target.tight && g.peak < spec.slots) return null;
+    const g = burgerGolden(tickets, spec.seats, spec.slots, rng, shape.park ?? 0.9, spec.stove);
+    if (!g || (spec.target.tight && g.peak < spec.slots)) return null;
     const items = g.items.map((i) => BURGER_ITEMS[i]);
     const lens = columnHeights(items.length, spec.columns, spec.depth, rng, spec.spread ?? 1, items.length >= 2 * spec.columns ? 2 : 1);
     const dealt = deal(spec, lens, g.servedBefore, rng);
     if (!dealt) return null;
     const base: LevelDef = { ...baseLevel(spec, tickets.map(stackDishOf)), rules: 'burger', tickets };
+    if (spec.stove?.patty) base.stove = { patty: spec.stove.patty };
     if (dealt.lids) base.lids = dealt.lids;
     return { base, items, labels: dealt.labels, servedBefore: g.servedBefore, thaw: items.map(() => 0), columns: spec.columns, depth: spec.depth };
   }
   const orders = pickOrders(spec, rng);
   if (!orders) return null;
-  const g = goldenLine(spec.menu, orders, spec.seats, spec.slots, rng, spec.holdBias ?? 0.6);
+  const g = goldenLine(spec.menu, orders, spec.seats, spec.slots, rng, spec.holdBias ?? 0.6, 20000, stoveOf(spec, orders));
   if (!g) return null;
   if (spec.target.tight && g.peak < spec.slots) return null;
   const k = kitchenFor(spec.menu);
@@ -429,6 +432,8 @@ export function draftCandidate(spec: LevelSpec, rng: Rng): Draft | null {
   if (!dealt) return null;
   const base = baseLevel(spec, orders);
   if (dealt.lids) base.lids = dealt.lids;
+  const stove = stoveOf(spec, orders);
+  if (stove) base.stove = stove;
   return {
     base, items: g.items.map((i) => k.items[i]), labels: dealt.labels, servedBefore: g.servedBefore, thaw: g.items.map(() => 0),
     columns: spec.columns, depth: spec.depth,
@@ -615,25 +620,28 @@ export function pickTickets(spec: LevelSpec, rng: Rng): FoodId[][] | null {
  * before each take and the fullest counter. One column per item type lets the exact rules route
  * every take (leftmost plate, else the counter) and cascade.
  */
-export function burgerGolden(tickets: FoodId[][], seats: number, slots: number, rng: Rng, park = 0.9): GoldenLine {
+export function burgerGolden(tickets: FoodId[][], seats: number, slots: number, rng: Rng, park = 0.9, stove?: LevelDef['stove']): GoldenLine | null {
   const count = BURGER_ITEMS.map((id) => tickets.reduce((a, t) => a + t.filter((x) => x === id).length, 0));
   const columns = BURGER_ITEMS.map((id, i) => new Array<FoodId>(count[i]).fill(id));
-  const r = new BurgerRules({ columns, slots, seats, tickets });
+  const r = new BurgerRules({ columns, slots, seats, tickets, stove: stove?.patty ? { patty: stove.patty } : undefined });
+  const patty = BURGER_ITEMS.indexOf('patty');
   let s = r.start();
   const items: number[] = [];
   const servedBefore: number[] = [];
   let peak = 0;
   while (!r.isWin(s)) {
     const steps = r.successors(s);
-    const feeds = steps.filter(([m]) => r.target(s, m) >= 0);
-    const parks = steps.filter(([m]) => r.target(s, m) < 0);
-    const step = parks.length && rng.chance(park)
+    // with a grill a patty never goes straight onto a plate: taking one is like parking
+    const feeds = steps.filter(([m]) => r.target(s, m) >= 0 && !(r.grillTime && m === patty));
+    const parks = steps.filter((st) => !feeds.includes(st));
+    if (!steps.length) return null;
+    const step = parks.length && (!feeds.length || rng.chance(park))
       ? parks[rng.weighted(parks.map(([m]) => count[m] - s.ptr[m]))]
       : feeds[rng.int(0, feeds.length - 1)];
     items.push(step[0]);
     servedBefore.push(s.served);
     s = step[1];
-    peak = Math.max(peak, s.counts.reduce((a, b) => a + b, 0));
+    peak = Math.max(peak, r.occupancy(s));
   }
   return { items, servedBefore, peak };
 }
@@ -679,7 +687,7 @@ function buildBurgerCandidate(spec: LevelSpec, rng: Rng): { level: LevelDef; gol
   const slots = spec.slots - (shape.slack ?? 0);
   const g = burgerGolden(tickets, spec.seats, slots, rng, shape.park ?? 0.9);
   // A tight split needs a golden order that fills the counter (the guided split is expensive).
-  if ((shape.slack !== undefined || spec.target.tight) && g.peak < slots) return null;
+  if (!g || ((shape.slack !== undefined || spec.target.tight) && g.peak < slots)) return null;
   const items = g.items.map((i) => BURGER_ITEMS[i]);
   const lens = columnHeights(items.length, spec.columns, spec.depth, rng, spec.spread ?? 1, items.length >= 2 * spec.columns ? 2 : 1);
   let labels: number[];
@@ -716,7 +724,7 @@ function buildBurgerCandidate(spec: LevelSpec, rng: Rng): { level: LevelDef; gol
 
 /** Search budget of the runtime generator (endless levels in the Web Worker). */
 export const ENDLESS_OPTIONS: GuidedOptions = {
-  attempts: 2, iters: 10, keep: 1, runs: 6, holdout: 8, depths: [1, 2, 3], fast: true, clocheTries: 2, worlds: 8, budget: 150_000,
+  attempts: 3, iters: 40, keep: 1, runs: 8, holdout: 12, depths: [1, 2, 3], fast: true, clocheTries: 3, worlds: 10, budget: 150_000,
 };
 
 /**

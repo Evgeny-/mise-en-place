@@ -44,6 +44,7 @@ export function tacoHeuristic(r: TacoRules): Heuristic<TState> {
     return p;
   };
   return {
+    wanted: (s) => deficit(s),
     priorities(s, steps) {
       const sv = r.served(s);
       let p0 = -1;

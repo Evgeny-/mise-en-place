@@ -35,6 +35,8 @@ function once(f: () => void): () => void {
 /** Intro-card pictures of the pantry mechanics: a cloche over a plate, an ice block with its countdown. */
 const MECH_ART = {
   cloche: `<svg width="110" height="96" viewBox="0 0 110 96" aria-hidden="true"><ellipse cx="55" cy="84" rx="48" ry="9" fill="#e9e1d3"/><ellipse cx="55" cy="81" rx="42" ry="6" fill="#fffaf0"/><path d="M14 80a41 41 0 0 1 82 0Z" fill="#c9ced3"/><path d="M22 78a33 33 0 0 1 30-32" fill="none" stroke="#f4f6f8" stroke-width="6" stroke-linecap="round"/><circle cx="55" cy="35" r="7" fill="#aeb4ba"/><text x="58" y="72" font-family="Nunito, sans-serif" font-weight="900" font-size="30" fill="#7c848c" text-anchor="middle">?</text></svg>`,
+  oven: `<svg width="110" height="100" viewBox="0 0 110 100" aria-hidden="true"><rect x="10" y="22" width="90" height="70" rx="12" fill="#3f3a3a"/><rect x="20" y="34" width="70" height="44" rx="8" fill="#ffb347"/><rect x="24" y="38" width="62" height="36" rx="6" fill="#ff7a2f"/><circle cx="24" cy="15" r="6" fill="#8d8585"/><circle cx="44" cy="15" r="6" fill="#8d8585"/><circle cx="82" cy="52" r="16" fill="#c2410c" stroke="#fff" stroke-width="3"/><text x="82" y="60" font-family="Nunito, sans-serif" font-weight="900" font-size="22" fill="#fff" text-anchor="middle">2</text></svg>`,
+  grill: `<svg width="110" height="100" viewBox="0 0 110 100" aria-hidden="true"><ellipse cx="50" cy="66" rx="42" ry="20" fill="#2f2a2a"/><ellipse cx="50" cy="62" rx="36" ry="15" fill="#ff7a2f"/><ellipse cx="50" cy="56" rx="26" ry="11" fill="#6b3b26"/><path d="M30 54h40M33 59h34" stroke="#3d1f12" stroke-width="3" stroke-linecap="round"/><path d="M38 30c-4-6 4-8 0-14M50 30c-4-6 4-8 0-14M62 30c-4-6 4-8 0-14" stroke="#cfd6dc" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="88" cy="30" r="16" fill="#c2410c" stroke="#fff" stroke-width="3"/><text x="88" y="38" font-family="Nunito, sans-serif" font-weight="900" font-size="22" fill="#fff" text-anchor="middle">2</text></svg>`,
   frozen: `<svg width="100" height="100" viewBox="0 0 100 100" aria-hidden="true"><rect x="12" y="14" width="76" height="74" rx="14" fill="#bfe6f5" stroke="#8fcbe0" stroke-width="4"/><path d="M22 26l14 0M22 34l8 0" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M70 88v6M58 88v4" stroke="#8fcbe0" stroke-width="4" stroke-linecap="round"/><text x="52" y="72" font-family="Nunito, sans-serif" font-weight="900" font-size="46" fill="#2f6f8f" text-anchor="middle">3</text></svg>`,
 };
 
@@ -680,7 +682,7 @@ export class App {
     const art = isDish
       ? `<img src="${icons.dish(intro as DishId)}" width="120" height="120" alt="">`
       : intro === 'lid' || intro === 'slots' ? glyph(intro === 'lid' ? 'lid' : 'slot', 84)
-      : intro === 'cloche' || intro === 'frozen' ? MECH_ART[intro]
+      : intro === 'cloche' || intro === 'frozen' || intro === 'oven' || intro === 'grill' ? MECH_ART[intro]
       : `<img src="${icons.food('tortilla')}" width="100" height="100" alt="">`;
     openDialog({
       title: t(isDish ? 'newDish' : 'newRule'),

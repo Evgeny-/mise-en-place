@@ -137,6 +137,22 @@ const STRINGS = {
     ru: 'Клош: под колпаком спрятан продукт. Колпак поднимется, когда продукт окажется первым в колонке. Подсказка: в кладовой лежит ровно то, что нужно гостям, — сравните билеты с открытыми продуктами и вычислите, что под колпаком.',
     en: 'A cloche hides an ingredient. It lifts when the tile reaches the front of its column. A clue: the pantry holds exactly what the guests ordered, so compare the tickets with what you can see and work out what is underneath.',
   },
+  intro_oven: {
+    ru: 'Печь: пицца и кальцоне не подаются сразу. Когда всё для блюда на столе, оно печётся несколько ходов на своём месте — место занято, а гость ждёт. Каждый ход из любой колонки считается: держите ходы, которые не забьют стол, пока печь работает. Когда кладовая опустеет, печь закончит сама.',
+    en: 'The oven: pizza and calzone aren’t served at once. When all their parts are on the counter, the dish bakes in its spot for a few moves: the spot stays taken and the guest waits. Every take from any column counts, so keep moves ready that won’t clog the counter while the oven works. Once the pantry is empty, the oven finishes by itself.',
+  },
+  intro_grill: {
+    ru: 'Гриль: котлета не ложится на булочку сразу. Сначала она жарится несколько ходов на своём месте на столе, и только потом скользит на тарелку. Планируйте: пока котлета жарится, место занято.',
+    en: 'The grill: a patty doesn’t go straight onto the bun. It first grills in its own spot on the counter for a few moves, then slides onto the plate. Plan for it: while the patty grills, that spot is taken.',
+  },
+  intro_tagliatelle: {
+    ru: 'Тальятелле с рагу: макароны и рагу. Рагу — цепочка: два помидора дают соус, а соус рядом с фаршем сразу становится рагу. Осторожно: фарш на столе заберёт соус, который ждут спагетти или пицца!',
+    en: 'Tagliatelle al ragù: pasta and ragù. Ragù is a chain: two tomatoes make sauce, and sauce next to minced beef turns into ragù at once. Careful: beef waiting on the counter steals the sauce a spaghetti or a pizza needs!',
+  },
+  intro_lasagne: {
+    ru: 'Лазанья: макароны, рагу и сыр — и в печь. Рагу снова цепочка: помидор, помидор, фарш.',
+    en: 'Lasagne: pasta, ragù and cheese, then into the oven. The ragù is a chain again: tomato, tomato, beef.',
+  },
   intro_frozen: {
     ru: 'Из морозилки: продукт во льду, и колонка за ним ждёт. Число на льду — сколько ходов осталось до того, как он оттает. Каждый ход из любой колонки считается — запаситесь ходами, которые не забьют стол.',
     en: 'From the freezer: this tile is frozen, and its column waits behind it. The number on the ice is how many moves until it thaws. Every take from any column counts, so plan moves that won’t clog the counter.',

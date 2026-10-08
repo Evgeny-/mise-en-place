@@ -9,6 +9,7 @@ import { BURGER_LAYERS, LAYER_REACH, LAYER_THICKNESS, buildLayer, buildPantryLay
 import { burger, hotdog, minestrone, omelette, pancakes, pizza, sandwich, spaghetti, sundae } from './dishes';
 import { bruschetta, calzone, caprese, carbonara, gnocchi, pestoPasta, risotto, tiramisu } from './trattoriaDishes';
 import { fallbackDish, fallbackFood } from './fallback';
+import { beef, lasagne, ragu, tagliatelle } from './ragu';
 import {
   avocado, beans, chicken, corn, fillingPiece as buildFillingPiece, fillingSlots, guacamole, lime, pork, salsa, tortilla, wrap,
   type FillingSlot,
@@ -37,7 +38,7 @@ export { BURGER_LAYERS, LAYER_REACH, type BurgerLayerId };
 const FOOD_BUILDERS: Partial<Record<FoodId, (k: Kit) => void>> = {
   tomato, onion, carrot, potato, cheese, egg, flour, pasta, mushroom,
   bread, basil: basilBunch, mozzarella, rice, bacon, mascarpone, coffee,
-  sauce, dough, soffritto, pesto, gnocchi_dough: gnocchiDough, cream,
+  sauce, dough, soffritto, pesto, gnocchi_dough: gnocchiDough, cream, beef, ragu,
   bun_bottom: (k) => buildPantryLayer(k, 'bun_bottom'),
   patty: (k) => buildPantryLayer(k, 'patty'),
   cheese_slice: (k) => buildPantryLayer(k, 'cheese_slice'),
@@ -61,7 +62,7 @@ const FOOD_BUILDERS: Partial<Record<FoodId, (k: Kit) => void>> = {
 
 const DISH_BUILDERS: Partial<Record<DishId, (k: Kit) => void>> = {
   pizza, spaghetti, minestrone, omelette, burger, hotdog, pancakes, sandwich, sundae,
-  bruschetta, caprese, risotto, pesto_pasta: pestoPasta, carbonara, gnocchi, calzone, tiramisu,
+  bruschetta, caprese, risotto, pesto_pasta: pestoPasta, carbonara, gnocchi, calzone, tiramisu, tagliatelle, lasagne,
   quesadilla, tostada, enchiladas,
 };
 for (const id of Object.keys(DISHES) as DishId[]) {

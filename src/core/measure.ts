@@ -23,7 +23,7 @@ import { BurgerRules } from './burger';
 import { KitchenRules } from './kitchen';
 import {
   alongLine, burgerHeuristic, greedyPlayout, greedyStep, kitchenHeuristic, naturalSolution, phaseRandom, requiredLookahead,
-  stepsOf, Thinker, type Heuristic, type Stepper,
+  stepsOf, Thinker, type Heuristic, type Step, type Stepper,
 } from './metrics';
 import { Rng } from './rng';
 import { Solver, SolverBudgetError, WIN } from './solver';
@@ -103,7 +103,7 @@ export function simpleHeuristic<S>(rules: Stepper<S>): Heuristic<S> {
     return (s as unknown as { served: number }).served;
   };
   const occ = (s: S): number => {
-    if (rules instanceof TacoRules || rules instanceof KitchenRules) return rules.occupancy(s as never);
+    if (rules instanceof TacoRules || rules instanceof KitchenRules || rules instanceof BurgerRules) return rules.occupancy(s as never);
     let n = 0;
     for (const c of (s as unknown as { counts: number[] }).counts) n += c;
     return n;
@@ -453,4 +453,172 @@ export function measureDepth(level: AnyLevel, opts: ProfileOptions & { solution?
     if (hidden) stats.sighted = plannerRates(rules, h, runs, seed, [3])[0];
     return { stats, solution };
   });
+}
+
+// ---------------------------------------------------------------------------------------------
+// The goal-directed player and bottlenecks
+
+/** Dishes served in a position (any kitchen). */
+function servedOf<S>(rules: Stepper<S>, s: S): number {
+  if (rules instanceof TacoRules) return rules.served(s as never);
+  return (s as unknown as { served: number }).served;
+}
+
+export interface GoalOptions {
+  /** moves the player plans ahead along its goal */
+  depth: number;
+  /** chance per decision to slip: take a plausible move (a wanted item or a dig) without checking it */
+  slip: number;
+  /** rows below the top a wanted item may lie for a dig to count as purposeful */
+  dig?: number;
+  /** search nodes per decision before settling for the best plan so far */
+  nodes?: number;
+}
+
+/**
+ * The goal-directed player: reasons backwards from the orders, as people do. At every decision it
+ * considers only purposeful moves — taking an item a seated guest still needs (preps and chains
+ * expanded to their raw parts), or digging toward one (a wanted item at most `dig` rows down) — and
+ * plans along them up to `depth` moves ahead (also past the next serve: a serve that jams the
+ * kitchen right after is no plan); plans are compared by the kitchen's position value (which
+ * protects the counter: a free spot, no extra sauce, nothing nobody needs). A plan that jams the
+ * kitchen is avoided. With probability
+ * `slip` it takes a plausible move without checking it (the mistake model). Moves outside the
+ * goal are considered only when no purposeful move exists.
+ */
+export class GoalPlayer<S> {
+  private readonly cols: number[][];
+
+  constructor(
+    readonly rules: Stepper<S>,
+    readonly h: Heuristic<S>,
+    readonly o: GoalOptions,
+  ) {
+    this.cols = (rules as unknown as { cols: number[][] }).cols;
+  }
+
+  /** The purposeful moves among `steps` (all of them if none is). */
+  purposeful(s: S, steps: Step<S>[]): Step<S>[] {
+    if (!this.h.wanted) return steps;
+    const want = this.h.wanted(s);
+    const ptr = (s as unknown as { ptr: number[] }).ptr;
+    const dig = this.o.dig ?? 2;
+    const out = steps.filter(([m]) => {
+      const col = this.cols[m];
+      for (let r = ptr[m]; r < Math.min(col.length, ptr[m] + 1 + dig); r++) if (want[col[r]] > 0) return true;
+      return false;
+    });
+    return out.length ? out : steps;
+  }
+
+  private search(s: S, d: number, goal: number, memo: Map<string, number>, budget: { n: number }): number {
+    if (this.rules.isWin(s)) return 1e9;
+    const key = d + '#' + this.rules.key(s);
+    const hit = memo.get(key);
+    if (hit !== undefined) return hit;
+    const steps = stepsOf(this.rules, s);
+    let v: number;
+    if (!steps.length) v = -1e8 - 1000 * d;
+    else if (d === 0 || --budget.n < 0) v = this.h.value(s) + (servedOf(this.rules, s) > goal ? 1 : 0);
+    else {
+      v = -Infinity;
+      for (const [, n] of this.purposeful(s, steps)) {
+        const x = this.search(n, d - 1, goal, memo, budget);
+        if (x > v) v = x;
+        if (v >= 1e9) break;
+      }
+    }
+    memo.set(key, v);
+    return v;
+  }
+
+  /** One game from the start: did it win? */
+  play(rng: Rng, start: S = this.rules.start()): boolean {
+    let s = start;
+    for (let guard = 0; guard <= this.rules.length + 1; guard++) {
+      if (this.rules.isWin(s)) return true;
+      const steps = stepsOf(this.rules, s);
+      if (!steps.length) return false;
+      const options = this.purposeful(s, steps);
+      let pick: Step<S>;
+      if (options.length > 1 && rng.next() < this.o.slip) pick = options[rng.int(0, options.length - 1)];
+      else {
+        const goal = servedOf(this.rules, s);
+        const memo = new Map<string, number>();
+        const budget = { n: this.o.nodes ?? 4000 };
+        const choose = (cands: Step<S>[]): [Step<S>, number] => {
+          let p = cands[0];
+          let best = -Infinity;
+          for (const st of cands) {
+            const v = this.search(st[1], this.o.depth - 1, goal, memo, budget) + rng.next() * 0.5;
+            if (v > best) {
+              best = v;
+              p = st;
+            }
+          }
+          return [p, best];
+        };
+        let best: number;
+        [pick, best] = choose(options);
+        // every purposeful plan jams the kitchen: look at the other moves too
+        if (best < -1e7 && options.length < steps.length) [pick] = choose(steps);
+      }
+      s = pick[1];
+    }
+    return this.rules.isWin(s);
+  }
+
+  rate(runs: number, seed: number): number {
+    const rng = new Rng(seed);
+    let wins = 0;
+    for (let i = 0; i < runs; i++) if (this.play(rng)) wins++;
+    return runs ? wins / runs : 0;
+  }
+}
+
+/** The strong goal-directed player of the targets (plans 4 moves along its goal, slips 5% of the time). */
+export const STRONG: GoalOptions = { depth: 4, slip: 0.05 };
+/** The careful one of the fairness check (plans 6 moves along its goal, never slips). */
+export const CAREFUL: GoalOptions = { depth: 6, slip: 0 };
+
+/** Win rate of the goal-directed player on a level (any kitchen). */
+export function goalRate(level: AnyLevel, o: GoalOptions, runs: number, seed: number): number {
+  return withAnyRules(level, undefined, (r, h) => new GoalPlayer(r, h, o).rate(runs, seed));
+}
+
+/**
+ * Bottlenecks along winning lines: `samples` winning lines drawn uniformly (each winning line as
+ * likely as any other); a position where exactly one of several legal moves keeps the level winnable
+ * scores 1 + the moves a wrong choice stays hidden (playable before the kitchen jams, at most 9).
+ * Returns the mean score per line and the mean number of such positions.
+ */
+export function bottlenecks<S>(solver: Solver<S>, samples: number, seed: number): { score: number; narrow: number } {
+  const rng = new Rng(seed);
+  let score = 0;
+  let narrow = 0;
+  for (let k = 0; k < samples; k++) {
+    let s = solver.rules.start();
+    for (let guard = 0; guard <= solver.rules.length + 1 && !solver.rules.isWin(s); guard++) {
+      const steps = solver.successors(s);
+      const wins = steps.map(([, n]) => (solver.surv(n) === WIN ? solver.countWins(n) : 0));
+      const safe = wins.filter((w) => w > 0).length;
+      if (safe === 1 && steps.length > 1) {
+        let hidden = 0;
+        for (const [, n] of steps) {
+          const v = solver.surv(n);
+          if (v !== WIN) hidden = Math.max(hidden, v);
+        }
+        score += 1 + Math.min(9, hidden);
+        narrow++;
+      }
+      const total = wins.reduce((a, b) => a + b, 0);
+      if (!total) break;
+      let x = rng.next() * total;
+      let i = 0;
+      while (i < wins.length - 1 && (x -= wins[i]) > 0) i++;
+      while (wins[i] === 0) i++;
+      s = steps[i][1];
+    }
+  }
+  return { score: samples ? score / samples : 0, narrow: samples ? narrow / samples : 0 };
 }

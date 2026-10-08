@@ -151,6 +151,23 @@ export class Tickets {
         });
         return;
       }
+      // the oven: the dish is baking for this guest; the ticket shows a countdown badge
+      const baking = sim.baking?.(i) ?? null;
+      let badge = tk.root.querySelector<HTMLElement>('.oven-badge');
+      if (baking !== null) {
+        if (!badge) {
+          badge = h('span', { class: 'oven-badge' });
+          Object.assign(badge.style, {
+            position: 'absolute', right: '-8px', top: '-10px', minWidth: '26px', height: '26px', padding: '0 6px', borderRadius: '13px',
+            background: '#c2410c', color: '#fff', font: '800 15px/26px Nunito, sans-serif', textAlign: 'center', boxShadow: '0 2px 0 rgba(0,0,0,0.25)',
+          });
+          tk.root.append(badge);
+        }
+        badge.textContent = `♨ ${baking}`;
+        tk.parts.forEach((el) => el.classList.add('ok'));
+        return;
+      }
+      badge?.remove();
       // tick parts present on the counter (each counter item ticks one part)
       const pool = sim.counter.filter((x): x is FoodId => !!x);
       DISHES[dish].parts.forEach((p, j) => {

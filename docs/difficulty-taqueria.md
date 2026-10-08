@@ -39,21 +39,21 @@ opening (L2–8) asks for the same as every kitchen's: a forced decision from L2
 planning by L5–8; L1 stays the tutorial. Tightness is recorded but not targeted (a 4-spot
 counter rarely is; the receiving tortilla is this world's dial).
 
-| Levels (local) | Planner reach | Forced / deep decisions | Random win | Also |
-|---|---|---|---|---|
-| L1 (tutorial) | d2 ≥ 60% | – | 50%–100% | – |
-| L2–3 | d1 ≤ 70%, d2 ≥ 60% | forced ≥ 1 | 10%–100% | greedy loses, ≥ 1 critical |
-| L4 (park intro) | d1 ≤ 55%, d2 ≥ 55% | forced ≥ 2 | 10%–100% | greedy loses, ≥ 1 critical |
-| L5 (hard) | d2 ≤ 50%, d3 ≥ 50% | forced ≥ 2, deep ≥ 1 | 3%–30% | greedy loses, ≥ 3 critical |
-| L6 (quesadilla intro) | d2 ≤ 60%, d3 ≥ 50% | forced ≥ 2 | – | greedy loses |
-| L7–8 | d2 ≤ 50%, d3 ≥ 55% | forced ≥ 2, deep ≥ 1 | – | greedy loses |
-| Normal, L9 | d2 ≤ 59%, d3 30%–88%, d5 ≥ 55% | forced ≥ 2, deep ≥ 1 | ≤ 39% | greedy loses |
-| Normal, L39 (bands slide linearly) | d2 ≤ 20%, d3 15%–40%, d5 ≥ 55% | forced ≥ 4, deep ≥ 3 | ≤ 16% | greedy loses |
-| Intro levels (8, 11, 13, 16, 21, 23, 31) | d2 ≤ 75%, d3 ≥ 50%, d5 ≥ 70% | forced ≥ 1 | ≤ 64% | greedy loses |
-| Hard L15 | d2 ≤ 20%, d3 ≤ 37%, d5 ≥ 40% | forced ≥ 3, deep ≥ 3 | ≤ 9.6% | greedy loses, ≥ 1 cloche riddle |
-| Hard L35 | d2 ≤ 20%, d3 ≤ 27%, d5 ≥ 40% | forced ≥ 4, deep ≥ 5 | ≤ 9.6% | greedy loses, ice cuts ≥ 15%, ≥ 1 cloche riddle |
-| Banquet L10 | d2 10%–50%, d3 30%–70%, d5 ≥ 60% | forced ≥ 3, deep ≥ 2 | ≤ 13% | greedy loses |
-| Banquets L20, 30, 40 | d3 ≤ 25%, d4 ≤ 40%, d5 ≥ 25% | forced ≥ 4, deep ≥ 4 | ≤ 4.8% | greedy loses, ≤ 1 cloche guess, ice cuts ≥ 15% |
+| Levels (local) | Goal-directed players | Planner reach | Forced / deep / bottlenecks | Random win | Also |
+|---|---|---|---|---|---|
+| L1 (tutorial) | – | d2 ≥ 60% | – | 50%–100% | – |
+| L2–3 | strong 60%–100%, careful 85%–100% | d1 ≤ 70%, d2 ≥ 60% | forced ≥ 1 | 10%–100% | greedy loses, ≥ 1 critical |
+| L4 (park intro) | strong 55%–100%, careful 85%–100% | d1 ≤ 55%, d2 ≥ 55% | forced ≥ 2 | 10%–100% | greedy loses, ≥ 1 critical |
+| L5 (hard) | strong 40%–90%, careful 80%–100% | d2 ≤ 50%, d3 ≥ 50% | forced ≥ 2, deep ≥ 1 | 3%–30% | greedy loses, ≥ 3 critical |
+| L6 (quesadilla intro) | strong 45%–95%, careful 80%–100% | d2 ≤ 60%, d3 ≥ 50% | forced ≥ 2 | – | greedy loses |
+| L7–8 | strong 40%–90%, careful 80%–100% | d2 ≤ 50%, d3 ≥ 55% | forced ≥ 2, deep ≥ 1 | – | greedy loses |
+| Normal, L9 | strong 44%–84%, careful 60%–100% | d2 ≤ 59%, d3 30%–88% | forced ≥ 2, deep ≥ 1, bottlenecks ≥ 1 | ≤ 39% | greedy loses |
+| Normal, L39 (bands slide linearly) | strong 25%–55%, careful 50%–100% | d2 ≤ 20%, d3 15%–40% | forced ≥ 4, deep ≥ 3, bottlenecks ≥ 4 | ≤ 16% | greedy loses |
+| Intro levels (8, 11, 13, 16, 21, 23, 31) | strong 40%–95%, careful 75%–100% | d2 ≤ 75%, d3 ≥ 50% | forced ≥ 1 | ≤ 64% | greedy loses |
+| Hard L15 | strong 0%–30%, careful 20%–70% | d2 ≤ 20%, d3 ≤ 37% | forced ≥ 3, deep ≥ 3, bottlenecks ≥ 4 | ≤ 9.6% | greedy loses, ≥ 1 cloche riddle |
+| Hard L35 | strong 0%–30%, careful 20%–70% | d2 ≤ 20%, d3 ≤ 27% | forced ≥ 4, deep ≥ 5, bottlenecks ≥ 6 | ≤ 9.6% | greedy loses, ice cuts ≥ 15%, ≥ 1 cloche riddle |
+| Banquet L10 | strong 15%–60%, careful 50%–100% | d2 10%–50%, d3 30%–70% | forced ≥ 3, deep ≥ 2 | ≤ 13% | greedy loses |
+| Banquets L20, 30, 40 | strong 0%–20%, careful 15%–60% | d3 ≤ 25%, d4 ≤ 40% | forced ≥ 4, deep ≥ 4, bottlenecks ≥ 6 | ≤ 4.8% | greedy loses, ≤ 1 cloche guess, ice cuts ≥ 15% |
 
 L4 must be unwinnable if the OLDEST tortilla received; L7 must be unwinnable without the scoop. Cloches and ice as in the Trattoria.
 
@@ -66,61 +66,61 @@ guest (36).
 
 ## Measured (40 levels)
 
-| Tier | Levels | Planner d1 / d2 / d3 / d4 / d5 | Planning depth | Forced | Deep | Random win (mean / median) | Critical | Items | Board | Guests | Seats | Tight | Cloches / ice |
-|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Opening, L1–5 (L1 the tutorial, L5 hard) | 5 | 39 / 73 / 89 / 96 / 98 | 2.0 | 2.6 | 2.8 | 41.5% / 31.7% | 5.2 | 14.2 | 3.0 cols | 3.0 | 1–2 | 0/5 | 0 / 0 |
-| Normal, L6–20 | 12 | 17 / 28 / 70 / 77 / 84 | 3.2 | 3.6 | 4.1 | 16.1% / 12.4% | 6.6 | 20.5 | 4.3 cols | 4.2 | 2 | 2/12 | 4 / 2 |
-| Normal, L21–39 | 16 | 10 / 15 / 45 / 67 / 73 | 3.9 | 4.9 | 5.1 | 7.2% / 3.5% | 8.3 | 24.9 | 5.0 cols | 4.9 | 2–3 | 5/16 | 9 / 6 |
-| Hard, L15–35 | 3 | 9 / 17 / 16 / 24 / 53 | 5.3 | 7.7 | 7.7 | 2.8% / 1.7% | 12.0 | 25.7 | 5.0 cols | 5.0 | 2 | 1/3 | 3 / 1 |
-| Banquets, L10–40 | 4 | 5 / 16 / 26 / 37 / 52 | 4.8 | 6.3 | 7.0 | 1.8% / 1.1% | 10.5 | 28.0 | 5.8 cols | 5.8 | 2–3 | 1/4 | 2 / 3 |
+| Tier | Levels | Strong player | Careful player | Bottlenecks | Planner d1 / d2 / d3 / d4 / d5 | Planning depth | Forced | Deep | Random win (mean / median) | Items | Board | Guests | Seats | Tight | Cloches / ice / stove |
+|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Opening, L1–5 (L1 the tutorial, L5 hard) | 5 | 84% | 100% | 0.8 | 45 / 72 / 89 / 97 / 94 | 1.8 | 1.8 | 2.4 | 53.1% / 47.4% | 14.4 | 3.0 cols | 3.0 | 1–2 | 0/5 | 0 / 0 / 0 |
+| Normal, L6–20 | 12 | 69% | 94% | 2.8 | 19 / 32 / 60 / 79 / 86 | 2.8 | 3.8 | 4.0 | 13.5% / 10.6% | 20.5 | 4.3 cols | 4.2 | 2 | 3/12 | 4 / 2 / 0 |
+| Normal, L21–39 | 16 | 50% | 84% | 4.4 | 15 / 24 / 44 / 66 / 82 | 3.7 | 4.3 | 5.8 | 4.2% / 2.7% | 25.0 | 5.0 cols | 4.9 | 2–3 | 7/16 | 9 / 6 / 0 |
+| Hard, L15–35 | 3 | 16% | 53% | 11.5 | 6 / 3 / 18 / 36 / 47 | 5.3 | 7.0 | 9.0 | 0.9% / 1.1% | 25.7 | 5.0 cols | 5.0 | 2 | 3/3 | 3 / 1 / 0 |
+| Banquets, L10–40 | 4 | 23% | 37% | 8.7 | 8 / 14 / 20 / 36 / 50 | 4.8 | 7.5 | 9.5 | 1.8% / 0.9% | 28.0 | 5.8 cols | 5.8 | 2–3 | 1/4 | 2 / 3 / 0 |
 
 ## Levels
 
 Dishes: Ca carnitas, Po pollo, Ve veggie, Fr frijol, Vd verde, Qu quesadilla, To tostada; BCa, BPo,
 BVe, BVd the burritos, En enchiladas. Board = columns × tallest column.
 
-| Local | # | Tier | Teaches | Guests | Items | Board | Slots | Seats | Planner d1–d5 | Depth | Forced | Deep | Random | Greedy | Tight | Cloches / ice |
-|---:|---:|---|---|---|---:|---|---:|---:|---|---:|---:|---:|---:|---|---|---|
-| 1 | 26 | normal | **new: tortilla** — a tortilla catches the next three fillings | Ca Ve | 9 | 2×5 | 4 | 1 | 100/100/100/100/100 | 1 | 0 | 0 | 100.0% | wins | – | – |
-| 2 | 27 | normal | **new: chicken taco** — salsa drops into the tortilla | Po Po Ca | 15 | 3×5 | 4 | 2 | 25/100/100/100/100 | 2 | 1 | 2 | 31.7% | loses | – | – |
-| 3 | 28 | normal | finish one taco before the next filling | Po Po Ve | 14 | 3×5 | 4 | 2 | 17/59/72/100/100 | 2 | 3 | 5 | 24.2% | loses | – | – |
-| 4 | 29 | normal | **new: park** — park a half-made taco under a new tortilla | Ca Po Ca | 15 | 3×5 | 4 | 2 | 11/63/91/91/100 | 2 | 3 | 4 | 39.9% | loses | – | – |
-| 5 | 30 | hard | tortilla stack | Po Ve Ve Ca | 18 | 4×5 | 4 | 2 | 42/45/84/89/88 | 3 | 6 | 3 | 11.9% | loses | – | – |
-| 6 | 41 | normal | **new: quesadilla** — chicken and double cheese | Ve Qu Qu | 12 | 3×5 | 4 | 2 | 14/36/92/95/100 | 3 | 2 | 3 | 54.9% | loses | – | – |
-| 7 | 42 | normal | a taco for the queue; loose fillings get scooped in order | Po Ca Ca Qu | 19 | 4×5 | 4 | 2 | 0/0/92/100/59 | 3 | 2 | 1 | 20.9% | loses | yes | – |
-| 8 | 43 | normal | **new: bean taco** — beans, cheese and salsa | Ca Fr Ca Fr | 20 | 4×5 | 4 | 2 | 36/45/77/94/100 | 3 | 2 | 2 | 24.9% | loses | – | – |
-| 9 | 44 | normal | plan for the queue, under a cloche | Fr Fr Ve Po | 19 | 4×5 | 4 | 2 | 27/31/34/80/73 | 4 | 7 | 7 | 8.7% | loses | – | 2 cloches (1 riddle) |
-| 10 | 45 | superhard | banquet: taco night | Qu Po Fr Ve Ca | 23 | 5×5 | 4 | 2 | 20/39/61/81/69 | 3 | 6 | 7 | 4.7% | loses | – | – |
-| 11 | 56 | normal | **new: 3-slot counter** — small counter: three slots | Fr Ca Ca Qu | 19 | 4×5 | 3 | 2 | 11/30/94/88/97 | 3 | 5 | 2 | 11.7% | loses | – | – |
-| 12 | 57 | normal | small counter | Ve Po Fr Po | 19 | 4×5 | 3 | 2 | 20/58/69/67/88 | 2 | 3 | 5 | 19.2% | loses | yes | 2 cloches (5 riddles) |
-| 13 | 58 | normal | **new: burrito** — a wrap holds four | BVe Po BVe Po | 20 | 4×5 | 4 | 2 | 34/39/86/45/81 | 3 | 3 | 2 | 5.2% | loses | – | – |
-| 14 | 59 | normal | which container is receiving? one is frozen | Qu BVe BVe Ca | 19 | 4×5 | 4 | 2 | 23/0/64/52/95 | 3 | 2 | 2 | 2.4% | loses | – | 1 ice (cuts 91%) |
-| 15 | 60 | hard | three-slot rush | BVe BVe Fr Po Po | 25 | 5×5 | 3 | 2 | 0/31/27/5/53 | 5 | 9 | 7 | 1.3% | loses | yes | 2 cloches (6 riddles) |
-| 16 | 71 | normal | **new: enchiladas** — chicken, beans, cheese, salsa | En Ve Ve En | 20 | 5×5 | 4 | 2 | 11/30/81/97/100 | 3 | 2 | 3 | 20.1% | loses | – | – |
-| 17 | 72 | normal | tacos, a burrito and enchiladas | En BVe Ca Ca BVe | 26 | 5×6 | 4 | 2 | 2/9/45/56/72 | 4 | 5 | 7 | 6.3% | loses | – | 2 cloches (4 riddles) |
-| 18 | 73 | normal | the carnitas burrito | Po Po Qu Qu BCa | 24 | 5×5 | 4 | 2 | 20/23/44/52/63 | 4 | 7 | 6 | 13.2% | loses | – | 1 ice (cuts 75%) |
-| 19 | 74 | normal | two wraps | BCa En Fr BCa En | 29 | 5×6 | 4 | 2 | 9/33/59/94/75 | 3 | 3 | 9 | 5.8% | loses | – | 2 cloches (3 riddles) |
-| 20 | 75 | superhard | banquet: burrito night | Ca En BVe Ca Ve Po | 30 | 6×5 | 4 | 2 | 2/11/14/30/50 | 5 | 8 | 7 | 1.3% | loses | yes | 1 ice (cuts 95%) |
-| 21 | 86 | normal | **new: taco verde** — guacamole: avocado + lime | Vd Po Vd Po | 20 | 4×5 | 4 | 2 | 20/22/88/100/88 | 3 | 3 | 2 | 11.5% | loses | – | – |
-| 22 | 87 | normal | salsa or guacamole | Ca Vd Vd BVe Ca | 25 | 5×5 | 4 | 2 | 31/14/66/92/81 | 3 | 3 | 2 | 5.4% | loses | – | 2 cloches (4 riddles) |
-| 23 | 88 | normal | **new: tostada** — beans, lettuce, guacamole | To To To Fr Fr | 25 | 5×5 | 4 | 2 | 11/41/72/81/86 | 3 | 2 | 2 | 11.1% | loses | yes | – |
-| 24 | 89 | normal | the guacamole menu | Vd Qu Vd To To | 24 | 5×5 | 4 | 2 | 9/8/31/34/53 | 5 | 3 | 5 | 3.5% | loses | – | 1 ice (cuts 92%) |
-| 25 | 90 | hard | beans for everyone | BCa BCa Po To Po | 27 | 5×6 | 4 | 2 | 5/9/6/39/63 | 5 | 7 | 7 | 1.7% | loses | – | 2 cloches (2 riddles) |
-| 26 | 101 | normal | the chicken burrito | BPo En Ve BPo Ve | 26 | 5×6 | 4 | 2 | 5/13/23/69/36 | 4 | 9 | 8 | 12.8% | loses | – | 2 cloches (1 riddle), 1 ice (cuts 95%) |
-| 27 | 102 | normal | the full menu, small counter | Fr BCa Vd BCa Fr | 27 | 5×6 | 3 | 2 | 5/19/45/58/75 | 4 | 5 | 3 | 4.2% | loses | – | 2 cloches (2 riddles) |
-| 28 | 103 | normal | the full menu on ice | To To Qu Qu BPo | 24 | 5×5 | 4 | 2 | 9/16/38/48/73 | 5 | 10 | 2 | 1.5% | loses | yes | 2 ice (cuts 55%) |
-| 29 | 104 | normal | the full menu, small counter | Ca Vd Ca En En | 27 | 5×6 | 3 | 2 | 6/33/23/80/78 | 4 | 4 | 7 | 1.2% | loses | yes | 2 cloches (1 riddle) |
-| 30 | 105 | superhard | banquet: fiesta | Qu To Ca Fr BVd Po | 30 | 6×5 | 4 | 2 | 0/6/14/22/38 | 6 | 5 | 9 | 0.47% | loses | – | 2 cloches (2 riddles), 1 ice (cuts 42%) |
-| 31 | 111 | normal | **new: topping** — topping last: cheese goes on top (Ca cheese) | Po Po Ca Ca | 20 | 4×5 | 4 | 2 | 25/23/86/97/89 | 3 | 5 | 7 | 37.8% | loses | – | – |
-| 32 | 112 | normal | topping last, under a cloche (Ca cheese, Po lettuce) | BVe BVe Po Ca Po | 25 | 5×5 | 4 | 2 | 14/19/31/52/75 | 4 | 4 | 8 | 2.9% | loses | – | 2 cloches (1 riddle) |
-| 33 | 113 | normal | topping last on ice (Ca cheese, Po lettuce) | Fr Fr Po Qu Po | 24 | 5×5 | 4 | 2 | 3/14/31/34/78 | 5 | 4 | 6 | 1.4% | loses | – | 1 ice (cuts 92%) |
-| 34 | 114 | normal | topping last, small counter (Ca cheese, Po lettuce) | Ve Ca To Ca To | 24 | 5×5 | 3 | 2 | 0/13/28/66/70 | 4 | 4 | 3 | 2.2% | loses | yes | 2 cloches (1 riddle) |
-| 35 | 115 | hard | toppings and burritos (Ca cheese, Po lettuce) | Ca BVe Po Po Ca | 25 | 5×5 | 4 | 2 | 23/9/16/30/44 | 6 | 7 | 9 | 5.5% | loses | – | 2 cloches (1 riddle), 1 ice (cuts 82%) |
-| 36 | 116 | normal | three guests: toppings everywhere (Ca cheese, Po lettuce, Ve lettuce, BVe cheese) | Po Ca Po Ca Ve BVe | 29 | 6×5 | 4 | 3 | 0/0/41/63/73 | 4 | 5 | 7 | 0.71% | loses | – | 1 ice (cuts 82%) |
-| 37 | 117 | normal | three guests: topping last, full menu (Ca cheese, Po lettuce) | Vd Po Vd En Po | 26 | 5×6 | 4 | 3 | 0/2/52/55/73 | 3 | 7 | 9 | 3.0% | loses | – | 2 cloches (4 riddles) |
-| 38 | 118 | normal | topping last, small counter (Ca cheese, Po lettuce) | Fr Fr Ca Ca BPo | 26 | 5×6 | 3 | 2 | 6/3/28/86/64 | 4 | 4 | 4 | 3.5% | loses | yes | 2 cloches (3 riddles), 1 ice (cuts 56%) |
-| 39 | 119 | normal | three guests: toppings everywhere (Ca cheese, Po lettuce, Ve lettuce, BVe cheese) | To BVd BVd Ve To | 26 | 6×5 | 4 | 3 | 8/2/42/53/80 | 4 | 7 | 6 | 13.1% | loses | – | 2 cloches (1 riddle) |
-| 40 | 120 | superhard | grand fiesta (Ca cheese, Po lettuce) | Fr BVe Vd Po Qu Ca | 29 | 6×5 | 4 | 3 | 0/6/16/14/52 | 5 | 6 | 5 | 0.79% | loses | – | 2 cloches (1 riddle), 1 ice (cuts 30%) |
+| Local | # | Tier | Teaches | Guests | Items | Board | Slots | Seats | Strong / careful | Bottlenecks | Planner d1–d5 | Depth | Forced | Deep | Random | Greedy | Tight | Mechanics |
+|---:|---:|---|---|---|---:|---|---:|---:|---|---:|---|---:|---:|---:|---:|---|---|---|
+| 1 | 26 | normal | **new: tortilla** — a tortilla catches the next three fillings | Ca Ve | 9 | 2×5 | 4 | 1 | 100% / 100% | 0.0 | 100/100/100/100/100 | 1 | 0 | 0 | 100.0% | wins | – | – |
+| 2 | 27 | normal | **new: chicken taco** — salsa drops into the tortilla | Po Ca Po | 15 | 3×5 | 4 | 2 | 81% / 100% | 0.4 | 50/84/97/97/100 | 1 | 1 | 3 | 37.3% | loses | – | – |
+| 3 | 28 | normal | finish one taco before the next filling | Po Po Ve | 14 | 3×5 | 4 | 2 | 94% / 100% | 0.0 | 30/75/73/100/100 | 2 | 3 | 3 | 47.4% | loses | – | – |
+| 4 | 29 | normal | **new: park** — park a half-made taco under a new tortilla | Ca Po Ca | 15 | 3×5 | 4 | 2 | 89% / 100% | 1.2 | 47/67/97/100/72 | 2 | 2 | 1 | 67.8% | loses | – | – |
+| 5 | 30 | hard | tortilla stack | Ve Ca Ca Po | 19 | 4×5 | 4 | 2 | 56% / 100% | 2.4 | 0/31/80/88/100 | 3 | 3 | 5 | 13.2% | loses | – | – |
+| 6 | 41 | normal | **new: quesadilla** — chicken and double cheese | Qu Qu Ve | 12 | 3×5 | 4 | 2 | 53% / 100% | 4.7 | 0/61/39/67/95 | 2 | 2 | 2 | 34.2% | loses | – | – |
+| 7 | 42 | normal | a taco for the queue; loose fillings get scooped in order | Po Ca Ca Qu | 19 | 4×5 | 4 | 2 | 92% / 100% | 0.9 | 33/0/91/98/100 | 3 | 3 | 1 | 11.4% | loses | – | – |
+| 8 | 43 | normal | **new: bean taco** — beans, cheese and salsa | Ca Fr Ca Fr | 20 | 4×5 | 4 | 2 | 92% / 98% | 0.4 | 27/34/73/94/100 | 3 | 2 | 9 | 30.4% | loses | – | – |
+| 9 | 44 | normal | plan for the queue, under a cloche | Po Ve Po Fr | 19 | 4×5 | 4 | 2 | 84% / 73% | 1.5 | 6/8/55/91/52 | 3 | 6 | 6 | 10.5% | loses | yes | 2 cloches (4 riddles) |
+| 10 | 45 | superhard | banquet: taco night | Po Ca Fr Ve Qu | 23 | 5×5 | 4 | 2 | 72% / 72% | 1.4 | 19/38/55/67/63 | 3 | 4 | 2 | 5.3% | loses | – | – |
+| 11 | 56 | normal | **new: 3-slot counter** — small counter: three slots | Qu Fr Fr Ca | 19 | 4×5 | 3 | 2 | 69% / 98% | 2.9 | 27/61/70/88/98 | 2 | 3 | 0 | 7.3% | loses | – | – |
+| 12 | 57 | normal | small counter | Fr Po Fr Ve | 19 | 4×5 | 3 | 2 | 72% / 98% | 4.4 | 0/28/50/73/84 | 3 | 7 | 5 | 4.0% | loses | yes | 2 cloches (2 riddles) |
+| 13 | 58 | normal | **new: burrito** — a wrap holds four | BVe Po Po BVe | 20 | 4×5 | 4 | 2 | 72% / 100% | 0.6 | 28/41/66/95/100 | 3 | 2 | 1 | 29.3% | loses | – | – |
+| 14 | 59 | normal | which container is receiving? one is frozen | BVe Qu BVe Ca | 19 | 4×5 | 4 | 2 | 66% / 86% | 7.7 | 0/17/64/73/100 | 3 | 4 | 4 | 10.7% | loses | yes | 1 ice (cuts 18%) |
+| 15 | 60 | hard | three-slot rush | BVe BVe Po Fr Fr | 25 | 5×5 | 3 | 2 | 28% / 45% | 11.8 | 5/9/36/48/44 | 6 | 6 | 7 | 1.3% | loses | yes | 2 cloches (6 riddles) |
+| 16 | 71 | normal | **new: enchiladas** — chicken, beans, cheese, salsa | En Ve Ve En | 20 | 5×5 | 4 | 2 | 45% / 100% | 2.1 | 50/22/69/70/97 | 1 | 2 | 6 | 17.8% | loses | – | – |
+| 17 | 72 | normal | tacos, a burrito and enchiladas | BVe Ca Ca En BVe | 26 | 5×6 | 4 | 2 | 61% / 72% | 2.9 | 2/20/45/66/31 | 4 | 4 | 2 | 2.5% | loses | – | 2 cloches (1 riddle) |
+| 18 | 73 | normal | the carnitas burrito | Qu Qu BCa BCa Po | 25 | 5×5 | 4 | 2 | 67% / 98% | 3.8 | 31/45/61/61/98 | 3 | 7 | 6 | 2.7% | loses | – | 1 ice (cuts 82%) |
+| 19 | 74 | normal | two wraps | En BCa Fr En Fr | 28 | 5×6 | 4 | 2 | 59% / 98% | 1.4 | 28/44/36/67/75 | 4 | 3 | 6 | 0.96% | loses | – | 2 cloches (2 riddles) |
+| 20 | 75 | superhard | banquet: burrito night | En Ca Ve Po BVe BVe | 30 | 6×5 | 4 | 2 | 0% / 23% | 6.8 | 13/16/16/23/50 | 5 | 7 | 10 | 0.71% | loses | – | 1 ice (cuts 39%) |
+| 21 | 86 | normal | **new: taco verde** — guacamole: avocado + lime | Vd Po Vd Po | 20 | 4×5 | 4 | 2 | 69% / 92% | 0.8 | 52/53/67/83/89 | 1 | 3 | 3 | 22.6% | loses | – | – |
+| 22 | 87 | normal | salsa or guacamole | Vd BVe Ca Vd BVe | 25 | 5×5 | 4 | 2 | 39% / 100% | 7.2 | 19/28/38/100/100 | 4 | 4 | 3 | 2.5% | loses | yes | 2 cloches (6 riddles) |
+| 23 | 88 | normal | **new: tostada** — beans, lettuce, guacamole | To To To Fr Fr | 25 | 5×5 | 4 | 2 | 61% / 97% | 0.8 | 14/47/72/98/100 | 3 | 1 | 5 | 5.5% | loses | – | – |
+| 24 | 89 | normal | the guacamole menu | Qu Vd To Vd To | 24 | 5×5 | 4 | 2 | 55% / 94% | 6.4 | 16/11/41/89/100 | 4 | 3 | 4 | 3.7% | loses | – | 1 ice (cuts 61%) |
+| 25 | 90 | hard | beans for everyone | To To Po BCa BCa | 27 | 5×6 | 4 | 2 | 5% / 53% | 10.3 | 2/0/2/55/69 | 4 | 11 | 10 | 1.1% | loses | yes | 2 cloches (5 riddles) |
+| 26 | 101 | normal | the chicken burrito | BPo En BPo Ve En | 28 | 5×6 | 4 | 2 | 52% / 73% | 3.8 | 8/25/22/50/75 | 4 | 6 | 7 | 2.9% | loses | – | 2 cloches (1 riddle), 1 ice (cuts 36%) |
+| 27 | 102 | normal | the full menu, small counter | BCa Vd Fr Fr Vd | 26 | 5×6 | 3 | 2 | 45% / 91% | 3.9 | 6/34/34/30/41 | 6 | 5 | 7 | 0.33% | loses | yes | 2 cloches (2 riddles) |
+| 28 | 103 | normal | the full menu on ice | Qu BPo Qu BPo To | 25 | 5×5 | 4 | 2 | 39% / 95% | 3.7 | 6/19/38/75/100 | 4 | 4 | 9 | 3.3% | loses | yes | 2 ice (cuts 59%) |
+| 29 | 104 | normal | the full menu, small counter | En Ca Ca Vd Vd | 26 | 5×6 | 3 | 2 | 47% / 75% | 5.8 | 2/19/52/70/64 | 3 | 5 | 4 | 0.51% | loses | yes | 2 cloches (2 riddles) |
+| 30 | 105 | superhard | banquet: fiesta | Qu Ca Po BVd To Fr | 30 | 6×5 | 4 | 2 | 20% / 39% | 24.0 | 0/2/5/22/61 | 5 | 13 | 18 | 0.00% | loses | yes | 2 cloches (3 riddles), 1 ice (cuts 14%) |
+| 31 | 111 | normal | **new: topping** — topping last: cheese goes on top (Ca cheese) | Ca Ca Po Po | 20 | 4×5 | 4 | 2 | 86% / 92% | 2.6 | 55/63/89/95/98 | 1 | 2 | 1 | 10.8% | loses | – | – |
+| 32 | 112 | normal | topping last, under a cloche (Ca cheese, Po lettuce) | Ca Po Po Ca BVe | 25 | 5×5 | 4 | 2 | 58% / 88% | 1.8 | 3/3/36/44/59 | 5 | 5 | 6 | 1.6% | loses | – | 2 cloches (3 riddles) |
+| 33 | 113 | normal | topping last on ice (Ca cheese, Po lettuce) | Fr Qu Fr Po Po | 24 | 5×5 | 4 | 2 | 31% / 64% | 7.6 | 0/14/47/53/64 | 4 | 5 | 7 | 0.69% | loses | – | 1 ice (cuts 84%) |
+| 34 | 114 | normal | topping last, small counter (Ca cheese, Po lettuce) | Ve Ca To To Ca | 24 | 5×5 | 3 | 2 | 44% / 81% | 8.6 | 19/9/17/56/92 | 4 | 4 | 3 | 0.65% | loses | yes | 2 cloches (1 riddle) |
+| 35 | 115 | hard | toppings and burritos (Ca cheese, Po lettuce) | BVe BVe Ca Ca Po | 25 | 5×5 | 4 | 2 | 14% / 61% | 12.4 | 13/0/17/6/28 | 6 | 4 | 10 | 0.32% | loses | yes | 2 cloches (2 riddles), 1 ice (cuts 40%) |
+| 36 | 116 | normal | three guests: toppings everywhere (Ca cheese, Po lettuce, Ve lettuce, BVe cheese) | BVe Po BVe Ve Ca Po | 29 | 6×5 | 4 | 3 | 42% / 83% | 2.3 | 6/17/28/70/94 | 4 | 6 | 8 | 6.6% | loses | – | 1 ice (cuts 41%) |
+| 37 | 117 | normal | three guests: topping last, full menu (Ca cheese, Po lettuce) | En Vd Vd En Po | 27 | 5×6 | 4 | 3 | 44% / 64% | 6.4 | 9/25/56/58/70 | 3 | 6 | 7 | 0.31% | loses | yes | 2 cloches (1 riddle) |
+| 38 | 118 | normal | topping last, small counter (Ca cheese, Po lettuce) | BPo Fr BPo Ca Fr | 27 | 5×6 | 3 | 2 | 42% / 91% | 6.1 | 3/8/48/20/84 | 5 | 6 | 11 | 0.87% | loses | yes | 2 cloches (6 riddles), 1 ice (cuts 94%) |
+| 39 | 119 | normal | three guests: toppings everywhere (Ca cheese, Po lettuce, Ve lettuce, BVe cheese) | To BVd Ve BVd Ve | 25 | 6×5 | 4 | 3 | 48% / 70% | 3.3 | 22/6/20/66/75 | 4 | 4 | 7 | 3.9% | loses | – | 2 cloches (1 riddle) |
+| 40 | 120 | superhard | grand fiesta (Ca cheese, Po lettuce) | BVe Ca Po Qu Fr Vd | 29 | 6×5 | 4 | 3 | 2% / 14% | 2.7 | 0/0/5/31/28 | 6 | 6 | 8 | 1.00% | loses | – | 2 cloches (6 riddles), 1 ice (cuts 64%) |
 
 ## What moves difficulty
 
