@@ -43,6 +43,16 @@ export class CounterView {
     this.group.add(this.ring);
   }
 
+  /**
+   * The last part of a dish that is served at once: over the board, between the other parts
+   * (the counter is full, so it has no dish of its own to land on).
+   */
+  joinPos(others: number[], out = new THREE.Vector3()): THREE.Vector3 {
+    const xs = others.filter((i) => i < this.layout.slotX.length).map((i) => this.layout.slotX[i]);
+    const x = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
+    return out.set(x, this.top + 0.75, this.layout.slotZ);
+  }
+
   slotPos(i: number, out = new THREE.Vector3()): THREE.Vector3 {
     const l = this.layout;
     const x = i < l.slotX.length ? l.slotX[i] : l.slotX[l.slotX.length - 1] + l.slotPitch;
@@ -98,14 +108,15 @@ export class CounterView {
 
   /**
    * An item taken from the pantry flies to slot `slot` (or straight onto `target`, the slot of
-   * the item it is about to combine with). `obj` is already in world space.
+   * the item it is about to combine with, or to the point `at` in the air). `obj` is already in
+   * world space.
    */
-  land(obj: THREE.Object3D, from: THREE.Vector3, slot: number, target: number, delay: number, id: FoodId): void {
+  land(obj: THREE.Object3D, from: THREE.Vector3, slot: number, target: number, delay: number, id: FoodId, at?: THREE.Vector3): void {
     this.group.attach(obj);
     obj.position.copy(from);
     this.objs[slot] = obj;
     this.ids[slot] = id;
-    const to = this.slotPos(target);
+    const to = at ?? this.slotPos(target);
     const a = from.clone();
     const p = new THREE.Vector3();
     this.tweens.add(FLIGHT, (k) => {
@@ -120,6 +131,7 @@ export class CounterView {
       tag: obj,
       done: () => {
         obj.rotation.y = 0;
+        if (at) return;
         audio.play('land', { pan: to.x / 6 });
         this.tweens.add(0.42, (k) => {
           const s = squash(k, 0.3);

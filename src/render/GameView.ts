@@ -315,8 +315,12 @@ export class GameView {
         case 'take': {
           const next = events[i + 1];
           const target = next?.t === 'prep' && (next.a === e.slot || next.b === e.slot) ? next.slot : e.slot;
+          // the item that completes a dish on a full counter joins the other parts in the air
+          // above the board instead of landing on the spare spot past it
+          const joins = e.slot >= this.layout.slotX.length && next?.t === 'serve' && next.from.includes(e.slot);
+          const at = joins ? this.counter.joinPos(next.from.filter((s) => s !== e.slot)) : undefined;
           const { food, from } = this.pantry.take(e.col, this.scene);
-          this.counter.land(food, from, e.slot, target, 0, e.item);
+          this.counter.land(food, from, e.slot, target, 0, e.item, at);
           audio.play('take');
           this.guests.lookAt(this.counter.slotPos(target));
           cursor = FLIGHT;
