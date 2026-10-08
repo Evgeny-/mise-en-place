@@ -17,6 +17,8 @@ interface Delivery {
   ready: number;
   /** already in the guest's hands (burgers): eat it where it is */
   held?: boolean;
+  /** part of the same meal as the delivery before it (a set menu): eaten together, side by side */
+  together?: boolean;
 }
 
 interface Layer {
@@ -173,6 +175,24 @@ export class GuestsView {
   }
 
   /** Burger kitchens: the finished stack (a burger, a hot dog, a sundae...) is picked up by its guest and eaten. */
+  /**
+   * A finished stack leaves the plate for the counter (set menus, VIPs): returns it as one group in
+   * world space once its last layer has landed (the counter view moves it), or null if none.
+   */
+  takeStack(seat: number, at: number): THREE.Object3D | null {
+    const s = this.seats[seat];
+    if (!s?.stack.length) return null;
+    const layers = s.stack.splice(0);
+    const holder = new THREE.Group();
+    holder.position.copy(this.platePos(seat));
+    this.group.add(holder);
+    const when = Math.max(at, ...layers.map((l) => l.landAt + 0.05));
+    this.tweens.after(Math.max(0, when - this.time), () => {
+      for (const l of layers) holder.attach(l.obj);
+    });
+    return holder;
+  }
+
   serveStack(seat: number, at: number, dish: DishId = 'burger'): void {
     const s = this.seats[seat];
     const layers = s.stack.splice(0);
@@ -192,7 +212,7 @@ export class GuestsView {
       const to = from.clone().add(new THREE.Vector3(0, 0.55, -0.32));
       this.tweens.add(0.35, (k) => holder.position.lerpVectors(from, to, k), { ease: ease.outBack });
     });
-    s.queue.push({ dish, obj: holder, ready: at + 0.35, held: true });
+    this.push(seat, { dish, obj: holder, ready: at + 0.35, held: true });
   }
 
   private orderIndexAt(sim: Sim, seat: number): number {
@@ -254,7 +274,15 @@ export class GuestsView {
       this.fx.sparkle(pass.x, pass.y, pass.z, '#ffe27a', 22, 1.2);
       this.tweens.add(0.4, (k) => obj.scale.setScalar(Math.max(0.001, k * DISH_SCALE * 0.92)), { ease: ease.outBack });
     });
-    this.seats[seat].queue.push({ dish, obj, ready });
+    this.push(seat, { dish, obj, ready });
+  }
+
+  /** Queues a delivery; one right after another for the same seat is the same meal (a set menu). */
+  private push(seat: number, d: Delivery): void {
+    const q = this.seats[seat].queue;
+    const last = q[q.length - 1];
+    if (last && 'obj' in last && Math.abs(last.ready - d.ready) < 0.9) d.together = true;
+    q.push(d);
   }
 
   /** After the current guest is done, `next` (or nobody) takes the seat. */
@@ -267,18 +295,22 @@ export class GuestsView {
     if (this.time < s.busyUntil || !s.queue.length) return;
     const head = s.queue[0];
     if ('obj' in head) {
-      if (this.time < head.ready + 0.25 || !s.guest) return;
-      s.queue.shift();
-      this.eat(i, s, head);
+      // a set menu: both dishes of the meal arrive before the guest starts
+      let n = 1;
+      while (n < s.queue.length && 'obj' in s.queue[n] && (s.queue[n] as Delivery).together) n++;
+      const meal = s.queue.slice(0, n) as Delivery[];
+      if (meal.some((d) => this.time < d.ready + 0.25) || !s.guest) return;
+      s.queue.splice(0, n);
+      meal.forEach((d, k) => this.eat(i, s, d, meal.length > 1 ? (k - (meal.length - 1) / 2) * 0.55 : 0));
     } else {
       s.queue.shift();
       this.swap(i, s, head.next);
     }
   }
 
-  private eat(i: number, s: Seat, d: Delivery): void {
+  private eat(i: number, s: Seat, d: Delivery, side = 0): void {
     const guest = s.guest!;
-    const plate = d.held ? d.obj.position.clone() : this.platePos(i);
+    const plate = d.held ? d.obj.position.clone() : this.platePos(i).add(new THREE.Vector3(side, 0, 0));
     const obj = d.obj;
     const from = obj.position.clone();
     if (!d.held) {

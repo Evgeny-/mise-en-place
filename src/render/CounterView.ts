@@ -33,6 +33,10 @@ export class CounterView {
   private burnerMat = new THREE.MeshStandardMaterial({ color: '#2f2a2a', roughness: 0.5, metalness: 0.6 });
   private flameMat = new THREE.MeshBasicMaterial({ color: '#ff7a2f', transparent: true, opacity: 0.9, depthWrite: false });
   private badgeMat = new THREE.MeshBasicMaterial({ color: '#c2410c', depthWrite: false, transparent: true });
+  /** a finished dish waiting for its guest sits on a red napkin: per slot */
+  private napkins: (THREE.Group | null)[] = [];
+  private napkinMat = new THREE.MeshStandardMaterial({ color: '#d63b3b', roughness: 0.8 });
+  private napkinInnerMat = new THREE.MeshStandardMaterial({ color: '#fff4e2', roughness: 0.85 });
 
   constructor(
     private layout: Layout,
@@ -71,9 +75,24 @@ export class CounterView {
     this.ids = [];
     for (const b of this.burners) if (b) this.dropBurner(b);
     this.burners = [];
+    for (const n of this.napkins) if (n) this.group.remove(n);
+    this.napkins = [];
     const info = (sim as unknown as { slotInfo?: (i: number) => import('../core/taco').TacoSlot | null }).slotInfo?.bind(sim);
     this.setReceiving(null);
     sim.counter.forEach((id, i) => {
+      const held = sim.heldAt?.(i) ?? null;
+      if (held) {
+        // a finished dish waiting for its guest (set menu, VIP); stacked kitchens put it above the tray
+        const lift = sim.ticket ? 0.07 : 0;
+        this.napkins[i] = this.makeNapkin(i, lift);
+        const o = this.ovenDish(held);
+        o.position.copy(this.slotPos(i));
+        o.position.y += 0.03 + lift;
+        this.group.add(o);
+        this.objs.push(o);
+        this.ids.push(null);
+        return;
+      }
       const cook = sim.cooking?.(i) ?? null;
       if (cook) this.burners[i] = this.makeBurner(i, cook.left);
       if (cook?.dish) {
@@ -203,6 +222,7 @@ export class CounterView {
       const o = this.objs[s];
       this.objs[s] = null;
       this.ids[s] = null;
+      this.dropNapkin(s);
       if (o) out.push(o);
     }
     return out;
@@ -288,6 +308,7 @@ export class CounterView {
 
   /** Taco kitchens: a container on the extra landing spot moves to a freed slot. */
   move(from: number, to: number, delay: number): void {
+    this.dropNapkin(from);
     const o = this.objs[from];
     this.objs[to] = o;
     this.ids[to] = this.ids[from];
@@ -373,6 +394,87 @@ export class CounterView {
         audio.play('fold');
         this.tweens.add(0.45, (k) => product.scale.setScalar(Math.max(0.001, k * full)), { ease: ease.outBack, tag: product });
       },
+    });
+  }
+
+  /** A red napkin folded on the diagonal under slot i: a finished dish waits there for its guest. */
+  private makeNapkin(i: number, lift = 0): THREE.Group {
+    const g = new THREE.Group();
+    const cloth = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.025, 0.9), this.napkinMat);
+    cloth.rotation.y = Math.PI / 4;
+    const inner = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.03, 0.62), this.napkinInnerMat);
+    inner.rotation.y = Math.PI / 4;
+    g.add(cloth, inner);
+    g.position.copy(this.slotPos(i));
+    g.position.y += 0.012 + lift;
+    this.group.add(g);
+    return g;
+  }
+
+  private dropNapkin(slot: number): void {
+    const n = this.napkins[slot];
+    if (n) this.group.remove(n);
+    this.napkins[slot] = null;
+  }
+
+  /** Parts at `from` become `dish`, which waits on a napkin at `slot` for its guest (set menu, VIP). */
+  ready(from: number[], slot: number, dish: DishId, delay: number): void {
+    const gone = from.map((i) => this.objs[i]).filter((o): o is THREE.Object3D => !!o);
+    for (const i of from) {
+      this.objs[i] = null;
+      this.ids[i] = null;
+    }
+    const at = this.slotPos(slot);
+    const product = this.ovenDish(dish);
+    const full = product.scale.x;
+    product.position.copy(at);
+    product.position.y += 0.03;
+    product.scale.setScalar(0.001);
+    this.group.add(product);
+    this.objs[slot] = product;
+    this.tweens.add(MERGE, (k) => {
+      for (const o of gone) {
+        o.position.lerp(at, k * 0.6);
+        o.scale.setScalar(Math.max(0.001, 1 - k));
+      }
+    }, {
+      delay,
+      ease: ease.inQuad,
+      start: () => {
+        for (const o of gone) this.tweens.cancel(o);
+      },
+      done: () => {
+        for (const o of gone) this.group.remove(o);
+        this.napkins[slot] = this.makeNapkin(slot);
+        this.fx.sparkle(at.x, at.y + 0.4, at.z, '#ffd23f', 12, 0.8);
+        audio.play('bell', { volume: 0.6 });
+        this.tweens.add(0.45, (k) => product.scale.setScalar(Math.max(0.001, k * full)), { ease: ease.outBack, tag: product });
+      },
+    });
+  }
+
+  /** Burger kitchens: a finished stack (world-space group) moves from its plate to a napkin at `slot`. */
+  adopt(holder: THREE.Object3D, slot: number, delay: number): void {
+    this.objs[slot] = holder;
+    const to = this.slotPos(slot);
+    // above the metal serving tray, on a napkin
+    to.y += 0.1;
+    const a = new THREE.Vector3();
+    const p = new THREE.Vector3();
+    this.tweens.add(0.45, (k) => {
+      arc(a, to, 0.8, k, p);
+      holder.position.copy(p);
+    }, {
+      delay,
+      ease: ease.inOutSine,
+      start: () => {
+        this.group.attach(holder);
+        a.copy(holder.position);
+        // the napkin is laid out as the stack comes over (it may have moved to a freed spot meanwhile)
+        const at = this.objs.indexOf(holder);
+        if (at >= 0 && at < this.layout.slotX.length && !this.napkins[at]) this.napkins[at] = this.makeNapkin(at, 0.07);
+      },
+      done: () => audio.play('land'),
     });
   }
 
@@ -463,6 +565,8 @@ export class CounterView {
     this.burnerMat.dispose();
     this.flameMat.dispose();
     this.badgeMat.dispose();
+    this.napkinMat.dispose();
+    this.napkinInnerMat.dispose();
   }
 }
 

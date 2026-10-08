@@ -48,6 +48,14 @@
 - **The ragù chain** (Trattoria, from level 62): tomato + tomato make sauce, sauce + minced beef make
   ragù at once, for tagliatelle al ragù and lasagne. Beef waiting on the counter steals the sauce a
   spaghetti, a pizza or gnocchi needed: a trap that shows several moves later.
+- **Set menus** (Trattoria from campaign level 63, Burger Joint from level 96): one guest orders two
+  dishes and gets them together. The first one finished waits on the counter on a red napkin (it
+  takes a spot) until the second is ready; the guest eats both as one meal.
+- **The VIP** (Trattoria from level 78, Burger Joint from level 98): a gold star in the queue shows
+  exactly when the VIP arrives. While the VIP is seated nobody else is served: other finished dishes
+  wait on the counter (a spot each) until the VIP has been served. Set menus and the VIP share one
+  rule — a finished dish that can't go out yet waits on the counter — and are never combined with
+  the oven.
 - **Lids** (Trattoria L36, Burger Joint L26): a column opens after k dishes.
 - **Bigger kitchens** late in each ladder: six columns, a third seat and up to eight guests.
 

@@ -153,6 +153,14 @@ const STRINGS = {
     ru: 'Лазанья: макароны, рагу и сыр — и в печь. Рагу снова цепочка: помидор, помидор, фарш.',
     en: 'Lasagne: pasta, ragù and cheese, then into the oven. The ragù is a chain again: tomato, tomato, beef.',
   },
+  intro_set: {
+    ru: 'Комплексный обед: гость заказывает два блюда и хочет получить их вместе. Первое готовое блюдо ждёт на столе на красной салфетке — и занимает место, — пока не будет готово второе. Тогда гость получает оба сразу.',
+    en: 'Set menu: this guest orders two dishes and wants them together. The first one finished waits on the counter on a red napkin, taking a spot, until the second is ready; then the guest gets both at once.',
+  },
+  intro_vip: {
+    ru: 'VIP-гость (золотая звезда) сядет за стол, когда до него дойдёт очередь, — его место видно в очереди заранее. Пока VIP сидит, никого другого не обслуживают: готовые блюда для остальных ждут на столе (каждое занимает место), пока VIP не получит своё.',
+    en: 'A VIP guest (the gold star) sits down when their turn in the queue comes; you can see in the queue exactly when. While the VIP is seated nobody else is served: other finished dishes wait on the counter, a spot each, until the VIP has been served.',
+  },
   intro_frozen: {
     ru: 'Из морозилки: продукт во льду, и колонка за ним ждёт. Число на льду — сколько ходов осталось до того, как он оттает. Каждый ход из любой колонки считается — запаситесь ходами, которые не забьют стол.',
     en: 'From the freezer: this tile is frozen, and its column waits behind it. The number on the ice is how many moves until it thaws. Every take from any column counts, so plan moves that won’t clog the counter.',

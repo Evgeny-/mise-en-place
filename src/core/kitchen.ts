@@ -123,6 +123,12 @@ export interface KState {
   served: number;
   /** per seat: takes its dish still bakes in the oven (0 = not baking); absent without a stove */
   cook?: number[];
+  /**
+   * Set menus and VIPs (guest mode): per seat, the order index of the seated guest's first dish
+   * (-1 = empty), and a bitmask of the guest's dishes already finished and waiting on the counter.
+   */
+  g?: number[];
+  ready?: number[];
 }
 
 /** Generic rules interface: the solver and the difficulty metrics work on any world. */
@@ -151,7 +157,14 @@ export class KitchenRules implements Rules<KState> {
   readonly nseats: number;
   readonly length: number;
 
-  constructor(level: Pick<LevelDef, 'menu' | 'columns' | 'slots' | 'seats' | 'orders' | 'lids' | 'frozen' | 'stove'>, slots?: number) {
+  /**
+   * Guest mode (set menus, VIPs): per order index, does a two-dish set start here / is it a VIP;
+   * null without either (every guest orders one dish and is served at once).
+   */
+  readonly setStart: boolean[] | null;
+  readonly vipAt: boolean[] | null;
+
+  constructor(level: Pick<LevelDef, 'menu' | 'columns' | 'slots' | 'seats' | 'orders' | 'lids' | 'frozen' | 'stove' | 'sets' | 'vip'>, slots?: number) {
     this.k = kitchenFor(level.menu);
     this.cols = level.columns.map((c) => c.map((id) => this.k.item(id)));
     this.slots = slots ?? level.slots;
@@ -160,6 +173,10 @@ export class KitchenRules implements Rules<KState> {
     this.thaw = thawTable(level);
     const bake = this.k.dishes.map((d) => (level.stove?.[d] ?? 0));
     this.bake = bake.some((x) => x > 0) ? bake : null;
+    const guests = !!(level.sets?.length || level.vip?.length);
+    this.setStart = guests ? level.orders.map((_, i) => !!level.sets?.includes(i)) : null;
+    this.vipAt = guests ? level.orders.map((_, i) => !!level.vip?.includes(i)) : null;
+    if (guests && this.bake) throw new Error('set menus and VIPs are not combined with the oven');
     this.nseats = level.seats;
     this.length = this.cols.reduce((a, c) => a + c.length, 0);
   }
@@ -175,8 +192,117 @@ export class KitchenRules implements Rules<KState> {
       served: 0,
     };
     if (this.bake) s.cook = seats.map(() => 0);
+    if (this.setStart) {
+      // guest mode: seat the first guests (a set menu takes two orders)
+      const g: number[] = [];
+      let next = 0;
+      for (let i = 0; i < this.nseats; i++) {
+        if (next < this.orders.length) {
+          g.push(next);
+          seats[i] = this.orders[next];
+          next += this.setStart[next] ? 2 : 1;
+        } else {
+          g.push(-1);
+          seats[i] = -1;
+        }
+      }
+      s.g = g;
+      s.ready = seats.map(() => 0);
+      s.next = next;
+    }
     return s;
   }
+
+  /** Guest mode: the dishes of the guest whose first order is g (one, or two for a set menu). */
+  dishesOf(g: number): number[] {
+    if (g < 0) return [];
+    return this.setStart![g] ? [this.orders[g], this.orders[g + 1]] : [this.orders[g]];
+  }
+
+  /** The dishes seat i still waits for (not finished, not in the oven). */
+  wantedAt(s: KState, i: number): number[] {
+    if (s.g) {
+      const ds = this.dishesOf(s.g[i]);
+      return ds.filter((_, k) => !(s.ready![i] & (1 << k)));
+    }
+    const d = s.seats[i];
+    return d < 0 || (s.cook && s.cook[i] > 0) ? [] : [d];
+  }
+
+  /** Guest mode: finished dishes waiting on the counter (each takes a slot). */
+  heldCount(s: KState): number {
+    let n = 0;
+    if (s.ready) for (const r of s.ready) n += (r & 1) + ((r >> 1) & 1);
+    return n;
+  }
+
+  /**
+   * Guest mode resolution (mutates the arrays): preps first; then one dish is finished — a VIP's
+   * first, otherwise the leftmost seated guest with a dish whose parts are all there — and waits
+   * on the counter; then every guest whose dishes are all finished is served, unless a VIP is
+   * seated (then only the VIP is). A served guest's seat takes the next guest in the queue.
+   */
+  private resolveGuests(counts: number[], seats: number[], g: number[], ready: number[], st: { next: number; served: number }): void {
+    const k = this.k;
+    const vip = this.vipAt!;
+    for (;;) {
+      const pk = k.firePrep(counts);
+      if (pk >= 0) {
+        const p = k.preps[pk];
+        counts[p.a]--;
+        counts[p.b]--;
+        counts[p.out]++;
+        continue;
+      }
+      let acted = false;
+      for (const pass of [true, false]) {
+        for (let i = 0; i < seats.length && !acted; i++) {
+          if (g[i] < 0 || vip[g[i]] !== pass) continue;
+          const ds = this.dishesOf(g[i]);
+          for (let j = 0; j < ds.length; j++) {
+            if (ready[i] & (1 << j) || !k.fits(counts, ds[j])) continue;
+            const need = k.need[ds[j]];
+            for (let x = 0; x < need.length; x++) counts[x] -= need[x];
+            ready[i] |= 1 << j;
+            acted = true;
+            break;
+          }
+        }
+        if (acted) break;
+      }
+      const delivered = this.deliver(seats, g, ready, st);
+      if (!acted && !delivered) return;
+    }
+  }
+
+  /** Guest mode: serves every guest whose dishes are all finished (only the VIPs while one is seated). */
+  private deliver(seats: number[], g: number[], ready: number[], st: { next: number; served: number }): boolean {
+    const vip = this.vipAt!;
+    let any = false;
+    for (let again = true; again; ) {
+      again = false;
+      const vipSeated = g.some((x) => x >= 0 && vip[x]);
+      for (let i = 0; i < seats.length; i++) {
+        if (g[i] < 0) continue;
+        const n = this.dishesOf(g[i]).length;
+        if (ready[i] !== (1 << n) - 1 || (vipSeated && !vip[g[i]])) continue;
+        st.served += n;
+        ready[i] = 0;
+        if (st.next < this.orders.length) {
+          g[i] = st.next;
+          seats[i] = this.orders[st.next];
+          st.next += this.setStart![st.next] ? 2 : 1;
+        } else {
+          g[i] = -1;
+          seats[i] = -1;
+        }
+        any = again = true;
+        break;
+      }
+    }
+    return any;
+  }
+
 
   /**
    * Resolves the counter (mutates the given arrays): preps first, one at a time in menu priority;
@@ -243,6 +369,17 @@ export class KitchenRules implements Rules<KState> {
     if (this.thaw && this.thaw[col][p] > takesOf(s.ptr)) return null;
     const counts = s.counts.slice();
     counts[c[p]]++;
+    if (s.g) {
+      const seats = s.seats.slice();
+      const g = s.g.slice();
+      const ready = s.ready!.slice();
+      const st = { next: s.next, served: s.served };
+      this.resolveGuests(counts, seats, g, ready, st);
+      const n: KState = { ptr: s.ptr.slice(), counts, seats, next: st.next, served: st.served, g, ready };
+      n.ptr[col] = p + 1;
+      if (this.occupancy(n) > this.slots) return null;
+      return n;
+    }
     const seats = s.seats.slice();
     const st = { next: s.next, served: s.served };
     const cook = s.cook ? s.cook.slice() : undefined;
@@ -296,6 +433,10 @@ export class KitchenRules implements Rules<KState> {
       out += '|';
       for (const c of s.cook) out += String.fromCharCode(48 + c);
     }
+    if (s.g) {
+      out += '|';
+      for (let i = 0; i < s.g.length; i++) out += String.fromCharCode(49 + s.g[i]) + String.fromCharCode(48 + s.ready![i]);
+    }
     return out + '|' + s.next;
   }
 
@@ -310,6 +451,6 @@ export class KitchenRules implements Rules<KState> {
     let occ = 0;
     for (const x of s.counts) occ += x;
     if (s.cook) for (const x of s.cook) if (x > 0) occ++;
-    return occ;
+    return occ + this.heldCount(s);
   }
 }

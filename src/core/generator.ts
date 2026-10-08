@@ -86,6 +86,9 @@ export interface LevelSpec {
   cloches?: number;
   /** the stove: oven dishes and their baking takes (Trattoria), or `patty` grill takes (Burger Joint) */
   stove?: LevelDef['stove'];
+  /** set-menu guests (two dishes served together) and VIP guests (served first) */
+  sets?: number;
+  vip?: number;
   /** a lid opens after at most this many dishes */
   lidMax?: number;
   /** golden line: preference for holding an item over combining it (0 = none) */
@@ -190,13 +193,14 @@ export function goldenLine(
   holdBias = 0.5,
   nodeCap = 20000,
   stove?: LevelDef['stove'],
+  guests: Pick<LevelDef, 'sets' | 'vip'> = {},
 ): GoldenLine | null {
   const k = kitchenFor(menu);
   const rem = new Array<number>(k.items.length).fill(0);
   for (const d of orders) for (const x of k.rawParts(k.dish(d))) rem[x]++;
   const types = rem.map((c, i) => (c > 0 ? i : -1)).filter((i) => i >= 0);
   const columns = types.map((t) => new Array<FoodId>(rem[t]).fill(k.items[t]));
-  const rules = new KitchenRules({ menu, columns, slots, seats, orders, stove });
+  const rules = new KitchenRules({ menu, columns, slots, seats, orders, stove, ...guests });
   const dead = new Set<string>();
   const path: number[] = [];
   const occs: number[] = [];
@@ -231,6 +235,33 @@ export function goldenLine(
 
   if (!dfs(rules.start())) return null;
   return { items: path.slice(), servedBefore: servedBefore.slice(), peak: Math.max(0, ...occs) };
+}
+
+/**
+ * Set menus and VIPs for a list of orders: `sets` pairs of neighbouring, different dishes become one
+ * guest each; `vip` guests among those who arrive later (not seated at the start) are VIPs.
+ */
+export function pickGuests(orders: readonly DishId[], seats: number, sets: number, vip: number, rng: Rng): Pick<LevelDef, 'sets' | 'vip'> | null {
+  const out: Pick<LevelDef, 'sets' | 'vip'> = {};
+  if (sets) {
+    const cand = rng.shuffle([...Array(Math.max(0, orders.length - 1)).keys()].filter((i) => orders[i] !== orders[i + 1]));
+    const chosen: number[] = [];
+    for (const i of cand) {
+      if (chosen.length >= sets) break;
+      if (chosen.some((j) => Math.abs(i - j) < 2)) continue;
+      chosen.push(i);
+    }
+    if (chosen.length < sets) return null;
+    out.sets = chosen.sort((a, b) => a - b);
+  }
+  if (vip) {
+    const starts: number[] = [];
+    for (let i = 0; i < orders.length; i += out.sets?.includes(i) ? 2 : 1) starts.push(i);
+    const late = rng.shuffle(starts.slice(seats).filter((i) => !out.sets?.includes(i)));
+    if (late.length < vip) return null;
+    out.vip = late.slice(0, vip).sort((a, b) => a - b);
+  }
+  return out;
 }
 
 /** The oven times of a combo spec that apply to its orders (undefined: no oven dish ordered). */
@@ -410,7 +441,10 @@ export function draftCandidate(spec: LevelSpec, rng: Rng): Draft | null {
     const shape = spec.burger!;
     const tickets = pickTickets(spec, rng);
     if (!tickets) return null;
-    const g = burgerGolden(tickets, spec.seats, spec.slots, rng, shape.park ?? 0.9, spec.stove);
+    const dishes = tickets.map(stackDishOf);
+    const guests = pickGuests(dishes, spec.seats, spec.sets ?? 0, spec.vip ?? 0, rng);
+    if (!guests) return null;
+    const g = burgerGolden(tickets, spec.seats, spec.slots, rng, shape.park ?? 0.9, spec.stove, guests);
     if (!g || (spec.target.tight && g.peak < spec.slots)) return null;
     const items = g.items.map((i) => BURGER_ITEMS[i]);
     const lens = columnHeights(items.length, spec.columns, spec.depth, rng, spec.spread ?? 1, items.length >= 2 * spec.columns ? 2 : 1);
@@ -418,12 +452,16 @@ export function draftCandidate(spec: LevelSpec, rng: Rng): Draft | null {
     if (!dealt) return null;
     const base: LevelDef = { ...baseLevel(spec, tickets.map(stackDishOf)), rules: 'burger', tickets };
     if (spec.stove?.patty) base.stove = { patty: spec.stove.patty };
+    if (guests.sets) base.sets = guests.sets;
+    if (guests.vip) base.vip = guests.vip;
     if (dealt.lids) base.lids = dealt.lids;
     return { base, items, labels: dealt.labels, servedBefore: g.servedBefore, thaw: items.map(() => 0), columns: spec.columns, depth: spec.depth };
   }
   const orders = pickOrders(spec, rng);
   if (!orders) return null;
-  const g = goldenLine(spec.menu, orders, spec.seats, spec.slots, rng, spec.holdBias ?? 0.6, 20000, stoveOf(spec, orders));
+  const guests = pickGuests(orders, spec.seats, spec.sets ?? 0, spec.vip ?? 0, rng);
+  if (!guests) return null;
+  const g = goldenLine(spec.menu, orders, spec.seats, spec.slots, rng, spec.holdBias ?? 0.6, 20000, stoveOf(spec, orders), guests);
   if (!g) return null;
   if (spec.target.tight && g.peak < spec.slots) return null;
   const k = kitchenFor(spec.menu);
@@ -432,6 +470,8 @@ export function draftCandidate(spec: LevelSpec, rng: Rng): Draft | null {
   if (!dealt) return null;
   const base = baseLevel(spec, orders);
   if (dealt.lids) base.lids = dealt.lids;
+  if (guests.sets) base.sets = guests.sets;
+  if (guests.vip) base.vip = guests.vip;
   const stove = stoveOf(spec, orders);
   if (stove) base.stove = stove;
   return {
@@ -620,10 +660,12 @@ export function pickTickets(spec: LevelSpec, rng: Rng): FoodId[][] | null {
  * before each take and the fullest counter. One column per item type lets the exact rules route
  * every take (leftmost plate, else the counter) and cascade.
  */
-export function burgerGolden(tickets: FoodId[][], seats: number, slots: number, rng: Rng, park = 0.9, stove?: LevelDef['stove']): GoldenLine | null {
+export function burgerGolden(
+  tickets: FoodId[][], seats: number, slots: number, rng: Rng, park = 0.9, stove?: LevelDef['stove'], guests: Pick<LevelDef, 'sets' | 'vip'> = {},
+): GoldenLine | null {
   const count = BURGER_ITEMS.map((id) => tickets.reduce((a, t) => a + t.filter((x) => x === id).length, 0));
   const columns = BURGER_ITEMS.map((id, i) => new Array<FoodId>(count[i]).fill(id));
-  const r = new BurgerRules({ columns, slots, seats, tickets, stove: stove?.patty ? { patty: stove.patty } : undefined });
+  const r = new BurgerRules({ columns, slots, seats, tickets, stove: stove?.patty ? { patty: stove.patty } : undefined, ...guests });
   const patty = BURGER_ITEMS.indexOf('patty');
   let s = r.start();
   const items: number[] = [];

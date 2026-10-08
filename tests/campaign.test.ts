@@ -215,6 +215,28 @@ describe('campaign levels', () => {
     for (const lv of levels) if (lv.columns.flat().includes('beef')) expect(lv.n, `L${lv.n} beef`).toBeGreaterThanOrEqual(ragu);
   });
 
+  it('set menus and VIPs come after their intro levels, and are well formed', () => {
+    const at = (intro: string) => levels.find((l) => l.intro === intro)!.n;
+    const set = at('set');
+    const vip = at('vip');
+    for (const n of [set, vip]) expect(levels[n - 1].tier).toBe('normal');
+    for (const lv of levels) {
+      if (lv.sets?.length) {
+        expect(lv.n, `L${lv.n} set menu`).toBeGreaterThanOrEqual(set);
+        for (const i of lv.sets) {
+          expect(i + 1).toBeLessThan(lv.orders.length);
+          expect(lv.orders[i], `L${lv.n} set of the same dish`).not.toBe(lv.orders[i + 1]);
+        }
+      }
+      if (lv.vip?.length) {
+        expect(lv.n, `L${lv.n} VIP`).toBeGreaterThanOrEqual(vip);
+        // a VIP arrives later (never seated at the start), so the player sees them coming
+        for (const i of lv.vip) expect(i, `L${lv.n} VIP seated at the start`).toBeGreaterThanOrEqual(lv.seats);
+      }
+      if ((lv.sets?.length || lv.vip?.length) && !lv.rules) expect(lv.stove, `L${lv.n} guests and the oven`).toBeUndefined();
+    }
+  });
+
   it('carries the measured difficulty', () => {
     for (const lv of levels) {
       const st = lv.stats!;

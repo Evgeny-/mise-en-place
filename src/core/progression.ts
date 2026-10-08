@@ -130,6 +130,9 @@ interface Row {
   frozen?: number;
   /** the stove: oven dishes and their baking takes, or the patty's grill takes */
   stove?: LevelDef['stove'];
+  /** set-menu guests and VIP guests */
+  sets?: number;
+  vip?: number;
   intro?: Intro;
   /** target overrides */
   t?: Target;
@@ -201,16 +204,16 @@ const TRATTORIA: Record<number, Row> = {
   25: tr('dough, cream or omelette? the egg decides', 5, 6, 3, 2, [6, 6], [CZ, TI, OM], { cloches: 2, stove: { calzone: 3 } }),
   26: tr('from the freezer: basil, pesto or caprese?', 5, 5, 3, 2, [5, 6], [RI, PE, CA], { frozen: 1 }),
   27: tr('new: tagliatelle al ragù — sauce meets beef: ragù', 5, 5, 3, 2, [4, 5], [TG, S, BR], { intro: TG }),
-  28: tr('calzone, soup and spaghetti on ice', 5, 6, 3, 2, [6, 6], [CZ, MI, S], { frozen: 2, stove: { calzone: 2 } }),
+  28: tr('new: set menus — two dishes that go out together', 5, 6, 3, 2, [6, 6], [S, TI, BR], { intro: 'set', sets: 1 }),
   29: tr('every egg counts', 5, 5, 3, 2, [5, 6], [PZ, OM, GN], { cloches: 2, frozen: 1, stove: { pizza: 2 } }),
-  30: tr('banquet: ragù night', 6, 5, 3, 3, [7, 7], [S, TI, TG, CB], { lead: [TG], cloches: 3 }),
+  30: tr('banquet: ragù night', 6, 5, 3, 3, [7, 7], [S, TI, TG, CB], { lead: [TG], cloches: 3, sets: 1 }),
   31: tr('three seats: soup, risotto and calzone', 5, 6, 3, 3, [6, 7], [MI, RI, CZ], { frozen: 2, stove: { calzone: 3 } }),
   32: tr('new: lasagne — pasta, ragù and cheese, baked', 6, 5, 3, 3, [5, 6], [LA, PE, BR], { intro: LA, stove: { lasagne: 2 } }),
-  33: tr('gnocchi, caprese and omelette', 6, 5, 3, 3, [6, 7], [GN, CA, OM], { frozen: 2 }),
+  33: tr('new: a VIP — the starred guest is served first', 6, 5, 3, 3, [6, 7], [GN, CA, OM], { intro: 'vip', vip: 1 }),
   34: tr('pizza, carbonara and soup', 6, 5, 3, 3, [6, 7], [PZ, CB, MI], { cloches: 3, frozen: 1, stove: { pizza: 3 } }),
-  35: tr('the busy pass', 6, 5, 3, 2, [7, 7], [TI, TG, GN], { cloches: 2, frozen: 1 }),
+  35: tr('the busy pass', 6, 5, 3, 2, [7, 7], [TI, TG, GN], { cloches: 2, frozen: 1, sets: 1 }),
   36: tr('new: lids — a column opens after k dishes', 5, 5, 3, 2, [4, 5], [S, CZ, OM], { lids: 1, lidMax: 2, intro: 'lid' }),
-  37: tr('a lid: bruschetta, ragù and soup', 5, 5, 3, 3, [6, 6], [BR, TG, MI], { lids: 1, lidMax: 3, cloches: 2 }),
+  37: tr('a lid and a VIP: bruschetta, ragù and soup', 5, 5, 3, 3, [6, 6], [BR, TG, MI], { lids: 1, lidMax: 3, cloches: 2, vip: 1 }),
   38: tr('lids: caprese, tiramisu and pizza', 6, 5, 3, 3, [6, 7], [CA, TI, PZ], { lids: 2, lidMax: 3, frozen: 1, stove: { pizza: 2 } }),
   39: tr('a lid: carbonara, gnocchi and lasagne', 6, 5, 3, 3, [6, 7], [CB, GN, LA], { lids: 1, lidMax: 3, cloches: 3, frozen: 1, stove: { lasagne: 2 } }),
   40: tr('grand banquet', 6, 6, 3, 3, [7, 8], [MI, PZ, TG, LA, CA], { cloches: 3, frozen: 1, stove: { pizza: 2, lasagne: 3 } }),
@@ -276,16 +279,16 @@ function BURGER_LADDER(): Record<number, Row> {
   b(28, 'serve in the right order', 5, 6, 2, 5, [5, 6], [PC, SW, HD], 0, 0, { lids: 1, lidMax: 3, frozen: 1 });
   b(29, 'two lids', 5, 5, 2, 5, [5, 5], [SD, PC, BU], 0, 0, { lids: 2, lidMax: 3, cloches: 2 });
   b(30, 'banquet behind a lid', 6, 5, 2, 6, [5, 5], ALL, 0, 0, { lids: 1, lidMax: 2, frozen: 1, stove: { patty: 2 } });
-  b(31, 'a third plate', 5, 5, 3, 5, [5, 5], [HD, SW, SD], 0, 0, { cloches: 2 });
+  b(31, 'a third plate and a set menu', 5, 5, 3, 5, [5, 5], [HD, SW, SD], 0, 0, { cloches: 2, sets: 1 });
   b(32, 'three plates', 6, 5, 3, 5, [5, 6], [BU, PC, SD], 0, 0, { frozen: 2, stove: { patty: 3 } });
-  b(33, 'three plates, double patty', 6, 5, 3, 5, [5, 6], [BU, HD, SW], 0, 0.3, { cloches: 3 });
-  b(34, 'three plates, long queue', 6, 5, 3, 6, [5, 5], [PC, SW, SD], 0, 0, { frozen: 1, cloches: 2 });
+  b(33, 'three plates and a VIP', 6, 5, 3, 5, [5, 6], [BU, HD, SW], 0, 0.3, { cloches: 3, vip: 1 });
+  b(34, 'three plates, long queue', 6, 5, 3, 6, [5, 5], [PC, SW, SD], 0, 0, { frozen: 1, cloches: 2, sets: 1 });
   b(35, 'lunch rush', 6, 5, 3, 6, [5, 5], [HD, SD, BU], 0, 0, { cloches: 2, frozen: 1, stove: { patty: 2 } });
-  b(36, 'three plates and a lid', 6, 5, 3, 5, [5, 6], [SW, PC, HD], 0, 0, { lids: 1, lidMax: 2, cloches: 2 });
+  b(36, 'three plates, a lid and a VIP', 6, 5, 3, 5, [5, 6], [SW, PC, HD], 0, 0, { lids: 1, lidMax: 2, cloches: 2, vip: 1 });
   b(37, 'three plates and a lid', 6, 5, 3, 5, [5, 5], [BU, SD, PC], 0, 0.3, { lids: 1, lidMax: 3, frozen: 1, stove: { patty: 2 } });
-  b(38, 'three plates, a late lid', 6, 5, 3, 5, [5, 6], [SD, SW, HD], 0, 0, { lids: 1, lidMax: 3, cloches: 3 });
-  b(39, 'three plates, a late lid', 6, 5, 3, 6, [5, 5], [BU, PC, SW], 0, 0.3, { lids: 1, lidMax: 3, cloches: 2, frozen: 1, stove: { patty: 3 } });
-  b(40, 'grand banquet: three plates', 6, 5, 3, 6, [5, 5], ALL, 0, 0.3, { cloches: 3, frozen: 1, stove: { patty: 2 } });
+  b(38, 'three plates, a late lid, set menus', 6, 5, 3, 5, [5, 6], [SD, SW, HD], 0, 0, { lids: 1, lidMax: 3, cloches: 3, sets: 1 });
+  b(39, 'three plates, a late lid, a VIP', 6, 5, 3, 6, [5, 5], [BU, PC, SW], 0, 0.3, { lids: 1, lidMax: 3, cloches: 2, frozen: 1, stove: { patty: 3 }, vip: 1 });
+  b(40, 'grand banquet: three plates', 6, 5, 3, 6, [5, 5], ALL, 0, 0.3, { cloches: 3, frozen: 1, stove: { patty: 2 }, sets: 1, vip: 1 });
   return rows;
 }
 
@@ -343,6 +346,8 @@ function specFrom(n: number, world: number, local: number, row: Row, target?: Ta
     cloches: row.cloches,
     frozen: row.frozen,
     stove: row.stove,
+    sets: row.sets,
+    vip: row.vip,
     intro: row.intro,
     theme: row.theme,
     target: target ?? { ...targetFor(world, local, tier, row.intro, row.lids ?? 0, row), ...row.t },

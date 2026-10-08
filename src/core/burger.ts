@@ -1,7 +1,7 @@
 import type { DishId, FoodId } from './content';
 import type { Rng } from './rng';
 import type { Rules } from './kitchen';
-import type { SimEvent, Status } from './sim';
+import type { GuestInfo, SimEvent, Status } from './sim';
 import { ClocheMarks, takesOf, thawTable } from './pantry';
 import type { LevelDef } from './types';
 
@@ -45,9 +45,16 @@ export interface BState {
   served: number;
   /** the grill: takes left for each patty on it, ascending; absent without a grill */
   grill?: number[];
+  /**
+   * Set menus and VIPs (guest mode): per plate, the order index of the seated guest's first ticket
+   * (-1 = empty), and how many of the guest's finished stacks wait on the counter (a spot each).
+   * plate[p] is -2 while the guest's stacks are all finished but can't go out yet (a VIP is seated).
+   */
+  g?: number[];
+  held?: number[];
 }
 
-type BurgerLevel = Pick<LevelDef, 'columns' | 'slots' | 'seats' | 'lids' | 'tickets' | 'frozen' | 'stove'>;
+type BurgerLevel = Pick<LevelDef, 'columns' | 'slots' | 'seats' | 'lids' | 'tickets' | 'frozen' | 'stove' | 'sets' | 'vip'>;
 
 const PATTY = BURGER_ITEMS.indexOf('patty');
 
@@ -61,6 +68,9 @@ export class BurgerRules implements Rules<BState> {
   readonly thaw: number[][] | null;
   /** the grill: takes a patty grills before it can go on a plate (0 = no grill) */
   readonly grillTime: number;
+  /** guest mode: per order index, does a two-ticket set start here / is it a VIP (null: neither) */
+  readonly setStart: boolean[] | null;
+  readonly vipAt: boolean[] | null;
   readonly length: number;
 
   constructor(level: BurgerLevel, slots?: number) {
@@ -72,7 +82,45 @@ export class BurgerRules implements Rules<BState> {
     this.lids = level.lids && level.lids.some((x) => x > 0) ? level.lids.slice() : null;
     this.thaw = thawTable(level);
     this.grillTime = level.stove?.patty ?? 0;
+    const guests = !!(level.sets?.length || level.vip?.length);
+    this.setStart = guests ? level.tickets.map((_, i) => !!level.sets?.includes(i)) : null;
+    this.vipAt = guests ? level.tickets.map((_, i) => !!level.vip?.includes(i)) : null;
     this.length = this.cols.reduce((a, c) => a + c.length, 0);
+  }
+
+  /** Guest mode: tickets of the guest whose first order is g (one, or two for a set menu). */
+  ticketsOf(g: number): number {
+    return g < 0 ? 0 : this.setStart![g] ? 2 : 1;
+  }
+
+  /** Guest mode: seats the next guest in the queue at plate p (or leaves it empty). */
+  private seatGuest(st: BState, p: number): void {
+    if (st.next < this.tickets.length) {
+      st.plate[p] = st.next;
+      st.g![p] = st.next;
+      st.next += this.setStart![st.next] ? 2 : 1;
+    } else {
+      st.plate[p] = -1;
+      st.g![p] = -1;
+    }
+    st.done[p] = 0;
+    st.held![p] = 0;
+  }
+
+  /** Guest mode: serves every guest whose stacks are all finished (only VIPs while one is seated). */
+  private deliver(st: BState): void {
+    const vip = this.vipAt!;
+    for (let again = true; again; ) {
+      again = false;
+      const vipSeated = st.g!.some((x) => x >= 0 && vip[x]);
+      for (let p = 0; p < st.plate.length; p++) {
+        if (st.plate[p] !== -2 || (vipSeated && !vip[st.g![p]])) continue;
+        st.served += this.ticketsOf(st.g![p]);
+        this.seatGuest(st, p);
+        again = true;
+        break;
+      }
+    }
   }
 
   start(): BState {
@@ -87,13 +135,20 @@ export class BurgerRules implements Rules<BState> {
       served: 0,
     };
     if (this.grillTime) s.grill = [];
+    if (this.setStart) {
+      s.g = plate.map(() => -1);
+      s.held = plate.map(() => 0);
+      s.next = 0;
+      for (let p = 0; p < plate.length; p++) this.seatGuest(s, p);
+    }
     return s;
   }
 
-  /** Counter spots in use: parked items and patties on the grill. */
+  /** Counter spots in use: parked items, patties on the grill and finished stacks waiting for their guest. */
   occupancy(s: BState): number {
     let occ = s.grill ? s.grill.length : 0;
     for (const x of s.counts) occ += x;
+    if (s.held) for (const h of s.held) occ += h;
     return occ;
   }
 
@@ -109,14 +164,27 @@ export class BurgerRules implements Rules<BState> {
     return -1;
   }
 
-  /** One layer onto plate p; a finished plate is served and reloads from the queue. */
+  /**
+   * One layer onto plate p; a finished plate is served and reloads from the queue. Guest mode: a
+   * finished stack waits on the counter; the plate takes the set's second ticket, or the guest is
+   * served once all their stacks are done (unless a VIP is seated).
+   */
   private stack(st: BState, p: number): void {
     st.done[p]++;
     const t = st.plate[p];
-    if (st.done[p] === this.tickets[t].length) {
+    if (st.done[p] !== this.tickets[t].length) return;
+    if (!st.g) {
       st.served++;
       st.plate[p] = st.next < this.tickets.length ? st.next++ : -1;
       st.done[p] = 0;
+      return;
+    }
+    st.held![p]++;
+    st.done[p] = 0;
+    if (st.held![p] < this.ticketsOf(st.g[p])) st.plate[p] = st.g[p] + st.held![p];
+    else {
+      st.plate[p] = -2;
+      this.deliver(st);
     }
   }
 
@@ -148,6 +216,10 @@ export class BurgerRules implements Rules<BState> {
     const p = grilled ? -1 : this.target(s, it);
     if (p < 0 && this.occupancy(s) >= this.slots) return null;
     const st: BState = { ptr: s.ptr.slice(), plate: s.plate.slice(), done: s.done.slice(), next: s.next, counts: s.counts.slice(), served: s.served };
+    if (s.g) {
+      st.g = s.g.slice();
+      st.held = s.held!.slice();
+    }
     st.ptr[col] = pos + 1;
     if (p >= 0) {
       this.stack(st, p);
@@ -174,6 +246,8 @@ export class BurgerRules implements Rules<BState> {
         this.cascade(st);
       }
     }
+    // guest mode: finished stacks waiting for their guest take spots too
+    if (st.g && this.occupancy(st) > this.slots) return null;
     return st;
   }
 
@@ -210,6 +284,7 @@ export class BurgerRules implements Rules<BState> {
     out += '|';
     for (const c of s.counts) out += String.fromCharCode(48 + c);
     if (s.grill) out += '|' + s.grill.join('');
+    if (s.g) for (let i = 0; i < s.g.length; i++) out += String.fromCharCode(49 + s.g[i]) + s.held![i];
     return out + '|' + s.next;
   }
 }
@@ -218,6 +293,9 @@ export interface BurgerSnapshot {
   ptr: number[];
   counter: (FoodId | null)[];
   grill: (number | null)[];
+  stacks: ({ seat: number; order: number } | null)[];
+  guest: number[];
+  held: number[];
   plate: number[];
   done: number[];
   next: number;
@@ -241,6 +319,11 @@ export class BurgerSim {
   history: number[] = [];
   /** the grill: takes left for the patty grilling at each counter slot (null: nothing grills there) */
   grill: (number | null)[];
+  /** guest mode: per plate, the guest's first order index and their finished stacks waiting on the counter */
+  guest: number[] = [];
+  held: number[] = [];
+  /** guest mode: a finished stack waiting on each counter slot (for the guest at `seat`) */
+  stacks: ({ seat: number; order: number } | null)[];
   private extra = 0;
   private rules: BurgerRules;
   /** what the player knows: lifted cloches stay lifted (not part of snapshots) */
@@ -257,6 +340,44 @@ export class BurgerSim {
     this.next = s.next;
     this.counter = new Array<FoodId | null>(level.slots).fill(null);
     this.grill = new Array<number | null>(level.slots).fill(null);
+    this.stacks = new Array<{ seat: number; order: number } | null>(level.slots).fill(null);
+    if (s.g) {
+      this.guest = s.g.slice();
+      this.held = s.held!.slice();
+    }
+  }
+
+  guestAt(seat: number): GuestInfo | null {
+    if (!this.rules.setStart) {
+      const t = this.plate[seat];
+      return t >= 0 ? { dishes: [this.level.orders[t]], ready: [false], vip: false } : null;
+    }
+    const g = this.guest[seat];
+    if (g < 0) return null;
+    const n = this.rules.ticketsOf(g);
+    const dishes = this.level.orders.slice(g, g + n);
+    return { dishes, ready: dishes.map((_, j) => j < this.held[seat]), vip: this.rules.vipAt![g] };
+  }
+
+  queuedGuests(): { dishes: DishId[]; vip: boolean }[] {
+    const out: { dishes: DishId[]; vip: boolean }[] = [];
+    for (let i = this.next; i < this.level.orders.length; ) {
+      const set = !!this.rules.setStart?.[i];
+      out.push({ dishes: this.level.orders.slice(i, set ? i + 2 : i + 1), vip: !!this.rules.vipAt?.[i] });
+      i += set ? 2 : 1;
+    }
+    return out;
+  }
+
+  heldAt(i: number): DishId | null {
+    const st = this.stacks[i];
+    return st ? this.level.orders[st.order] : null;
+  }
+
+  /** A free counter slot (no item, no patty, no finished stack), or -1. */
+  private freeSlot(): number {
+    for (let i = 0; i < this.counter.length; i++) if (this.counter[i] === null && this.grill[i] === null && !this.stacks[i]) return i;
+    return -1;
   }
 
   get slots(): number {
@@ -289,16 +410,25 @@ export class BurgerSim {
 
   /** Dish wanted at each seat (the order's stacked dish, or empty), like Sim.seats. */
   get seats(): (DishId | null)[] {
-    return this.plate.map((t) => (t >= 0 ? this.level.orders[t] : null));
+    return this.plate.map((_, p) => {
+      const t = this.shown(p);
+      return t >= 0 ? this.level.orders[t] : null;
+    });
+  }
+
+  /** The ticket a plate shows: the one being built, or (guest mode, all done but waiting) the last one. */
+  private shown(p: number): number {
+    const t = this.plate[p];
+    return t === -2 ? this.guest[p] + this.held[p] - 1 : t;
   }
 
   ticket(seat: number): FoodId[] | null {
-    const t = this.plate[seat];
+    const t = this.shown(seat);
     return t >= 0 ? this.level.tickets![t] : null;
   }
 
   stacked(seat: number): number {
-    return this.done[seat];
+    return this.plate[seat] === -2 ? this.level.tickets![this.shown(seat)].length : this.done[seat];
   }
 
   queuedTickets(): FoodId[][] {
@@ -328,6 +458,10 @@ export class BurgerSim {
     });
     const st: BState = { ptr: this.ptr.slice(), plate: this.plate.slice(), done: this.done.slice(), next: this.next, counts, served: this.served };
     if (this.rules.grillTime) st.grill = this.grill.filter((x): x is number => x !== null).sort((a, b) => a - b);
+    if (this.rules.setStart) {
+      st.g = this.guest.slice();
+      st.held = this.held.slice();
+    }
     return st;
   }
 
@@ -347,6 +481,7 @@ export class BurgerSim {
   private finish(p: number, events: SimEvent[]): void {
     const t = this.plate[p];
     if (this.done[p] < this.level.tickets![t].length) return;
+    if (this.rules.setStart) return this.finishGuest(p, t, events);
     this.served++;
     events.push({ t: 'serve', seat: p, dish: this.level.orders[t], from: [] });
     const order = this.next < this.level.tickets!.length ? this.next++ : -1;
@@ -373,7 +508,7 @@ export class BurgerSim {
       this.finish(p, events);
       this.cascade(events);
     } else {
-      const slot = this.counter.findIndex((x) => x === null);
+      const slot = this.freeSlot();
       this.counter[slot] = item;
       events.push({ t: 'take', col, item, slot });
       if (grilled) {
@@ -400,6 +535,20 @@ export class BurgerSim {
       });
       if (doneAny) this.cascade(events);
     }
+    // a finished stack that waited past the last spot moves to a spot freed meanwhile
+    while (this.counter.length > this.slots) {
+      const at = this.counter.length - 1;
+      const st = this.stacks[at];
+      if (st) {
+        const to = this.freeSlot();
+        if (to < 0 || to >= this.slots) throw new Error('no spot for a finished stack');
+        this.stacks[to] = st;
+        events.push({ t: 'move', from: at, to });
+      }
+      this.counter.pop();
+      this.grill.pop();
+      this.stacks.pop();
+    }
     for (const c of revealed) events.push({ t: 'reveal', col: c, item: this.top(c)! });
     for (const c of this.openLids()) if (!lidsBefore.includes(c)) events.push({ t: 'lid', col: c });
     if (this.served === this.level.tickets!.length) {
@@ -410,6 +559,75 @@ export class BurgerSim {
       events.push({ t: 'stuck' });
     }
     return events;
+  }
+
+  /**
+   * Guest mode: ticket t of the guest at plate p is finished. The stack waits on the counter while
+   * the set's second ticket is built; once all are done the guest is served, unless a VIP is
+   * seated (then the last stack waits on the counter too).
+   */
+  private finishGuest(p: number, t: number, events: SimEvent[]): void {
+    const r = this.rules;
+    this.held[p]++;
+    this.done[p] = 0;
+    if (this.held[p] < r.ticketsOf(this.guest[p])) {
+      this.shelve(p, t, events);
+      this.plate[p] = this.guest[p] + this.held[p];
+      events.push({ t: 'ticket', seat: p, order: this.plate[p], ticket: this.level.tickets![this.plate[p]] });
+      return;
+    }
+    this.plate[p] = -2;
+    this.deliverAll(events, p, t);
+    // not served yet (a VIP is seated): the last stack waits on the counter as well
+    if (this.plate[p] === -2) this.shelve(p, t, events);
+  }
+
+  private shelve(p: number, t: number, events: SimEvent[]): void {
+    let slot = this.freeSlot();
+    if (slot < 0) {
+      // a spot frees up later in this take (a parked item slides onto a plate): wait past the last one meanwhile
+      slot = this.counter.length;
+      this.counter.push(null);
+      this.grill.push(null);
+      this.stacks.push(null);
+    }
+    this.stacks[slot] = { seat: p, order: t };
+    events.push({ t: 'shelve', seat: p, slot, dish: this.level.orders[t] });
+  }
+
+  /**
+   * Guest mode: serves every guest whose stacks are all finished (only VIPs while one is seated):
+   * the stacks waiting on the counter, and the one still on the plate (`fresh`: plate p, ticket t).
+   */
+  private deliverAll(events: SimEvent[], fresh = -1, freshTicket = -1): void {
+    const r = this.rules;
+    const vip = r.vipAt!;
+    for (let again = true; again; ) {
+      again = false;
+      const vipSeated = this.guest.some((g) => g >= 0 && vip[g]);
+      for (let p = 0; p < this.plate.length; p++) {
+        if (this.plate[p] !== -2 || (vipSeated && !vip[this.guest[p]])) continue;
+        this.stacks.forEach((st, slot) => {
+          if (!st || st.seat !== p) return;
+          events.push({ t: 'serve', seat: p, dish: this.level.orders[st.order], from: [slot] });
+          this.stacks[slot] = null;
+        });
+        if (p === fresh) {
+          events.push({ t: 'serve', seat: p, dish: this.level.orders[freshTicket], from: [] });
+          fresh = -1;
+        }
+        this.served += r.ticketsOf(this.guest[p]);
+        const order = this.next < this.level.tickets!.length ? this.next : -1;
+        this.plate[p] = order;
+        this.guest[p] = order;
+        this.held[p] = 0;
+        this.done[p] = 0;
+        if (order >= 0) this.next += r.setStart![order] ? 2 : 1;
+        events.push({ t: 'seat', seat: p, dish: order >= 0 ? this.level.orders[order] : null, order, ticket: order >= 0 ? this.level.tickets![order] : undefined });
+        again = true;
+        break;
+      }
+    }
   }
 
   /** Parked items slide onto the plates that need them next, left plate first, again and again. */
@@ -445,12 +663,14 @@ export class BurgerSim {
     this.extra++;
     this.counter.push(null);
     this.grill.push(null);
+    this.stacks.push(null);
     if (this.status === 'stuck') this.status = 'playing';
   }
 
   snapshot(): BurgerSnapshot {
     return {
-      ptr: this.ptr.slice(), counter: this.counter.slice(), grill: this.grill.slice(), plate: this.plate.slice(), done: this.done.slice(),
+      ptr: this.ptr.slice(), counter: this.counter.slice(), grill: this.grill.slice(), stacks: this.stacks.map((x) => (x ? { ...x } : null)),
+      guest: this.guest.slice(), held: this.held.slice(), plate: this.plate.slice(), done: this.done.slice(),
       next: this.next, served: this.served, extra: this.extra, status: this.status, history: this.history.slice(),
     };
   }
@@ -459,6 +679,9 @@ export class BurgerSim {
     this.ptr = s.ptr.slice();
     this.counter = s.counter.slice();
     this.grill = s.grill.slice();
+    this.stacks = s.stacks.map((x) => (x ? { ...x } : null));
+    this.guest = s.guest.slice();
+    this.held = s.held.slice();
     this.plate = s.plate.slice();
     this.done = s.done.slice();
     this.next = s.next;

@@ -172,7 +172,9 @@ const DISH_SHORT: Partial<Record<DishId, string>> = {
   quesadilla: 'Qu', tostada: 'To', enchiladas: 'En',
 };
 const dishShort = (d: DishId) => DISH_SHORT[d] ?? d.slice(0, 2);
-const INTRO_NAME: Record<string, string> = { slots: 'small counter', lid: 'lids', cloche: 'cloches', frozen: 'frozen tiles', oven: 'the oven', grill: 'the grill' };
+const INTRO_NAME: Record<string, string> = {
+  slots: 'small counter', lid: 'lids', cloche: 'cloches', frozen: 'frozen tiles', oven: 'the oven', grill: 'the grill', set: 'set menus', vip: 'the VIP',
+};
 
 function levelTable(world: number): string {
   const out = [
@@ -194,6 +196,8 @@ function levelTable(world: number): string {
       lv.cloches?.length ? `${lv.cloches.length} cloche${lv.cloches.length > 1 ? 's' : ''} (${st.riddles ?? 0} riddle${st.riddles === 1 ? '' : 's'}${st.guesses ? `, ${st.guesses} guess` : ''})` : '',
       lv.frozen?.length ? `${lv.frozen.length} ice (cuts ${p0(st.iceCut ?? 0)}%)` : '',
       lv.stove ? (lv.rules === 'burger' ? `grill ${lv.stove.patty}` : `oven (${Object.entries(lv.stove).map(([d, t]) => `${dishShort(d as DishId)} ${t}`).join(', ')})`) : '',
+      lv.sets?.length ? `set menu${lv.sets.length > 1 ? 's' : ''} (${lv.sets.map((i) => `${dishShort(lv.orders[i])}+${dishShort(lv.orders[i + 1])}`).join(', ')})` : '',
+      lv.vip?.length ? `VIP (guest ${lv.vip.map((i) => i + 1).join(', ')})` : '',
     ].filter(Boolean).join(', ') || '–';
     out.push(
       `| ${lv.local} | ${lv.n} | ${lv.tier} | ${intro}${theme}${tops} | ${guests} | ${st.items} | ` +
@@ -245,7 +249,7 @@ const TARGETS_W1 = targetTable([
   ['Normal, L11', targetFor(0, 11, 'normal')],
   ['Normal, L25 (bands slide linearly)', targetFor(0, 25, 'normal')],
   ['Normal, L39', targetFor(0, 39, 'normal')],
-  ['Intro levels (11, 12, 13, 16, 18, 19, 21, 23, 27, 32, 36)', T(13)],
+  ['Intro levels (11, 12, 13, 16, 18, 19, 21, 23, 27, 28, 32, 33, 36)', T(13)],
   ['Hard L15', T(15)],
   ['Hard L35', T(35)],
   ['Banquets L20, 30, 40', T(20)],
@@ -480,6 +484,15 @@ makes. The boards were small too (4–5 columns, 4–5 guests).
   sauce next to minced beef turns into ragù at once — before any dish can take the sauce. Beef
   waiting on the counter steals the sauce a spaghetti, a pizza or gnocchi needed, several moves
   later: a long-range trap. Ragù is for tagliatelle al ragù (L27) and lasagne (L32, an oven dish).
+- **Set menus** (the Trattoria from L28, campaign level 63; the Burger Joint from L31). One guest
+  orders two dishes and gets them together: the first one finished waits on the counter on a red
+  napkin — it takes a spot — until the second is ready (in the Burger Joint the finished stack moves
+  off the plate to the counter and the plate builds the second one).
+- **The VIP** (the Trattoria from L33, campaign level 78; the Burger Joint from L33). A guest with a
+  gold star in the queue: while the VIP is seated nobody else is served, and other guests' finished
+  dishes wait on the counter (a spot each) until the VIP has eaten. The queue shows exactly when the
+  VIP arrives, so it is planned for, not a surprise. Both share one rule ("ready dishes": a finished
+  dish that can't go out yet waits on the counter), which the solver, the hint and every player see.
 - **Bigger kitchens late.** Six columns, a third seat and longer queues (up to 8 guests) from the
   middle of each ladder.
 

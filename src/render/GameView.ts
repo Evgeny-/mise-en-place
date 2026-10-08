@@ -332,8 +332,8 @@ export class GameView {
           break;
         case 'serve': {
           // stacked kitchens (burgers, hot dogs, pancakes…): the stack on the plate is the dish
-          if (this.sim.ticket) {
-            this.guests.serveStack(e.seat, this.clock + cursor);
+          if (this.sim.ticket && !e.from.length) {
+            this.guests.serveStack(e.seat, this.clock + cursor, e.dish);
             cursor += 0.3;
             break;
           }
@@ -406,6 +406,19 @@ export class GameView {
         case 'done':
           this.counter.done(e.slot, cursor);
           cursor += 0.35;
+          break;
+        // set menus and VIPs: a finished dish (or burger stack) waits on a napkin for its guest
+        case 'ready':
+          this.counter.ready(e.from, e.slot, e.dish, cursor);
+          cursor += MERGE + 0.15;
+          break;
+        case 'shelve': {
+          const holder = this.guests.takeStack(e.seat, this.clock + cursor);
+          if (holder) this.counter.adopt(holder, e.slot, cursor + 0.2);
+          cursor += 0.3;
+          break;
+        }
+        case 'ticket':
           break;
         default:
           break;

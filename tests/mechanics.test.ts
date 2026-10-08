@@ -334,3 +334,90 @@ describe('the stove and the ragù chain', () => {
     expect(sim.status).toBe('won');
   }, 180_000);
 });
+
+describe('set menus and VIP guests', () => {
+  function parity(lv: LevelDef, games: number, seed: number): number {
+    let won = 0;
+    let x = seed;
+    const rand = (n: number) => {
+      x = (Math.imul(x, 1103515245) + 12345) >>> 0;
+      return (x >>> 8) % n;
+    };
+    for (let g = 0; g < games; g++) {
+      const sim = createSim(lv);
+      const rules = sim.currentRules();
+      let s = rules.start();
+      expect(rules.key(sim.state())).toBe(rules.key(s));
+      for (;;) {
+        const legal = sim.legalMoves();
+        expect(legal).toEqual(rules.moves(s));
+        if (!legal.length) break;
+        const m = legal[rand(legal.length)];
+        sim.take(m);
+        s = rules.play(s, m);
+        expect(rules.key(sim.state())).toBe(rules.key(s));
+      }
+      if (sim.status === 'won') won++;
+      expect(sim.status === 'won').toBe(rules.isWin(s));
+    }
+    return won;
+  }
+
+  const SET: LevelDef = {
+    n: 1, world: 0, menu: 'trattoria', tier: 'normal', slots: 3, seats: 2,
+    columns: [['pasta', 'tomato', 'tomato', 'bread'], ['tomato', 'tomato', 'pasta', 'basil'], ['tomato', 'mozzarella', 'tomato']] as FoodId[][],
+    orders: ['spaghetti', 'bruschetta', 'spaghetti', 'caprese'] as never,
+    sets: [0], vip: [2],
+  };
+
+  it('a set menu is one guest with two dishes; a VIP blocks the others until served', () => {
+    const r = new KitchenRules(SET);
+    const s = r.start();
+    // the set guest (spaghetti + bruschetta) and the VIP's spaghetti are seated
+    expect(s.g).toEqual([0, 2]);
+    expect(r.dishesOf(0).length).toBe(2);
+    expect(parity(SET, 80, 3)).toBeGreaterThanOrEqual(0);
+    expect(new Solver(r).winnable()).toBe(true);
+  });
+
+  it('a finished dish waits on the counter (it takes a slot) until its partner is ready', () => {
+    // bruschetta first: it waits; then the spaghetti: both go out together
+    const lv: LevelDef = {
+      n: 1, world: 0, menu: 'trattoria', tier: 'normal', slots: 3, seats: 1,
+      columns: [['bread', 'tomato', 'pasta', 'tomato', 'tomato']] as FoodId[][],
+      orders: ['bruschetta', 'spaghetti'] as never, sets: [0],
+    };
+    const sim = createSim(lv) as unknown as { take(c: number): SimEvent[] | null; served: number; heldAt(i: number): string | null; status: string };
+    sim.take(0);
+    const ev = sim.take(0)!;
+    expect(ev.some((e) => e.t === 'ready')).toBe(true);
+    expect(sim.heldAt(0)).toBe('bruschetta');
+    expect(sim.served).toBe(0);
+    sim.take(0);
+    sim.take(0);
+    const last = sim.take(0)!;
+    expect(last.filter((e) => e.t === 'serve').length).toBe(2);
+    expect(sim.status).toBe('won');
+  });
+
+  it('burger kitchens: the finished stack of a set waits on a counter spot; the play simulation agrees with the rules', () => {
+    const lv: LevelDef = {
+      n: 1, world: 1, menu: 'diner', tier: 'normal', rules: 'burger', slots: 3, seats: 2,
+      columns: [['bun_bottom', 'cup', 'patty', 'bun_top'], ['ice_cream', 'cherry', 'bun_bottom'], ['hotdog_bun', 'cheese_slice', 'bun_top', 'sausage']] as FoodId[][],
+      orders: ['burger', 'sundae', 'burger', 'hotdog'] as never,
+      tickets: [['bun_bottom', 'patty', 'bun_top'], ['cup', 'ice_cream', 'cherry'], ['bun_bottom', 'cheese_slice', 'bun_top'], ['hotdog_bun', 'sausage']] as FoodId[][],
+      sets: [0], vip: [3],
+    };
+    expect(parity(lv, 80, 5)).toBeGreaterThanOrEqual(0);
+    const r = new BurgerRules(lv);
+    const s = r.start();
+    expect(s.g).toEqual([0, 2]);
+    expect(s.next).toBe(3);
+    // along a winning line the set's first stack waits on a spot, and the guest gets both at once
+    const line = new Solver(r).solution()!;
+    const sim = createSim(lv);
+    const events = line.flatMap((m) => sim.take(m)!);
+    expect(events.some((e) => e.t === 'shelve')).toBe(true);
+    expect(sim.status).toBe('won');
+  });
+});

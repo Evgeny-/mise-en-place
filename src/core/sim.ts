@@ -43,6 +43,12 @@ export type SimEvent =
   | { t: 'tick'; slot: number; left: number }
   /** the stove: the dish or patty at `slot` is done (an oven dish is served next: a serve from [slot] follows) */
   | { t: 'done'; slot: number }
+  /** a finished dish waits on the counter at `slot` for the guest at `seat` (its parts come from `from`) */
+  | { t: 'ready'; seat: number; dish: DishId; from: number[]; slot: number }
+  /** burger kitchens: the finished stack on the plate at `seat` moves to counter `slot` to wait for its guest */
+  | { t: 'shelve'; seat: number; slot: number; dish: DishId }
+  /** burger kitchens: the plate at `seat` starts the guest's next ticket (a set menu's second dish) */
+  | { t: 'ticket'; seat: number; order: number; ticket: FoodId[] }
   | { t: 'win' }
   | { t: 'stuck' };
 
@@ -95,6 +101,20 @@ export interface PlaySim {
   cooking?(i: number): { left: number; dish: DishId | null } | null;
   /** the stove: the seat whose dish is in the oven, with the takes left (null: not baking) */
   baking?(seat: number): number | null;
+  /** set menus and VIPs: the guest at a seat (their dishes, which are finished and waiting, VIP?) */
+  guestAt?(seat: number): GuestInfo | null;
+  /** set menus and VIPs: the guests still in the queue, in order */
+  queuedGuests?(): { dishes: DishId[]; vip: boolean }[];
+  /** a finished dish waiting on counter slot i for its guest (null: none) */
+  heldAt?(i: number): DishId | null;
+}
+
+/** A seated guest in kitchens with set menus or VIPs. */
+export interface GuestInfo {
+  dishes: DishId[];
+  /** per dish: finished and waiting on the counter */
+  ready: boolean[];
+  vip: boolean;
 }
 
 /** The play simulation for a level's rules. */
@@ -103,11 +123,13 @@ export function createSim(level: LevelDef): PlaySim {
   return level.rules === 'burger' ? (new BurgerSim(level) as unknown as PlaySim) : (new Sim(level) as unknown as PlaySim);
 }
 
-/** A dish in the oven: whose it is and the takes it still bakes. */
+/** A dish in the oven (left > 0: the takes it still bakes) or finished and waiting for its guest (left = 0). */
 export interface OvenEntry {
   seat: number;
   dish: DishId;
   left: number;
+  /** finished this very take: the counter slots its parts came from (dropped at the end of the take) */
+  from?: number[];
 }
 
 export interface SimSnapshot {
@@ -115,6 +137,8 @@ export interface SimSnapshot {
   counter: (FoodId | null)[];
   oven: (OvenEntry | null)[];
   seats: (DishId | null)[];
+  guest: number[];
+  readyBits: number[];
   next: number;
   served: number;
   slots: number;
@@ -135,6 +159,9 @@ export class Sim {
   /** the stove: a dish baking at each counter slot (the slot is taken meanwhile) */
   oven: (OvenEntry | null)[];
   seats: (DishId | null)[];
+  /** guest mode (set menus, VIPs): per seat, the order index of the guest's first dish (-1 = empty), and their finished dishes */
+  guest: number[] = [];
+  readyBits: number[] = [];
   next: number;
   served: number;
   status: Status = 'playing';
@@ -159,6 +186,39 @@ export class Sim {
     this.served = 0;
     this.cloches = new ClocheMarks(level);
     this.thaw = thawTable(level);
+    if (this.rules.setStart) {
+      const st = this.rules.start();
+      this.guest = st.g!.slice();
+      this.readyBits = st.ready!.slice();
+      this.seats = st.seats.map((d) => (d >= 0 ? this.kitchen.dishes[d] : null));
+      this.next = st.next;
+    }
+  }
+
+  guestAt(seat: number): GuestInfo | null {
+    if (!this.rules.setStart) {
+      const d = this.seats[seat];
+      return d ? { dishes: [d], ready: [false], vip: false } : null;
+    }
+    const g = this.guest[seat];
+    if (g < 0) return null;
+    const dishes = this.rules.dishesOf(g).map((d) => this.kitchen.dishes[d]);
+    return { dishes, ready: dishes.map((_, j) => !!(this.readyBits[seat] & (1 << j))), vip: this.rules.vipAt![g] };
+  }
+
+  queuedGuests(): { dishes: DishId[]; vip: boolean }[] {
+    const out: { dishes: DishId[]; vip: boolean }[] = [];
+    for (let i = this.next; i < this.level.orders.length; ) {
+      const set = !!this.rules.setStart?.[i];
+      out.push({ dishes: this.level.orders.slice(i, set ? i + 2 : i + 1), vip: !!this.rules.vipAt?.[i] });
+      i += set ? 2 : 1;
+    }
+    return out;
+  }
+
+  heldAt(i: number): DishId | null {
+    const o = this.oven[i];
+    return o && o.left === 0 ? o.dish : null;
   }
 
   covered(col: number, row: number): boolean {
@@ -212,16 +272,20 @@ export class Sim {
       st.cook = this.seats.map(() => 0);
       for (const o of this.oven) if (o) st.cook[o.seat] = o.left;
     }
+    if (this.rules.setStart) {
+      st.g = this.guest.slice();
+      st.ready = this.readyBits.slice();
+    }
     return st;
   }
 
   cooking(i: number): { left: number; dish: DishId | null } | null {
     const o = this.oven[i];
-    return o ? { left: o.left, dish: o.dish } : null;
+    return o && o.left > 0 ? { left: o.left, dish: o.dish } : null;
   }
 
   baking(seat: number): number | null {
-    return this.oven.find((o) => o?.seat === seat)?.left ?? null;
+    return this.oven.find((o) => o?.seat === seat && o.left > 0)?.left ?? null;
   }
 
   /** Rules for the current position (an extra slot from a booster counts). */
@@ -249,7 +313,7 @@ export class Sim {
     this.history.push(col);
     const lidsBefore = this.openLids();
     // Land in the leftmost free slot, or on a temporary landing spot past the last slot.
-    const baking = this.oven.map((o) => !!o);
+    const baking = this.oven.map((o) => !!o && o.left > 0);
     let landing = this.counter.findIndex((x, i) => x === null && !this.oven[i]);
     if (landing < 0) {
       landing = this.counter.length;
@@ -258,7 +322,8 @@ export class Sim {
     } else this.counter[landing] = item;
     events.push({ t: 'take', col, item, slot: landing });
     for (const c of this.cloches.reveal(this.ptr)) events.push({ t: 'reveal', col: c, item: this.top(c)! });
-    this.resolveCounter(events, landing);
+    if (this.rules.setStart) this.resolveGuests(events, landing);
+    else this.resolveCounter(events, landing);
     // the oven: dishes that were already baking bake one take more (seats in order); done ones are
     // served; with the pantry empty, everything left finishes
     const order = this.oven.map((o, i) => [o, i] as const).filter(([o, i]) => o && baking[i]).sort((a, b) => a[0]!.seat - b[0]!.seat);
@@ -269,10 +334,10 @@ export class Sim {
       if (o!.left === 0) this.finishBake(i, events);
     }
     const empty = this.ptr.every((p, c) => p >= this.level.columns[c].length);
-    while (empty && this.oven.some(Boolean)) {
+    while (empty && this.oven.some((o) => o && o.left > 0)) {
       let i = -1;
       this.oven.forEach((o, j) => {
-        if (o && (i < 0 || o.seat < this.oven[i]!.seat)) i = j;
+        if (o && o.left > 0 && (i < 0 || o.seat < this.oven[i]!.seat)) i = j;
       });
       this.oven[i]!.left = 0;
       this.finishBake(i, events);
@@ -353,6 +418,99 @@ export class Sim {
     }
   }
 
+  /**
+   * Guest mode (set menus, VIPs), as KitchenRules.resolveGuests: preps fire; one dish is finished (a
+   * VIP's first, else the leftmost guest's) and waits on the counter at the slot of its first part;
+   * every guest whose dishes are all finished is served (only VIPs while one is seated). A dish
+   * finished and served in the same step flies straight from its parts to the guest.
+   */
+  private resolveGuests(events: SimEvent[], landing: number): void {
+    const k = this.kitchen;
+    const vip = this.rules.vipAt!;
+    for (;;) {
+      const counts = new Array<number>(k.items.length).fill(0);
+      for (const it of this.counter) if (it) counts[k.item(it)]++;
+      const pk = k.firePrep(counts);
+      if (pk >= 0) {
+        const p = k.preps[pk];
+        const a = this.findSlot(k.items[p.a], -1, landing);
+        const b = this.findSlot(k.items[p.b], a, landing);
+        const keep = a === landing ? b : b === landing ? a : Math.min(a, b);
+        const drop = keep === a ? b : a;
+        const out = k.items[p.out];
+        this.counter[keep] = out;
+        this.counter[drop] = null;
+        events.push({ t: 'prep', a: drop, b: keep, slot: keep, item: out });
+        if (drop === landing) landing = keep;
+        continue;
+      }
+      let acted = false;
+      for (const pass of [true, false]) {
+        for (let i = 0; i < this.seats.length && !acted; i++) {
+          const g = this.guest[i];
+          if (g < 0 || vip[g] !== pass) continue;
+          const ds = this.rules.dishesOf(g);
+          for (let j = 0; j < ds.length; j++) {
+            if (this.readyBits[i] & (1 << j) || !k.fits(counts, ds[j])) continue;
+            const from: number[] = [];
+            for (const part of k.parts[ds[j]]) from.push(this.findSlotNotIn(k.items[part], from));
+            for (const at of from) this.counter[at] = null;
+            this.oven[Math.min(...from)] = { seat: i, dish: k.dishes[ds[j]], left: 0, from };
+            this.readyBits[i] |= 1 << j;
+            acted = true;
+            break;
+          }
+        }
+        if (acted) break;
+      }
+      const delivered = this.deliverGuests(events);
+      // dishes finished now that wait for their guest: their parts become the dish on the counter
+      this.oven.forEach((o, slot) => {
+        if (!o?.from) return;
+        events.push({ t: 'ready', seat: o.seat, dish: o.dish, from: o.from, slot });
+        delete o.from;
+      });
+      if (!acted && !delivered) return;
+    }
+  }
+
+  /** Guest mode: serves every guest whose dishes are all finished (only VIPs while one is seated). */
+  private deliverGuests(events: SimEvent[]): boolean {
+    const vip = this.rules.vipAt!;
+    let any = false;
+    for (let again = true; again; ) {
+      again = false;
+      const vipSeated = this.guest.some((g) => g >= 0 && vip[g]);
+      for (let i = 0; i < this.seats.length; i++) {
+        const g = this.guest[i];
+        if (g < 0) continue;
+        const n = this.rules.dishesOf(g).length;
+        if (this.readyBits[i] !== (1 << n) - 1 || (vipSeated && !vip[g])) continue;
+        // the guest's dishes go out together: the one(s) waiting on the counter, the fresh one from its parts
+        this.oven.forEach((o, slot) => {
+          if (!o || o.seat !== i || o.left !== 0) return;
+          events.push({ t: 'serve', seat: i, dish: o.dish, from: o.from ?? [slot] });
+          this.oven[slot] = null;
+        });
+        this.served += n;
+        this.readyBits[i] = 0;
+        const order = this.next < this.level.orders.length ? this.next : -1;
+        if (order >= 0) {
+          this.guest[i] = order;
+          this.seats[i] = this.level.orders[order];
+          this.next += this.rules.setStart![order] ? 2 : 1;
+        } else {
+          this.guest[i] = -1;
+          this.seats[i] = null;
+        }
+        events.push({ t: 'seat', seat: i, dish: this.seats[i], order });
+        any = again = true;
+        break;
+      }
+    }
+    return any;
+  }
+
   /** The guest at seat s was served: the next one in the queue sits down. */
   private seatNext(s: number, events: SimEvent[]): void {
     this.served++;
@@ -412,6 +570,8 @@ export class Sim {
       ptr: this.ptr.slice(),
       counter: this.counter.slice(),
       oven: this.oven.map((o) => (o ? { ...o } : null)),
+      guest: this.guest.slice(),
+      readyBits: this.readyBits.slice(),
       seats: this.seats.slice(),
       next: this.next,
       served: this.served,
@@ -425,6 +585,8 @@ export class Sim {
     this.ptr = s.ptr.slice();
     this.counter = s.counter.slice();
     this.oven = s.oven.map((o) => (o ? { ...o } : null));
+    this.guest = s.guest.slice();
+    this.readyBits = s.readyBits.slice();
     this.seats = s.seats.slice();
     this.next = s.next;
     this.served = s.served;

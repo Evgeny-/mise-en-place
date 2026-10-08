@@ -1,11 +1,13 @@
 import { DISHES, FOODS, MENUS, type DishId, type FoodId, type Menu } from '../core/content';
-import type { PlaySim as Sim } from '../core/sim';
+import type { GuestInfo, PlaySim as Sim } from '../core/sim';
 import { icons } from '../render/icons';
 import { h } from './dom';
 import { t, loc } from '../app/i18n';
 
 interface TicketEl {
   root: HTMLElement;
+  /** set menus: the dish pictures, one per dish (a finished one gets a napkin ring) */
+  dishes?: HTMLElement[];
   dish: DishId | null;
   /** what the ticket shows (dish id, or the burger's layers) — rebuilt when it changes */
   key: string;
@@ -54,7 +56,7 @@ export class Tickets {
 
   private makeTicket(seat: number): TicketEl {
     const root = h('div', { class: 'ticket empty' });
-    const tk: TicketEl = { root, dish: null, key: '', parts: [] };
+    const tk: TicketEl = { root, dish: null, key: '', parts: [], dishes: [] };
     root.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       if (tk.dish) this.onTap(tk.dish);
@@ -66,9 +68,27 @@ export class Tickets {
   /** Identity of what a seat's ticket shows; a new burger with the same layers still counts as new. */
   private keyOf(sim: Sim, seat: number): string {
     const layers = sim.ticket?.(seat) ?? null;
+    const guest = this.guestOf(sim, seat);
+    const extra = guest ? `|${guest.dishes.join('+')}|${guest.vip ? 'vip' : ''}` : '';
     // the order's own array: identical layers on a later order still count as a new ticket
-    if (layers) return 'order' + (sim.level.tickets?.indexOf(layers) ?? -1);
-    return sim.seats[seat] ?? '';
+    if (layers) return 'order' + (sim.level.tickets?.indexOf(layers) ?? -1) + extra;
+    return (sim.seats[seat] ?? '') + extra;
+  }
+
+  /** Set menus and VIPs: the seated guest (null in kitchens without them). */
+  private guestOf(sim: Sim, seat: number): GuestInfo | null {
+    return sim.level.sets?.length || sim.level.vip?.length ? (sim.guestAt?.(seat) ?? null) : null;
+  }
+
+  /** A gold star badge: this guest is a VIP. */
+  private vipBadge(): HTMLElement {
+    const b = h('span', { class: 'vip-badge', text: '★', attrs: { title: 'VIP' } });
+    Object.assign(b.style, {
+      position: 'absolute', left: '-10px', top: '-12px', width: '30px', height: '30px', borderRadius: '15px', background: '#f5b301',
+      color: '#fff', font: '900 20px/30px Nunito, sans-serif', textAlign: 'center', boxShadow: '0 2px 0 rgba(0,0,0,0.3), 0 0 0 2px #fff',
+      zIndex: '2',
+    });
+    return b;
   }
 
   private fill(tk: TicketEl, sim: Sim, seat: number): void {
@@ -80,7 +100,10 @@ export class Tickets {
     tk.root.classList.toggle('empty', !dish);
     tk.root.classList.toggle('burger-ticket', !!layers);
     tk.parts = [];
+    tk.dishes = [];
     if (!dish) return;
+    const guest = this.guestOf(sim, seat);
+    if (guest?.vip) tk.root.append(this.vipBadge());
     if (layers) {
       // top bun first, like the burger itself
       const stack = h('div', { class: 'layers' });
@@ -90,6 +113,36 @@ export class Tickets {
         stack.append(el);
       }
       tk.root.append(h('div', { class: 'clip' }), stack);
+      // a set menu: the guest's other dish, small, so the pair reads at a glance
+      if (guest && guest.dishes.length > 1) {
+        const other = guest.dishes.find((d, j) => d !== dish || j > 0) ?? guest.dishes[1];
+        const mini = img(icons.dish(other), loc(DISHES[other].name));
+        Object.assign(mini.style, { position: 'absolute', right: '-12px', bottom: '-10px', width: '34px', height: '34px', background: '#fff', borderRadius: '17px', boxShadow: '0 1px 0 rgba(0,0,0,0.25)' });
+        tk.root.append(mini);
+      }
+      return;
+    }
+    if (guest && guest.dishes.length > 1) {
+      // a set menu: both dishes with their parts, side by side
+      const row = h('div', { class: 'set-menu' });
+      Object.assign(row.style, { display: 'flex', gap: '6px', alignItems: 'flex-start' });
+      guest.dishes.forEach((d, j) => {
+        const col = h('div', { class: 'set-dish' });
+        Object.assign(col.style, { display: 'flex', flexDirection: 'column', alignItems: 'center' });
+        const pic = img(icons.dish(d), loc(DISHES[d].name));
+        pic.classList.add('dish');
+        const parts = h('div', { class: 'parts' });
+        for (const p of DISHES[d].parts) {
+          const el = this.part(p);
+          tk.parts.push(el);
+          parts.append(el);
+        }
+        tk.dishes!.push(pic);
+        col.append(pic, parts);
+        if (j) row.append(h('b', { text: '+', style: 'align-self:center;font:900 18px Nunito,sans-serif;color:#8a5a3c' }));
+        row.append(col);
+      });
+      tk.root.append(h('div', { class: 'clip' }), row);
       return;
     }
     const def = DISHES[dish];
@@ -168,6 +221,22 @@ export class Tickets {
         return;
       }
       badge?.remove();
+      // set menus: a finished dish (waiting on the counter) ticks all its parts and gets a red ring
+      const guest = this.guestOf(sim, i);
+      if (guest && guest.dishes.length > 1 && !sim.ticket?.(i)) {
+        const pool = sim.counter.filter((x): x is FoodId => !!x);
+        let n = 0;
+        guest.dishes.forEach((d, j) => {
+          tk.dishes?.[j]?.style.setProperty('box-shadow', guest.ready[j] ? '0 0 0 3px #d63b3b' : 'none');
+          tk.dishes?.[j]?.style.setProperty('border-radius', '50%');
+          for (const p of DISHES[d].parts) {
+            const k = guest.ready[j] ? -1 : pool.indexOf(p);
+            if (k >= 0) pool.splice(k, 1);
+            tk.parts[n++]?.classList.toggle('ok', guest.ready[j] || k >= 0);
+          }
+        });
+        return;
+      }
       // tick parts present on the counter (each counter item ticks one part)
       const pool = sim.counter.filter((x): x is FoodId => !!x);
       DISHES[dish].parts.forEach((p, j) => {
@@ -179,10 +248,32 @@ export class Tickets {
     });
     const q = sim.queue();
     const qt = sim.queuedTickets?.() ?? null;
-    const key = qt ? qt.map((x) => x.join(',')).join('|') : q.join(',');
+    const guests = sim.level.sets?.length || sim.level.vip?.length ? (sim.queuedGuests?.() ?? null) : null;
+    const key = (qt ? qt.map((x) => x.join(',')).join('|') : q.join(',')) + (guests ? '#' + guests.map((g) => g.dishes.join('+') + (g.vip ? '*' : '')).join('|') : '');
     this.queueEl.classList.toggle('hidden', q.length === 0);
     if (key === this.queueKey) return;
     this.queueKey = key;
+    if (guests) {
+      // set menus and VIPs: one rail item per guest (both dishes of a set), VIPs with a gold star
+      const items = guests.map((g, i) => {
+        const pics = g.dishes.map((d) => img(icons.dish(d), loc(DISHES[d].name)));
+        const it = h('span', { class: 'qitem' + (g.dishes.length > 1 ? ' qset' : '') }, ...pics, h('b', { text: String(i + 1) }));
+        it.style.position = 'relative';
+        if (g.vip) {
+          const star = h('span', { text: '★' });
+          Object.assign(star.style, {
+            position: 'absolute', left: '-6px', top: '-8px', width: '22px', height: '22px', borderRadius: '11px', background: '#f5b301',
+            color: '#fff', font: '900 15px/22px Nunito, sans-serif', textAlign: 'center', boxShadow: '0 0 0 2px #fff',
+          });
+          it.append(star);
+          it.style.outline = '3px solid #f5b301';
+          it.style.borderRadius = '10px';
+        }
+        return it;
+      });
+      this.queueList.replaceChildren(...items);
+      return;
+    }
     const items = q.map((d, i) => {
       if (qt) {
         const mini = h('span', { class: 'qstack' });

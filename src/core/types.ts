@@ -76,7 +76,7 @@ export interface LevelStats {
  * (a tortilla catches the next fillings), 'park' (lay a new tortilla over a half-made taco),
  * 'topping' (a ticket's marked filling must go in last).
  */
-export type Intro = DishId | 'lid' | 'slots' | 'tortilla' | 'park' | 'topping' | 'cloche' | 'frozen' | 'oven' | 'grill';
+export type Intro = DishId | 'lid' | 'slots' | 'tortilla' | 'park' | 'topping' | 'cloche' | 'frozen' | 'oven' | 'grill' | 'set' | 'vip';
 
 export interface LevelDef {
   /** campaign level number, 1-based (the global position; see shifts.ts) */
@@ -119,6 +119,16 @@ export interface LevelDef {
    * Joint: `patty`, the takes a patty grills before it can go on a plate.
    */
   stove?: Partial<Record<DishId | FoodId, number>>;
+  /**
+   * Set menus: order indices i where orders[i] and orders[i + 1] are one guest's two dishes. The
+   * first one finished waits on a counter slot until the other is ready; both go out together.
+   */
+  sets?: number[];
+  /**
+   * VIP guests: order indices of their (first) dish. While a VIP is seated, other guests' finished
+   * dishes wait on the counter (a slot each) until the VIP is served.
+   */
+  vip?: number[];
   /** taco kitchens, twist "topping last": per dish, the filling that must go into it last */
   toppings?: Partial<Record<DishId, FoodId>>;
   /** a winning sequence of column indices */
