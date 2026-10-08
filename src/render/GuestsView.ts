@@ -22,6 +22,8 @@ interface Delivery {
 interface Layer {
   obj: THREE.Object3D;
   thickness: number;
+  /** view time the layer settles on the plate (layers rebuilt by sync are already there) */
+  landAt: number;
 }
 
 interface Seat {
@@ -114,7 +116,7 @@ export class GuestsView {
           const { object, thickness } = burgerLayer(ticket[k]);
           object.position.copy(this.platePos(i)).add(new THREE.Vector3(0, y, 0));
           this.group.add(object);
-          seat.stack.push({ obj: object, thickness });
+          seat.stack.push({ obj: object, thickness, landAt: 0 });
           y += thickness;
         }
       }
@@ -141,7 +143,7 @@ export class GuestsView {
     const { object, thickness } = burgerLayer(item);
     const base = this.stackTop(seat, layer);
     s.stack.length = layer;
-    s.stack.push({ obj: object, thickness });
+    s.stack.push({ obj: object, thickness, landAt: this.time + delay + 0.36 });
     const target = this.platePos(seat).add(new THREE.Vector3(0, base, 0));
     const a = from.clone();
     const p = new THREE.Vector3();
@@ -156,6 +158,8 @@ export class GuestsView {
       start: () => a.copy(obj.position),
       done: () => {
         this.group.remove(obj);
+        // already picked up with the finished dish (serveStack waits for this, so only a safeguard)
+        if (object.parent) return;
         object.position.copy(target);
         this.group.add(object);
         audio.play('plop', { pitch: layer });
@@ -176,6 +180,8 @@ export class GuestsView {
     const plate = this.platePos(seat);
     holder.position.copy(plate);
     this.group.add(holder);
+    // the last layer may still be in the air (it slides over from the counter): wait for it
+    at = Math.max(at, ...layers.map((l) => l.landAt + 0.05));
     const delay = Math.max(0, at - this.time);
     this.tweens.after(delay, () => {
       for (const l of layers) holder.attach(l.obj);
