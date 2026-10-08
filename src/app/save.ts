@@ -14,8 +14,17 @@ export interface Settings {
   night: 'auto' | 'on' | 'off';
 }
 
+/**
+ * Version of the campaign's levels. Bump it when the levels are rebuilt so that old stars no
+ * longer fit them: every save then restarts the campaign once (coins, boosters, decor, the
+ * cookbook and settings stay).
+ */
+export const CAMPAIGN_VERSION = 1;
+
 export interface SaveData {
   v: 1;
+  /** CAMPAIGN_VERSION the level progress belongs to */
+  campaign: number;
   /** Next level to play (highest unlocked). */
   level: number;
   stars: Record<number, number>;
@@ -37,6 +46,7 @@ const KEY = 'mise-en-place-save-v1';
 function defaults(): SaveData {
   return {
     v: 1,
+    campaign: CAMPAIGN_VERSION,
     level: 1,
     stars: {},
     coins: 50,
@@ -55,9 +65,17 @@ export function loadSave(): SaveData {
     if (!raw) return defaults();
     const d = JSON.parse(raw) as Partial<SaveData>;
     const base = defaults();
+    // saves from before versioning belong to the first campaign
+    if ((d.campaign ?? 1) !== CAMPAIGN_VERSION) {
+      d.level = 1;
+      d.stars = {};
+      // new levels may introduce things differently: show their cards again
+      d.seen = (d.seen ?? []).filter((k) => !k.startsWith('intro:'));
+    }
     return {
       ...base,
       ...d,
+      campaign: CAMPAIGN_VERSION,
       boosters: { ...base.boosters, ...(d.boosters ?? {}) },
       settings: { ...base.settings, ...(d.settings ?? {}) },
       seen: Array.isArray(d.seen) ? d.seen : [],

@@ -278,6 +278,9 @@ export class Guest {
   private readonly side: number;
   private readonly arriveClip: Clip;
   private readonly leaveClip: Clip;
+  /** playback speed of the current arrival and departure */
+  private arrivePace = 1;
+  private leavePace = 1;
   private readonly eatClip: Clip;
   private readonly delightClip: Clip;
 
@@ -404,24 +407,28 @@ export class Guest {
     return this.stateValue;
   }
 
-  /** Pop up from behind the counter onto the stool. Returns the duration in seconds. */
-  arrive(): number {
+  /** Pop up from behind the counter onto the stool, `pace` times faster than the clip.
+   *  Returns the duration in seconds. */
+  arrive(pace = 1): number {
     if (this.disposed) return 0;
     this.leaveClip.cancel();
     this.stateValue = 'arriving';
     this.root.visible = true;
+    this.arrivePace = pace;
     this.arriveClip.start();
-    return ARRIVE_DURATION;
+    return ARRIVE_DURATION / pace;
   }
 
-  /** Wave goodbye and hop down off the stool; the guest is hidden (state 'away') at the end. */
-  leave(): number {
+  /** Wave goodbye and hop down off the stool, `pace` times faster than the clip; the guest is
+   *  hidden (state 'away') at the end. Returns the duration in seconds. */
+  leave(pace = 1): number {
     if (this.disposed || this.stateValue === 'away') return 0;
-    if (this.stateValue === 'leaving') return this.leaveClip.remaining;
+    if (this.stateValue === 'leaving') return this.leaveClip.remaining / this.leavePace;
     this.arriveClip.cancel();
     this.stateValue = 'leaving';
+    this.leavePace = pace;
     this.leaveClip.start();
-    return LEAVE_DURATION;
+    return LEAVE_DURATION / pace;
   }
 
   /** Lean in and chomp: cheeks puff, eyes squint happily. Returns the duration in seconds. */
@@ -457,8 +464,8 @@ export class Guest {
     const step = Number.isFinite(dt) && dt > 0 ? dt : 0;
     const o = this.pose;
     o.fill(0);
-    if (this.arriveClip.advance(step, o) && this.stateValue === 'arriving') this.stateValue = 'seated';
-    if (this.leaveClip.advance(step, o) && this.stateValue === 'leaving') this.stateValue = 'away';
+    if (this.arriveClip.advance(step * this.arrivePace, o) && this.stateValue === 'arriving') this.stateValue = 'seated';
+    if (this.leaveClip.advance(step * this.leavePace, o) && this.stateValue === 'leaving') this.stateValue = 'away';
     this.eatClip.advance(step, o);
     this.delightClip.advance(step, o);
     this.idle(step, Number.isFinite(time) ? time : 0, o);

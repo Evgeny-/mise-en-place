@@ -426,10 +426,11 @@ export class GameView {
     this.renderer.render(this.scene, this.camera);
   }
 
-  /** Confetti over the bar: the kitchen is done. */
+  /** The kitchen is done: party poppers fire the kitchen's own confetti over the counter. */
   celebrate(): number {
     const l = this.layout;
-    this.fx.confetti(0, 3, l.slotZ - 0.5, 160, 4);
+    this.fx.party(this.theme.id, l.halfW, l.rowZ0 + 1.2, l.seatZ);
+    audio.play('pop');
     this.punch();
     return Math.max(1.2, this.guests.cheer());
   }

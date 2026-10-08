@@ -34,6 +34,10 @@ interface Seat {
   busyUntil: number;
 }
 
+/** Guests change quickly: the goodbye wave and the hop onto the stool play faster than their clips. */
+const LEAVE_PACE = 1.8;
+const ARRIVE_PACE = 1.3;
+
 /** Dishes are modelled 1.6 wide; on the placemat they sit a bit smaller. */
 const DISH_SCALE = 0.66;
 
@@ -296,7 +300,8 @@ export class GuestsView {
         this.fx.hearts(h.x, h.y - 0.2, h.z + 0.3, 5);
       },
     });
-    s.busyUntil = this.time + t0 + dur + 0.55;
+    // the next guest's turn comes right after the last bite: the happy bounce plays on as they go
+    s.busyUntil = this.time + t0 + dur + 0.2;
   }
 
   private swap(i: number, s: Seat, next: GuestKind | null): void {
@@ -305,7 +310,7 @@ export class GuestsView {
     let t = 0;
     const old = s.guest;
     if (old) {
-      t = old.leave();
+      t = old.leave(LEAVE_PACE);
       this.leaving.push(old);
       this.tweens.after(t, () => {
         this.leaving = this.leaving.filter((g) => g !== old);
@@ -314,16 +319,16 @@ export class GuestsView {
       });
     }
     s.guest = null;
-    // the next guest pops up only once the last one has hopped away and is nearly out of sight
-    const enter = Math.max(0, t - 0.12);
+    // the next guest pops up as the last one, shrinking, hops out of sight
+    const enter = Math.max(0, t - 0.2);
     if (next) {
       this.tweens.after(enter, () => {
         const g = this.makeGuest(next, i);
         s.guest = g;
-        g.arrive();
+        g.arrive(ARRIVE_PACE);
       });
     }
-    s.busyUntil = this.time + (next ? enter + ARRIVE_DURATION * 0.8 : t);
+    s.busyUntil = this.time + (next ? enter + (ARRIVE_DURATION / ARRIVE_PACE) * 0.7 : t);
   }
 
   /** The kitchen is done: every seated guest cheers, one after another. */

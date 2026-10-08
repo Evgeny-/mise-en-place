@@ -77,11 +77,13 @@ the materials at night.
   parts turn basil with a check. Three-part orders stack two over one when the seats are close
   (`Tickets.place`), four-part orders always do. The queue is a steel pass rail.
 - **Map: the food street** (`MapScreen`): one street climbing uphill; each 5-level shift is a stop
-  at a kitchen's storefront (painted, growing from a cart to a busy restaurant by visit:
-  `storefrontStage`), its levels are hand-painted plates on the paving in front of it, the current
-  plate sits under a warm lamp. Stretches keep their kitchen's floor, paving (cobbles, asphalt with a
-  centre line, terracotta pavers), bunting between lamp posts and a painted prop, cross-faded into the
-  next. Shifts not reached stand in the haze.
+  at a kitchen's storefront (growing from a cart to a busy restaurant by visit: `storefrontStage`), its
+  levels are hand-painted plates on the paving in front of it, the current plate sits under a warm
+  lamp. Stretches keep their kitchen's paving (cobbles, asphalt with a centre line, terracotta pavers),
+  a pavement in its tiles and bunting between lamp posts. The ground is one surface whose colour
+  shifts from kitchen to kitchen at the crossings; nothing on it is a box. Storefronts and the things
+  beside the road are placed by the road's own curve, clear of the kerb, the plates and each other.
+  Shifts not reached stand in the haze.
 - **Cookbook**: each kitchen's chapter opens on a strip of its floor with its garland and a nameplate;
   dishes are recipe cards held by tape.
 - **Toasts** are an ink pill; the hard-level **banner** is a rubber stamp.
@@ -109,12 +111,24 @@ bowls (three dots at 16 px): a red ball under a white hat stays unmistakable at 
 character at home-screen size. `bun scripts/build-app-icons.ts` writes the favicon, the apple-touch icon
 and the PWA icons, including the maskable one.
 
-## Storefront art
+## Street art
 
-Painted with the same Z-Image Turbo pipeline as the kitchens (`docs/art.md`):
-`scripts/art/street_prompts.py` (4 growth stages per kitchen and street props, isolated on cream),
-`scripts/art/street_flat.py` (storefronts kept whole, backdrop evened to the street's cream side) and
-`scripts/art/street_finalize.py` (props cut out). Generation holds the shared lock `.cache/mflux.lock`.
+Drawn by hand in SVG (`src/ui/streetArt.ts`), no image generation: the same 2-unit round ink line as
+the glyphs over flat fills from the kitchen palettes, a translucent ink wash for shade and a soft
+ground shadow. Every piece is a `<symbol>` in one sprite; the map places `<use>` references.
+
+- **Storefronts**, 4 stages each: Trattoria (pasta cart under a tricolore umbrella, tiled kiosk with a
+  pizza sign, stucco shop with green shutters and geraniums, two floors with a balcony, string lights
+  and a terrace), Burger Joint (burger cart, kiosk with a giant burger on the roof, streamline diner
+  with a round sign, big diner with neon, marquee bulbs, a pylon sign and a terrace), Taquería (taco
+  tricycle under a serape umbrella, market stall with papel picado, adobe shop with talavera, two
+  floors with bougainvillea and terrace umbrellas).
+- **Decorations**: Trattoria olive tree, Vespa, lemon pot, fountain, string lights over a bistro table,
+  bicycle; Burger Joint neon sign, jukebox, classic car, palm, milkshake sign; Taquería cactus, papel
+  picado, piñata, guitar, agave, chili wreath; anywhere lamp posts, benches, cats, birds, flower boxes,
+  and grass, daisies and pebbles in the gaps.
+- **Night** reaches into the symbols through CSS custom properties: `--sa-win` (window glass, warm
+  at night and in the current shift), `--sa-in`, `--sa-bulb` and `--sa-glow` (lamp and bulb halos).
 
 ## Checks
 

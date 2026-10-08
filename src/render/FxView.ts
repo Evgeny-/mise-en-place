@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { sparkleTexture, radialTexture } from './textures';
+import { confettiShapes } from './confetti';
 
 interface Particle {
   x: number; y: number; z: number;
@@ -10,8 +11,15 @@ interface Particle {
   spin: number;
   rot: number;
   gravity: number;
-  kind: number; // 0 sparkle sprite, 1 confetti quad, 2 soft puff, 3 heart
+  kind: number; // 0 sparkle sprite, 1 confetti quad, 2 soft puff, 3 heart, 4+ a kitchen's confetti shape
+  /** confetti shapes: tumbling (the quad's width follows cos(flip)) and swaying as they fall */
+  flip?: number;
+  flipSpeed?: number;
+  phase?: number;
 }
+
+/** Index of the first kitchen confetti shape among the particle kinds. */
+const SHAPES = 4;
 
 function heartTexture(size = 64): THREE.Texture {
   const c = document.createElement('canvas');
@@ -59,8 +67,11 @@ export class FxView {
   private readonly z = new THREE.Vector3(0, 0, 1);
   private readonly tmpQ = new THREE.Quaternion();
 
+  private readonly quad = new THREE.PlaneGeometry(1, 1);
+  private shapesFor = '';
+
   constructor() {
-    const quad = new THREE.PlaneGeometry(1, 1);
+    const quad = this.quad;
     const mk = (tex: THREE.Texture | null, blending: THREE.Blending) => {
       const mat = new THREE.MeshBasicMaterial({
         map: tex,
@@ -83,6 +94,57 @@ export class FxView {
       mk(radialTexture('rgba(255,255,255,0.9)', 'rgba(255,255,255,0)'), THREE.NormalBlending),
       mk(heartTexture(), THREE.NormalBlending),
     ];
+    this.makeMesh = mk;
+  }
+
+  private makeMesh: (tex: THREE.Texture | null, blending: THREE.Blending) => THREE.InstancedMesh;
+
+  /** Meshes for a kitchen's confetti shapes (made once per kitchen, replacing the last one's). */
+  private useShapes(kitchen: string): number {
+    if (this.shapesFor !== kitchen) {
+      for (const mesh of this.meshes.splice(SHAPES)) {
+        this.group.remove(mesh);
+        (mesh.material as THREE.Material).dispose();
+        mesh.dispose();
+      }
+      this.parts = this.parts.filter((p) => p.kind < SHAPES);
+      for (const t of confettiShapes(kitchen)) this.meshes.push(this.makeMesh(t, THREE.NormalBlending));
+      this.shapesFor = kitchen;
+    }
+    return this.meshes.length - SHAPES;
+  }
+
+  /**
+   * The party when a kitchen is done: two poppers at the sides of the counter fire the kitchen's
+   * confetti up towards the guests, and more drifts down over the whole scene, tumbling like paper.
+   */
+  party(kitchen: string, halfW: number, zNear: number, zFar: number): void {
+    const n = this.useShapes(kitchen);
+    const shape = () => SHAPES + Math.floor(Math.random() * n);
+    for (const side of [-1, 1]) {
+      const x = side * (halfW - 0.4);
+      this.sparkle(x, 0.6, zNear, '#fff3c4', 16, 1.4);
+      this.puff(x, 0.5, zNear, '#ffffff', 6, 0.45);
+      for (let i = 0; i < 60; i++) {
+        // a cone thrown up and inwards: some pieces barely leave the popper, some cross the room
+        const reach = Math.random();
+        this.add(this.paper(shape(), x, 0.5, zNear, -side * (0.3 + reach * 5.5), 4 + Math.random() * 8, -(0.5 + Math.random() * 4.5), Math.random() * 0.2));
+      }
+    }
+    for (let i = 0; i < 80; i++) {
+      const x = (Math.random() * 2 - 1) * (halfW + 0.5);
+      const z = zFar + Math.random() * (zNear - zFar);
+      this.add(this.paper(shape(), x, 4.5 + Math.random(), z, (Math.random() - 0.5) * 0.8, -Math.random(), 0, 0.3 + Math.random() * 1.4));
+    }
+  }
+
+  private paper(kind: number, x: number, y: number, z: number, vx: number, vy: number, vz: number, delay: number): Particle {
+    return {
+      x, y, z, vx, vy, vz,
+      life: -delay, max: 3 + Math.random() * 1.2, size: 0.28 + Math.random() * 0.16,
+      color: new THREE.Color(1, 1, 1), spin: (Math.random() - 0.5) * 5, rot: Math.random() * 6, gravity: 6, kind,
+      flip: Math.random() * 6, flipSpeed: 5 + Math.random() * 7, phase: Math.random() * 6,
+    };
   }
 
   setCamera(cam: THREE.Camera): void {
@@ -141,21 +203,6 @@ export class FxView {
     }
   }
 
-  confetti(x: number, y: number, z: number, n = 160, spread = 5): void {
-    const colors = ['#ff5a7a', '#ffd23f', '#3ec9ff', '#7cf07c', '#b58cff', '#ff9f43'];
-    for (let i = 0; i < n; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const sp = spread * (0.3 + Math.random() * 0.7);
-      this.add({
-        x: x + (Math.random() - 0.5), y, z: z + (Math.random() - 0.5),
-        vx: Math.cos(a) * sp, vy: 5 + Math.random() * 6, vz: Math.sin(a) * sp * 0.7,
-        life: 0, max: 2.2 + Math.random() * 1.2, size: 0.16 + Math.random() * 0.12,
-        color: new THREE.Color(colors[i % colors.length]), spin: (Math.random() - 0.5) * 16, rot: Math.random() * 6,
-        gravity: 7, kind: 1,
-      });
-    }
-  }
-
   shards(x: number, y: number, z: number, n = 14): void {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
@@ -178,13 +225,25 @@ export class FxView {
   }
 
   update(dt: number): void {
-    const counts = [0, 0, 0, 0];
+    const counts = this.meshes.map(() => 0);
     const keep: Particle[] = [];
     for (const p of this.parts) {
       p.life += dt;
       if (p.life >= p.max) continue;
+      if (p.life < 0) {
+        // not thrown yet
+        keep.push(p);
+        continue;
+      }
       p.vy -= p.gravity * dt;
-      if (p.kind === 1) {
+      if (p.kind >= SHAPES) {
+        // paper: air drag, a slow fall, swaying from side to side and tumbling over
+        p.vx *= 1 - dt * 1.6;
+        p.vz *= 1 - dt * 1.6;
+        if (p.vy < -1.3) p.vy = -1.3;
+        p.x += Math.sin(p.life * 3 + p.phase!) * 0.7 * dt;
+        p.flip! += p.flipSpeed! * dt;
+      } else if (p.kind === 1) {
         p.vx *= 1 - dt * 0.8;
         p.vz *= 1 - dt * 0.8;
         if (p.vy < -2.2) p.vy = -2.2;
@@ -210,8 +269,9 @@ export class FxView {
       else size *= k > 0.8 ? (1 - k) / 0.2 : 1;
       this.v.set(p.x, p.y, p.z);
       this.q.copy(this.camQ);
-      if (p.kind === 1) this.q.multiply(this.tmpQ.setFromAxisAngle(this.z, p.rot));
-      this.s.set(size, p.kind === 1 ? size * 0.6 : size, size);
+      if (p.kind === 1 || p.kind >= SHAPES) this.q.multiply(this.tmpQ.setFromAxisAngle(this.z, p.rot));
+      if (p.kind >= SHAPES) this.s.set(size * Math.max(0.12, Math.abs(Math.cos(p.flip!))), size, size);
+      else this.s.set(size, p.kind === 1 ? size * 0.6 : size, size);
       this.m.compose(this.v, this.q, this.s);
       mesh.setMatrixAt(idx, this.m);
       const c = p.color;
