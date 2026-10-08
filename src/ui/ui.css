@@ -154,7 +154,9 @@
 @keyframes pop-in { from { transform: scale(0.75); opacity: 0; } 60% { transform: scale(1.03); } }
 
 .dialog {
-  position: relative; width: min(390px, calc(100vw - 32px)); max-height: 88vh;
+  position: relative; width: min(390px, calc(100vw - 32px));
+  /* never taller than the visible screen (in-app browsers hide part of 100vh): scroll inside */
+  max-height: 88vh; max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
   padding: 0 20px 22px; border: 2.5px solid var(--edge); border-radius: 22px;
   background: var(--grain), var(--paper); color: var(--ink); text-align: center;
   box-shadow: 0 6px 0 var(--shade), var(--drop);
@@ -194,6 +196,8 @@
 .dialog p { margin: 6px 4px 16px; font: 500 17px/1.4 var(--font); color: var(--ink); }
 .dialog p b { font-family: var(--serif); font-weight: 800; }
 .dialog .actions { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+/* on a long card the main buttons stay in reach at the bottom while the rest scrolls */
+.dialog > .actions { position: sticky; bottom: -22px; z-index: 2; margin: 12px -20px -22px; padding: 12px 20px 22px; background: linear-gradient(transparent, var(--paper) 12px); }
 .dialog .actions.row { flex-direction: row; justify-content: center; }
 .dialog .actions .btn { width: 100%; }
 .dialog .actions.row .btn { width: auto; flex: 1; }
@@ -208,6 +212,13 @@
 .stars .star.on:nth-child(3) { transform: scale(1) rotate(8deg); }
 .stars .star.on .t { fill: #f7c548; }
 .stars .star.on .hl { display: inline; }
+/* short screens (phones in an in-app browser): a tighter card */
+@media (max-height: 760px) {
+  .dialog-head { margin-bottom: 20px; padding: 13px 50px 11px; font-size: 23px; }
+  .stars .star { width: 48px; height: 48px; }
+  .stars .star:nth-child(2) { width: 62px; height: 62px; margin-bottom: 6px; }
+  .dialog p { margin: 4px 4px 10px; font-size: 16px; }
+}
 .coins-gain { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 4px; font: 900 26px/1 var(--serif); font-variant-numeric: lining-nums; color: var(--ink); }
 .subtle { font-size: 14px !important; color: var(--ink-2) !important; }
 .dialog p.subtle { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }

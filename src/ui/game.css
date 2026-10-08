@@ -125,6 +125,12 @@
 .new-recipe .nr-art { width: 64px; height: 64px; border: 2px solid var(--edge); border-radius: 10px; object-fit: cover; background: #fffaf0; }
 .new-recipe small { display: block; margin-bottom: 3px; font: 700 10px/1.2 var(--font); letter-spacing: 0.16em; text-transform: uppercase; color: var(--tomato); }
 .new-recipe b { font: 800 20px/1.1 var(--serif); }
+/* two or more new dishes: small cards side by side */
+.new-recipes.compact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 4px 0 12px; }
+.new-recipes.compact .new-recipe { gap: 8px; margin: 0; padding: 6px 8px 6px 6px; }
+.new-recipes.compact .nr-art { width: 42px; height: 42px; border-radius: 8px; }
+.new-recipes.compact small { font-size: 8.5px; letter-spacing: 0.1em; }
+.new-recipes.compact b { font-size: 15px; }
 
 /* ------------------------------------------------------------------ map: the food street */
 /* One street climbing uphill (MapScreen): each shift is a stop at a kitchen's storefront, its five

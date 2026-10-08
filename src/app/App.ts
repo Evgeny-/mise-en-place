@@ -791,11 +791,15 @@ export class App {
     );
     const coinEl = h('div', { class: 'coins-gain', html: `${glyph('coin', 30)} +${reward.total}` });
     const body: (HTMLElement | string)[] = [starsEl, plates, h('p', { class: 'subtle', text: t('guestsFed', { n: level.orders.length }) })];
-    // a dish served for the first time goes into the cookbook
-    for (const d of this.newDishes) {
-      const art = h('img', { class: 'nr-art', attrs: { src: `${import.meta.env.BASE_URL}art/dishes/${dishArt(d)}.webp`, alt: '' } });
-      art.addEventListener('error', () => art.setAttribute('src', icons.dish(d)));
-      body.push(h('div', { class: 'new-recipe' }, art, h('div', {}, h('small', { text: t('newRecipe') }), h('b', { text: loc(DISHES[d].name) }))));
+    // a dish served for the first time goes into the cookbook (two or more: small cards side by side)
+    if (this.newDishes.length) {
+      const cards = h('div', { class: 'new-recipes' + (this.newDishes.length > 1 ? ' compact' : '') });
+      for (const d of this.newDishes) {
+        const art = h('img', { class: 'nr-art', attrs: { src: `${import.meta.env.BASE_URL}art/dishes/${dishArt(d)}.webp`, alt: '' } });
+        art.addEventListener('error', () => art.setAttribute('src', icons.dish(d)));
+        cards.append(h('div', { class: 'new-recipe' }, art, h('div', {}, h('small', { text: t('newRecipe') }), h('b', { text: loc(DISHES[d].name) }))));
+      }
+      body.push(cards);
     }
     body.push(lines, coinEl);
     openDialog({
